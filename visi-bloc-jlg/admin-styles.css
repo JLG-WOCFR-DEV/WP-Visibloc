@@ -1,0 +1,43 @@
+/* Style pour l'aperçu des blocs cachés manuellement (œil) */
+.bloc-cache-apercu {
+    border: 2px dashed rgba(220, 20, 60, 0.7); /* Rouge */
+    position: relative;
+    padding-top: 10px;
+    margin-top: 10px;
+    box-sizing: border-box;
+}
+.bloc-cache-apercu::before {
+    content: "Bloc caché";
+    position: absolute;
+    top: -12px;
+    left: 10px;
+    background-color: rgba(220, 20, 60, 0.7);
+    color: white;
+    padding: 2px 8px;
+    font-size: 12px;
+    border-radius: 4px;
+    font-family: sans-serif;
+    font-weight: bold;
+    z-index: 100;
+}
+
+/* Style pour l'aperçu de la programmation */
+.bloc-schedule-apercu {
+    position: relative;
+    outline: 2px dashed #4CAF50; /* Vert */
+    outline-offset: 2px;
+}
+.bloc-schedule-apercu::before {
+    content: attr(data-schedule-info);
+    position: absolute;
+    top: -12px;
+    right: 10px;
+    background-color: #4CAF50;
+    color: white;
+    padding: 2px 8px;
+    font-size: 11px;
+    border-radius: 4px;
+    font-family: sans-serif;
+    font-weight: bold;
+    z-index: 100;
+}
