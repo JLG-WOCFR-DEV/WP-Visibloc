@@ -155,7 +155,7 @@ function visibloc_jlg_get_device_specific_posts() {
 
 function visibloc_jlg_get_scheduled_posts() {
     $posts = visibloc_jlg_get_posts_with_condition( function( $block ) {
-        return ( isset($block['blockName']) && $block['blockName'] === 'core/group' && ! empty( $block['attrs']['isSchedulingEnabled'] ) && ( ! empty( $block['attrs']['publishStartDate'] ) || ! empty( $attrs['publishEndDate'] ) ) );
+        return ( isset($block['blockName']) && $block['blockName'] === 'core/group' && ! empty( $block['attrs']['isSchedulingEnabled'] ) && ( ! empty( $block['attrs']['publishStartDate'] ) || ! empty( $block['attrs']['publishEndDate'] ) ) );
     });
     $formatted_posts = [];
     foreach($posts as $post) {
