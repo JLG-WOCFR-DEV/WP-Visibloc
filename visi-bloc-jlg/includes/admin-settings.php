@@ -196,9 +196,21 @@ function visibloc_jlg_get_scheduled_posts() {
     $cache_key = 'visibloc_scheduled_posts';
     $cached    = get_transient( $cache_key );
     if ( false === $cached ) {
-        $cached = visibloc_jlg_get_posts_with_condition( function( $block ) {
-            return ( isset( $block['blockName'] ) && $block['blockName'] === 'core/group' && ! empty( $block['attrs']['isSchedulingEnabled'] ) && ( ! empty( $block['attrs']['publishStartDate'] ) || ! empty( $block['attrs']['publishEndDate'] ) ) );
-        } );
+        $cached = visibloc_jlg_get_posts_with_condition(
+            function( $block ) {
+                $has_scheduling_window = (
+                    ! empty( $block['attrs']['publishStartDate'] )
+                    || ! empty( $block['attrs']['publishEndDate'] )
+                );
+
+                return (
+                    isset( $block['blockName'] )
+                    && $block['blockName'] === 'core/group'
+                    && ! empty( $block['attrs']['isSchedulingEnabled'] )
+                    && $has_scheduling_window
+                );
+            }
+        );
         set_transient( $cache_key, $cached, HOUR_IN_SECONDS );
     }
 
