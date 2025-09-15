@@ -4,7 +4,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 add_action( 'wp_enqueue_scripts', 'visibloc_jlg_enqueue_public_styles' );
 function visibloc_jlg_enqueue_public_styles() {
     if ( visibloc_jlg_can_user_preview() ) {
-        wp_enqueue_style( 'visibloc-jlg-public-styles', plugin_dir_url( __DIR__ ) . 'admin-styles.css' );
+        wp_enqueue_style( 'visibloc-jlg-public-styles', plugin_dir_url( dirname( __DIR__ ) ) . 'admin-styles.css' );
     }
 }
 
@@ -13,8 +13,8 @@ function visibloc_jlg_enqueue_editor_assets() {
     $asset_file_path = plugin_dir_path( __DIR__ ) . 'build/index.asset.php';
     if ( ! file_exists( $asset_file_path ) ) { return; }
     $asset_file = include( $asset_file_path );
-    wp_enqueue_script( 'visibloc-jlg-editor-script', plugin_dir_url( __DIR__ ) . 'build/index.js', $asset_file['dependencies'], $asset_file['version'], true );
-    wp_enqueue_style( 'visibloc-jlg-editor-style', plugin_dir_url( __DIR__ ) . 'build/index.css', [], $asset_file['version'] );
+    wp_enqueue_script( 'visibloc-jlg-editor-script', plugin_dir_url( dirname( __DIR__ ) ) . 'build/index.js', $asset_file['dependencies'], $asset_file['version'], true );
+    wp_enqueue_style( 'visibloc-jlg-editor-style', plugin_dir_url( dirname( __DIR__ ) ) . 'build/index.css', [], $asset_file['version'] );
     wp_localize_script('visibloc-jlg-editor-script', 'VisiBlocData', ['roles' => wp_roles()->get_names()]);
 }
 
