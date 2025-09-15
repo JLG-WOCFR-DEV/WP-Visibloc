@@ -10,12 +10,26 @@ function visibloc_jlg_handle_role_switching() {
     $cookie_name = 'visibloc_preview_role';
     if ( isset( $_GET['preview_role'] ) ) {
         $role_to_preview = sanitize_key( $_GET['preview_role'] );
-        setcookie( $cookie_name, $role_to_preview, time() + 3600, COOKIEPATH, COOKIE_DOMAIN );
+        setcookie( $cookie_name, $role_to_preview, [
+            'expires'  => time() + 3600,
+            'path'     => COOKIEPATH,
+            'domain'   => COOKIE_DOMAIN,
+            'secure'   => is_ssl(),
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ] );
         wp_redirect( remove_query_arg( 'preview_role' ) );
         exit;
     }
     if ( isset( $_GET['stop_preview_role'] ) ) {
-        setcookie( $cookie_name, '', time() - 3600, COOKIEPATH, COOKIE_DOMAIN );
+        setcookie( $cookie_name, '', [
+            'expires'  => time() - 3600,
+            'path'     => COOKIEPATH,
+            'domain'   => COOKIE_DOMAIN,
+            'secure'   => is_ssl(),
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ] );
         wp_redirect( remove_query_arg( 'stop_preview_role' ) );
         exit;
     }
