@@ -15,8 +15,8 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         $is_after_end = $end_time && $current_time > $end_time;
         if ( $is_before_start || $is_after_end ) {
             if ( $can_preview ) {
-                $start_date_fr = $start_time ? wp_date( 'd/m/y H:i', $start_time ) : 'N/A';
-                $end_date_fr = $end_time ? wp_date( 'd/m/y H:i', $end_time ) : 'N/A';
+                $start_date_fr = $start_time ? wp_date( 'd/m/Y H:i', $start_time ) : 'N/A';
+                $end_date_fr = $end_time ? wp_date( 'd/m/Y H:i', $end_time ) : 'N/A';
                 $info = "Programmé (Début:{$start_date_fr} | Fin:{$end_date_fr})";
                 return '<div class="bloc-schedule-apercu" data-schedule-info="' . esc_attr($info) . '">' . $block_content . '</div>';
             }
