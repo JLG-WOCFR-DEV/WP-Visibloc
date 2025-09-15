@@ -31,3 +31,9 @@ No additional build step is required for normal installation. To modify the sour
 npm install
 npm run build
 ```
+
+## Performance considerations
+
+The "Visi-Bloc - JLG" administration screen paginates the internal queries in batches of 100 post IDs and caches the compiled
+results for an hour. This keeps memory usage low, but on very large sites the first load after the cache expires may still take a
+little longer while the plugin analyses the content library.
