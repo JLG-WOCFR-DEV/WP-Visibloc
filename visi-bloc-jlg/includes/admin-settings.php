@@ -64,10 +64,12 @@ function visibloc_jlg_render_help_page_content() {
     $scheduled_posts = visibloc_jlg_get_scheduled_posts();
     $hidden_posts = visibloc_jlg_get_hidden_posts();
     $device_posts = visibloc_jlg_get_device_specific_posts();
+    $status = isset( $_GET['status'] ) ? sanitize_key( $_GET['status'] ) : '';
+
     ?>
     <div class="wrap">
         <h1><?php esc_html_e( 'Visi-Bloc - JLG - Aide et Réglages', 'visi-bloc-jlg' ); ?></h1>
-        <?php if ( isset( $_GET['status'] ) && $_GET['status'] === 'updated' ) : ?>
+        <?php if ( 'updated' === $status ) : ?>
             <div id="message" class="updated notice is-dismissible"><p>Réglages mis à jour.</p></div>
         <?php endif; ?>
         <div id="poststuff">
