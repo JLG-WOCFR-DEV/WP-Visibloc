@@ -122,34 +122,40 @@ function visibloc_jlg_get_posts_with_condition( $attribute_callback ) {
 
     while ( true ) {
         $query = new WP_Query( [
-            'post_type'      => $post_types,
-            'post_status'    => [ 'publish', 'future', 'draft', 'pending', 'private' ],
-            'posts_per_page' => 100,
-            'paged'          => $page,
+            'post_type'              => $post_types,
+            'post_status'            => [ 'publish', 'future', 'draft', 'pending', 'private' ],
+            'posts_per_page'         => 100,
+            'paged'                  => $page,
+            'fields'                 => 'ids',
+            'no_found_rows'          => true,
+            'update_post_meta_cache' => false,
+            'update_post_term_cache' => false,
         ] );
 
-        if ( ! $query->have_posts() ) {
-            wp_reset_postdata();
+        if ( empty( $query->posts ) ) {
             break;
         }
 
-        while ( $query->have_posts() ) {
-            $query->the_post();
-            if ( has_blocks( get_the_content() ) ) {
-                $blocks       = parse_blocks( get_the_content() );
-                $found_blocks = visibloc_jlg_find_blocks_recursive( $blocks, $attribute_callback );
-                if ( ! empty( $found_blocks ) ) {
-                    $found_posts[] = [
-                        'id'    => get_the_ID(),
-                        'title' => get_the_title(),
-                        'link'  => get_edit_post_link(),
-                        'attrs' => $found_blocks[0]['attrs'] ?? [],
-                    ];
-                }
+        foreach ( $query->posts as $post_id ) {
+            $post_content = get_post_field( 'post_content', $post_id );
+
+            if ( false === strpos( $post_content, '<!-- wp:' ) ) {
+                continue;
+            }
+
+            $blocks       = parse_blocks( $post_content );
+            $found_blocks = visibloc_jlg_find_blocks_recursive( $blocks, $attribute_callback );
+
+            if ( ! empty( $found_blocks ) ) {
+                $found_posts[] = [
+                    'id'    => $post_id,
+                    'title' => get_the_title( $post_id ),
+                    'link'  => get_edit_post_link( $post_id ),
+                    'attrs' => $found_blocks[0]['attrs'] ?? [],
+                ];
             }
         }
 
-        wp_reset_postdata();
         $page++;
     }
 
