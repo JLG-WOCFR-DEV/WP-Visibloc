@@ -3,9 +3,26 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 add_action( 'admin_init', 'visibloc_jlg_handle_options_save' );
 function visibloc_jlg_handle_options_save() {
-    if ( ! isset( $_POST['visibloc_nonce'] ) || ! current_user_can( 'manage_options' ) ) return;
+    if ( ! current_user_can( 'manage_options' ) ) return;
+    if ( ! isset( $_POST['visibloc_nonce'] ) ) return;
 
     $nonce = sanitize_text_field( wp_unslash( $_POST['visibloc_nonce'] ) );
+    if ( '' === $nonce ) return;
+
+    $mobile_breakpoint = null;
+    if ( isset( $_POST['visibloc_breakpoint_mobile'] ) ) {
+        $mobile_breakpoint = absint( wp_unslash( $_POST['visibloc_breakpoint_mobile'] ) );
+    }
+
+    $tablet_breakpoint = null;
+    if ( isset( $_POST['visibloc_breakpoint_tablet'] ) ) {
+        $tablet_breakpoint = absint( wp_unslash( $_POST['visibloc_breakpoint_tablet'] ) );
+    }
+
+    $submitted_roles = [];
+    if ( isset( $_POST['visibloc_preview_roles'] ) ) {
+        $submitted_roles = array_map( 'sanitize_key', (array) wp_unslash( $_POST['visibloc_preview_roles'] ) );
+    }
 
     if ( wp_verify_nonce( $nonce, 'visibloc_toggle_debug' ) ) {
         $current_status = get_option( 'visibloc_debug_mode', 'off' );
@@ -15,15 +32,14 @@ function visibloc_jlg_handle_options_save() {
     }
 
     if ( wp_verify_nonce( $nonce, 'visibloc_save_breakpoints' ) ) {
-        if ( isset( $_POST['visibloc_breakpoint_mobile'] ) ) update_option( 'visibloc_breakpoint_mobile', absint( wp_unslash( $_POST['visibloc_breakpoint_mobile'] ) ) );
-        if ( isset( $_POST['visibloc_breakpoint_tablet'] ) ) update_option( 'visibloc_breakpoint_tablet', absint( wp_unslash( $_POST['visibloc_breakpoint_tablet'] ) ) );
+        if ( null !== $mobile_breakpoint ) update_option( 'visibloc_breakpoint_mobile', $mobile_breakpoint );
+        if ( null !== $tablet_breakpoint ) update_option( 'visibloc_breakpoint_tablet', $tablet_breakpoint );
         wp_redirect( admin_url( 'admin.php?page=visi-bloc-jlg-help&status=updated' ) );
         exit;
     }
 
     if ( wp_verify_nonce( $nonce, 'visibloc_save_permissions' ) ) {
-        $submitted_roles = isset( $_POST['visibloc_preview_roles'] ) ? wp_unslash( $_POST['visibloc_preview_roles'] ) : [];
-        $sanitized_roles = array_map( 'sanitize_key', (array) $submitted_roles );
+        $sanitized_roles = $submitted_roles;
         // On s'assure que l'administrateur est toujours inclus
         if ( ! in_array( 'administrator', $sanitized_roles ) ) {
             $sanitized_roles[] = 'administrator';
