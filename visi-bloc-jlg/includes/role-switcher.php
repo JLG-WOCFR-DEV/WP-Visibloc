@@ -7,9 +7,18 @@ function visibloc_jlg_handle_role_switching() {
     if( ! $user_id ) return;
     $real_user = get_userdata( $user_id );
     if ( ! $real_user || ! in_array( 'administrator', (array) $real_user->roles ) ) { return; }
+    if ( ! function_exists( 'get_editable_roles' ) ) { require_once ABSPATH . 'wp-admin/includes/user.php'; }
+    $previewable_roles = array_keys( get_editable_roles() );
+    if ( ! in_array( 'guest', $previewable_roles, true ) ) {
+        $previewable_roles[] = 'guest';
+    }
     $cookie_name = 'visibloc_preview_role';
     if ( isset( $_GET['preview_role'] ) ) {
         $role_to_preview = sanitize_key( wp_unslash( $_GET['preview_role'] ) );
+        if ( ! in_array( $role_to_preview, $previewable_roles, true ) ) {
+            error_log( sprintf( 'Visibloc role switcher: invalid preview role requested (%s).', $role_to_preview ) );
+            return;
+        }
         $nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ) : '';
         if ( ! $role_to_preview || ! $nonce || ! wp_verify_nonce( $nonce, 'visibloc_switch_role_' . $role_to_preview ) ) {
             return;
