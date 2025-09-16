@@ -31,7 +31,7 @@ function visibloc_jlg_handle_role_switching() {
             'httponly' => true,
             'samesite' => 'Lax',
         ] );
-        wp_redirect( remove_query_arg( [ 'preview_role', '_wpnonce' ] ) );
+        wp_safe_redirect( remove_query_arg( [ 'preview_role', '_wpnonce' ] ) );
         exit;
     }
     if ( isset( $_GET['stop_preview_role'] ) ) {
@@ -47,7 +47,7 @@ function visibloc_jlg_handle_role_switching() {
             'httponly' => true,
             'samesite' => 'Lax',
         ] );
-        wp_redirect( remove_query_arg( [ 'stop_preview_role', '_wpnonce' ] ) );
+        wp_safe_redirect( remove_query_arg( [ 'stop_preview_role', '_wpnonce' ] ) );
         exit;
     }
 }
@@ -60,7 +60,7 @@ function visibloc_jlg_add_role_switcher_menu( $wp_admin_bar ) {
     if ( ! $real_user || ! in_array( 'administrator', (array) $real_user->roles ) ) { return; }
     if ( ! function_exists( 'get_editable_roles' ) ) { require_once ABSPATH . 'wp-admin/includes/user.php'; }
     $cookie_name = 'visibloc_preview_role';
-    $current_preview_role = isset( $_COOKIE[$cookie_name] ) ? sanitize_key( $_COOKIE[$cookie_name] ) : null;
+    $current_preview_role = isset( $_COOKIE[$cookie_name] ) ? sanitize_key( wp_unslash( $_COOKIE[$cookie_name] ) ) : null;
     $base_url = remove_query_arg( [ 'preview_role', 'stop_preview_role', '_wpnonce' ] );
     if ( $current_preview_role ) {
         $role_names = wp_roles()->get_names();
@@ -114,7 +114,7 @@ function visibloc_jlg_filter_user_capabilities( $allcaps, $caps, $args, $user ) 
     }
     $cookie_name = 'visibloc_preview_role';
     if ( isset( $_COOKIE[$cookie_name] ) && is_object($user) && $user->ID === get_current_user_id() ) {
-        $preview_role = sanitize_key( $_COOKIE[$cookie_name] );
+        $preview_role = sanitize_key( wp_unslash( $_COOKIE[$cookie_name] ) );
         if ( $preview_role === 'guest' ) { return []; }
         $role_object = get_role( $preview_role );
         if ( $role_object ) { return $role_object->capabilities; }
