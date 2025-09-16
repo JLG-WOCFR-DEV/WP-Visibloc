@@ -27,6 +27,7 @@ function visibloc_jlg_handle_options_save() {
     if ( wp_verify_nonce( $nonce, 'visibloc_toggle_debug' ) ) {
         $current_status = get_option( 'visibloc_debug_mode', 'off' );
         update_option( 'visibloc_debug_mode', ( $current_status === 'on' ) ? 'off' : 'on' );
+        visibloc_jlg_clear_caches();
         wp_safe_redirect( admin_url( 'admin.php?page=visi-bloc-jlg-help&status=updated' ) );
         exit;
     }
@@ -34,6 +35,7 @@ function visibloc_jlg_handle_options_save() {
     if ( wp_verify_nonce( $nonce, 'visibloc_save_breakpoints' ) ) {
         if ( null !== $mobile_breakpoint ) update_option( 'visibloc_breakpoint_mobile', $mobile_breakpoint );
         if ( null !== $tablet_breakpoint ) update_option( 'visibloc_breakpoint_tablet', $tablet_breakpoint );
+        visibloc_jlg_clear_caches();
         wp_safe_redirect( admin_url( 'admin.php?page=visi-bloc-jlg-help&status=updated' ) );
         exit;
     }
@@ -45,6 +47,7 @@ function visibloc_jlg_handle_options_save() {
             $sanitized_roles[] = 'administrator';
         }
         update_option( 'visibloc_preview_roles', $sanitized_roles );
+        visibloc_jlg_clear_caches();
         wp_safe_redirect( admin_url( 'admin.php?page=visi-bloc-jlg-help&status=updated' ) );
         exit;
     }
@@ -356,3 +359,13 @@ function visibloc_jlg_get_scheduled_posts() {
 
     return $formatted_posts;
 }
+
+function visibloc_jlg_clear_caches( $unused_post_id = null ) {
+    delete_transient( 'visibloc_hidden_posts' );
+    delete_transient( 'visibloc_device_posts' );
+    delete_transient( 'visibloc_scheduled_posts' );
+}
+
+add_action( 'save_post', 'visibloc_jlg_clear_caches' );
+add_action( 'deleted_post', 'visibloc_jlg_clear_caches' );
+add_action( 'trashed_post', 'visibloc_jlg_clear_caches' );
