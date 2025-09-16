@@ -33,6 +33,14 @@ function visibloc_jlg_can_user_preview() {
         $allowed_roles = ['administrator'];
     }
 
+    // Vérifie si un rôle simulé est appliqué via le switcher.
+    $preview_role_cookie = isset( $_COOKIE['visibloc_preview_role'] ) ? sanitize_key( wp_unslash( $_COOKIE['visibloc_preview_role'] ) ) : '';
+    if ( $preview_role_cookie ) {
+        if ( 'guest' === $preview_role_cookie || ! in_array( $preview_role_cookie, $allowed_roles, true ) ) {
+            return false;
+        }
+    }
+
     $user = wp_get_current_user();
     $user_roles = (array) $user->roles;
 
