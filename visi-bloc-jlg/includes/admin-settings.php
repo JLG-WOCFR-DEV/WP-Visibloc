@@ -64,15 +64,14 @@ function visibloc_jlg_add_admin_menu() {
 }
 
 function visibloc_jlg_render_help_page_content() {
-    $debug_status = get_option( 'visibloc_debug_mode', 'off' );
-    $mobile_bp = get_option( 'visibloc_breakpoint_mobile', 781 );
-    $tablet_bp = get_option( 'visibloc_breakpoint_tablet', 1024 );
-    $allowed_roles = get_option( 'visibloc_preview_roles', ['administrator'] );
-    
+    $debug_status   = get_option( 'visibloc_debug_mode', 'off' );
+    $mobile_bp      = get_option( 'visibloc_breakpoint_mobile', 781 );
+    $tablet_bp      = get_option( 'visibloc_breakpoint_tablet', 1024 );
+    $allowed_roles  = get_option( 'visibloc_preview_roles', [ 'administrator' ] );
     $scheduled_posts = visibloc_jlg_get_scheduled_posts();
-    $hidden_posts = visibloc_jlg_get_hidden_posts();
-    $device_posts = visibloc_jlg_get_device_specific_posts();
-    $status = isset( $_GET['status'] ) ? sanitize_key( $_GET['status'] ) : '';
+    $hidden_posts    = visibloc_jlg_get_hidden_posts();
+    $device_posts    = visibloc_jlg_get_device_specific_posts();
+    $status          = isset( $_GET['status'] ) ? sanitize_key( $_GET['status'] ) : '';
 
     ?>
     <div class="wrap">
@@ -81,118 +80,156 @@ function visibloc_jlg_render_help_page_content() {
             <div id="message" class="updated notice is-dismissible"><p><?php esc_html_e( 'Réglages mis à jour.', 'visi-bloc-jlg' ); ?></p></div>
         <?php endif; ?>
         <div id="poststuff">
-            <div class="postbox">
-                <h2 class="hndle"><span><?php esc_html_e( "Permissions d'Aperçu", 'visi-bloc-jlg' ); ?></span></h2>
-                <div class="inside">
-                    <form method="POST" action="">
-                        <p><?php esc_html_e( 'Cochez les rôles qui peuvent voir les blocs cachés/programmés sur le site public.', 'visi-bloc-jlg' ); ?></p>
-                        <?php
-                        $editable_roles = get_editable_roles();
-                        foreach ( $editable_roles as $slug => $details ) :
-                            $is_disabled = ( $slug === 'administrator' );
-                            $is_checked = ( in_array( $slug, $allowed_roles, true ) || $is_disabled );
-                        ?>
-                            <label style="display: block; margin-bottom: 5px;">
-                                <input type="checkbox" name="visibloc_preview_roles[]" value="<?php echo esc_attr( $slug ); ?>" <?php checked( $is_checked ); ?> <?php disabled( $is_disabled ); ?> />
-                                <?php echo esc_html( $details['name'] ); ?>
-                                <?php if ( $is_disabled ) { printf( ' %s', esc_html__( '(toujours activé)', 'visi-bloc-jlg' ) ); } ?>
-                            </label>
+            <?php
+            visibloc_jlg_render_permissions_section( $allowed_roles );
+            visibloc_jlg_render_hidden_blocks_section( $hidden_posts );
+            visibloc_jlg_render_device_visibility_section( $device_posts );
+            visibloc_jlg_render_scheduled_blocks_section( $scheduled_posts );
+            visibloc_jlg_render_debug_mode_section( $debug_status );
+            visibloc_jlg_render_breakpoints_section( $mobile_bp, $tablet_bp );
+            ?>
+        </div>
+    </div>
+    <?php
+}
+
+function visibloc_jlg_render_permissions_section( $allowed_roles ) {
+    ?>
+    <div class="postbox">
+        <h2 class="hndle"><span><?php esc_html_e( "Permissions d'Aperçu", 'visi-bloc-jlg' ); ?></span></h2>
+        <div class="inside">
+            <form method="POST" action="">
+                <p><?php esc_html_e( 'Cochez les rôles qui peuvent voir les blocs cachés/programmés sur le site public.', 'visi-bloc-jlg' ); ?></p>
+                <?php
+                $editable_roles = get_editable_roles();
+                foreach ( $editable_roles as $slug => $details ) :
+                    $is_disabled = ( 'administrator' === $slug );
+                    $is_checked  = ( in_array( $slug, $allowed_roles, true ) || $is_disabled );
+                    ?>
+                    <label style="display: block; margin-bottom: 5px;">
+                        <input type="checkbox" name="visibloc_preview_roles[]" value="<?php echo esc_attr( $slug ); ?>" <?php checked( $is_checked ); ?> <?php disabled( $is_disabled ); ?> />
+                        <?php echo esc_html( $details['name'] ); ?>
+                        <?php if ( $is_disabled ) { printf( ' %s', esc_html__( '(toujours activé)', 'visi-bloc-jlg' ) ); } ?>
+                    </label>
+                <?php endforeach; ?>
+                <?php wp_nonce_field( 'visibloc_save_permissions', 'visibloc_nonce' ); ?>
+                <?php submit_button( __( 'Enregistrer les Permissions', 'visi-bloc-jlg' ) ); ?>
+            </form>
+        </div>
+    </div>
+    <?php
+}
+
+function visibloc_jlg_render_hidden_blocks_section( $hidden_posts ) {
+    ?>
+    <div class="postbox">
+        <h2 class="hndle"><span><?php esc_html_e( 'Tableau de bord des blocs masqués (via Œil)', 'visi-bloc-jlg' ); ?></span></h2>
+        <div class="inside">
+            <?php if ( empty( $hidden_posts ) ) : ?>
+                <p><?php esc_html_e( "Aucun bloc masqué manuellement n'a été trouvé.", 'visi-bloc-jlg' ); ?></p>
+            <?php else : ?>
+                <ul style="list-style: disc; padding-left: 20px;">
+                    <?php foreach ( $hidden_posts as $post_data ) : ?>
+                        <li><a href="<?php echo esc_url( $post_data['link'] ); ?>"><?php echo esc_html( $post_data['title'] ); ?></a></li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php
+}
+
+function visibloc_jlg_render_device_visibility_section( $device_posts ) {
+    ?>
+    <div class="postbox">
+        <h2 class="hndle"><span><?php esc_html_e( 'Tableau de bord des blocs avec visibilité par appareil', 'visi-bloc-jlg' ); ?></span></h2>
+        <div class="inside">
+            <?php if ( empty( $device_posts ) ) : ?>
+                <p><?php esc_html_e( "Aucun bloc avec une règle de visibilité par appareil n'a été trouvé.", 'visi-bloc-jlg' ); ?></p>
+            <?php else : ?>
+                <ul style="list-style: disc; padding-left: 20px;">
+                    <?php foreach ( $device_posts as $post_data ) : ?>
+                        <li><a href="<?php echo esc_url( $post_data['link'] ); ?>"><?php echo esc_html( $post_data['title'] ); ?></a></li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php
+}
+
+function visibloc_jlg_render_scheduled_blocks_section( $scheduled_posts ) {
+    ?>
+    <div class="postbox">
+        <h2 class="hndle"><span><?php esc_html_e( 'Tableau de bord des blocs programmés', 'visi-bloc-jlg' ); ?></span></h2>
+        <div class="inside">
+            <?php if ( empty( $scheduled_posts ) ) : ?>
+                <p><?php esc_html_e( "Aucun bloc programmé n'a été trouvé sur votre site.", 'visi-bloc-jlg' ); ?></p>
+            <?php else : ?>
+                <table class="wp-list-table widefat striped">
+                    <thead>
+                        <tr>
+                            <th><?php esc_html_e( "Titre de l'article / Modèle", 'visi-bloc-jlg' ); ?></th>
+                            <th><?php esc_html_e( 'Date de début', 'visi-bloc-jlg' ); ?></th>
+                            <th><?php esc_html_e( 'Date de fin', 'visi-bloc-jlg' ); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ( $scheduled_posts as $post_data ) : ?>
+                            <tr>
+                                <td><a href="<?php echo esc_url( $post_data['link'] ); ?>"><?php echo esc_html( $post_data['title'] ); ?></a></td>
+                                <td><?php echo $post_data['start'] ? esc_html( wp_date( 'd/m/Y H:i', strtotime( $post_data['start'] ) ) ) : '–'; ?></td>
+                                <td><?php echo $post_data['end'] ? esc_html( wp_date( 'd/m/Y H:i', strtotime( $post_data['end'] ) ) ) : '–'; ?></td>
+                            </tr>
                         <?php endforeach; ?>
-                        <?php wp_nonce_field( 'visibloc_save_permissions', 'visibloc_nonce' ); ?>
-                        <?php submit_button( __( 'Enregistrer les Permissions', 'visi-bloc-jlg' ) ); ?>
-                    </form>
-                </div>
-            </div>
-            <div class="postbox">
-                <h2 class="hndle"><span><?php esc_html_e( 'Tableau de bord des blocs masqués (via Œil)', 'visi-bloc-jlg' ); ?></span></h2>
-                <div class="inside">
-                    <?php if ( empty( $hidden_posts ) ) : ?>
-                        <p><?php esc_html_e( "Aucun bloc masqué manuellement n'a été trouvé.", 'visi-bloc-jlg' ); ?></p>
-                    <?php else : ?>
-                        <ul style="list-style: disc; padding-left: 20px;">
-                            <?php foreach ( $hidden_posts as $post_data ) : ?>
-                                <li><a href="<?php echo esc_url( $post_data['link'] ); ?>"><?php echo esc_html( $post_data['title'] ); ?></a></li>
-                            <?php endforeach; ?>
-                        </ul>
-                    <?php endif; ?>
-                </div>
-            </div>
-            <div class="postbox">
-                <h2 class="hndle"><span><?php esc_html_e( 'Tableau de bord des blocs avec visibilité par appareil', 'visi-bloc-jlg' ); ?></span></h2>
-                <div class="inside">
-                    <?php if ( empty( $device_posts ) ) : ?>
-                        <p><?php esc_html_e( "Aucun bloc avec une règle de visibilité par appareil n'a été trouvé.", 'visi-bloc-jlg' ); ?></p>
-                    <?php else : ?>
-                        <ul style="list-style: disc; padding-left: 20px;">
-                            <?php foreach ( $device_posts as $post_data ) : ?>
-                                <li><a href="<?php echo esc_url( $post_data['link'] ); ?>"><?php echo esc_html( $post_data['title'] ); ?></a></li>
-                            <?php endforeach; ?>
-                        </ul>
-                    <?php endif; ?>
-                </div>
-            </div>
-            <div class="postbox">
-                <h2 class="hndle"><span><?php esc_html_e( 'Tableau de bord des blocs programmés', 'visi-bloc-jlg' ); ?></span></h2>
-                <div class="inside">
-                    <?php if ( empty( $scheduled_posts ) ) : ?>
-                        <p><?php esc_html_e( "Aucun bloc programmé n'a été trouvé sur votre site.", 'visi-bloc-jlg' ); ?></p>
-                    <?php else : ?>
-                        <table class="wp-list-table widefat striped">
-                            <thead>
-                                <tr>
-                                    <th><?php esc_html_e( "Titre de l'article / Modèle", 'visi-bloc-jlg' ); ?></th>
-                                    <th><?php esc_html_e( 'Date de début', 'visi-bloc-jlg' ); ?></th>
-                                    <th><?php esc_html_e( 'Date de fin', 'visi-bloc-jlg' ); ?></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ( $scheduled_posts as $post_data ) : ?>
-                                    <tr>
-                                        <td><a href="<?php echo esc_url( $post_data['link'] ); ?>"><?php echo esc_html( $post_data['title'] ); ?></a></td>
-                                        <td><?php echo $post_data['start'] ? esc_html( wp_date( 'd/m/Y H:i', strtotime( $post_data['start'] ) ) ) : '–'; ?></td>
-                                        <td><?php echo $post_data['end'] ? esc_html( wp_date( 'd/m/Y H:i', strtotime( $post_data['end'] ) ) ) : '–'; ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    <?php endif; ?>
-                </div>
-            </div>
-             <div class="postbox">
-                <h2 class="hndle"><span><?php esc_html_e( 'Mode de débogage', 'visi-bloc-jlg' ); ?></span></h2>
-                <div class="inside">
-                    <form method="POST" action="">
-                        <p>
-                            <?php esc_html_e( 'Statut actuel :', 'visi-bloc-jlg' ); ?>
-                            <strong><?php echo $debug_status === 'on' ? esc_html__( 'ACTIVÉ', 'visi-bloc-jlg' ) : esc_html__( 'DÉSACTIVÉ', 'visi-bloc-jlg' ); ?></strong>
-                        </p>
-                        <input type="hidden" name="action" value="visibloc_toggle_debug">
-                        <?php wp_nonce_field( 'visibloc_toggle_debug', 'visibloc_nonce' ); ?>
-                        <button type="submit" class="button button-primary"><?php echo $debug_status === 'on' ? esc_html__( 'Désactiver', 'visi-bloc-jlg' ) : esc_html__( 'Activer', 'visi-bloc-jlg' ); ?></button>
-                    </form>
-                </div>
-            </div>
-            <div class="postbox">
-                <h2 class="hndle"><span><?php esc_html_e( 'Réglage des points de rupture', 'visi-bloc-jlg' ); ?></span></h2>
-                <div class="inside">
-                    <form method="POST" action="">
-                        <p><?php esc_html_e( "Alignez les largeurs d'écran avec celles de votre thème.", 'visi-bloc-jlg' ); ?></p>
-                        <table class="form-table">
-                            <tr>
-                                <th scope="row"><label for="visibloc_breakpoint_mobile"><?php esc_html_e( 'Largeur max. mobile', 'visi-bloc-jlg' ); ?></label></th>
-                                <td><input name="visibloc_breakpoint_mobile" type="number" id="visibloc_breakpoint_mobile" value="<?php echo esc_attr( $mobile_bp ); ?>" class="small-text"> <?php esc_html_e( 'px', 'visi-bloc-jlg' ); ?></td>
-                            </tr>
-                            <tr>
-                                <th scope="row"><label for="visibloc_breakpoint_tablet"><?php esc_html_e( 'Largeur max. tablette', 'visi-bloc-jlg' ); ?></label></th>
-                                <td><input name="visibloc_breakpoint_tablet" type="number" id="visibloc_breakpoint_tablet" value="<?php echo esc_attr( $tablet_bp ); ?>" class="small-text"> <?php esc_html_e( 'px', 'visi-bloc-jlg' ); ?></td>
-                            </tr>
-                        </table>
-                        <input type="hidden" name="action" value="visibloc_save_breakpoints">
-                        <?php wp_nonce_field( 'visibloc_save_breakpoints', 'visibloc_nonce' ); ?>
-                        <?php submit_button( __( 'Enregistrer les breakpoints', 'visi-bloc-jlg' ) ); ?>
-                    </form>
-                </div>
-            </div>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php
+}
+
+function visibloc_jlg_render_debug_mode_section( $debug_status ) {
+    ?>
+    <div class="postbox">
+        <h2 class="hndle"><span><?php esc_html_e( 'Mode de débogage', 'visi-bloc-jlg' ); ?></span></h2>
+        <div class="inside">
+            <form method="POST" action="">
+                <p>
+                    <?php esc_html_e( 'Statut actuel :', 'visi-bloc-jlg' ); ?>
+                    <strong><?php echo ( 'on' === $debug_status ) ? esc_html__( 'ACTIVÉ', 'visi-bloc-jlg' ) : esc_html__( 'DÉSACTIVÉ', 'visi-bloc-jlg' ); ?></strong>
+                </p>
+                <input type="hidden" name="action" value="visibloc_toggle_debug">
+                <?php wp_nonce_field( 'visibloc_toggle_debug', 'visibloc_nonce' ); ?>
+                <button type="submit" class="button button-primary"><?php echo ( 'on' === $debug_status ) ? esc_html__( 'Désactiver', 'visi-bloc-jlg' ) : esc_html__( 'Activer', 'visi-bloc-jlg' ); ?></button>
+            </form>
+        </div>
+    </div>
+    <?php
+}
+
+function visibloc_jlg_render_breakpoints_section( $mobile_bp, $tablet_bp ) {
+    ?>
+    <div class="postbox">
+        <h2 class="hndle"><span><?php esc_html_e( 'Réglage des points de rupture', 'visi-bloc-jlg' ); ?></span></h2>
+        <div class="inside">
+            <form method="POST" action="">
+                <p><?php esc_html_e( "Alignez les largeurs d'écran avec celles de votre thème.", 'visi-bloc-jlg' ); ?></p>
+                <table class="form-table">
+                    <tr>
+                        <th scope="row"><label for="visibloc_breakpoint_mobile"><?php esc_html_e( 'Largeur max. mobile', 'visi-bloc-jlg' ); ?></label></th>
+                        <td><input name="visibloc_breakpoint_mobile" type="number" id="visibloc_breakpoint_mobile" value="<?php echo esc_attr( $mobile_bp ); ?>" class="small-text"> <?php esc_html_e( 'px', 'visi-bloc-jlg' ); ?></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="visibloc_breakpoint_tablet"><?php esc_html_e( 'Largeur max. tablette', 'visi-bloc-jlg' ); ?></label></th>
+                        <td><input name="visibloc_breakpoint_tablet" type="number" id="visibloc_breakpoint_tablet" value="<?php echo esc_attr( $tablet_bp ); ?>" class="small-text"> <?php esc_html_e( 'px', 'visi-bloc-jlg' ); ?></td>
+                    </tr>
+                </table>
+                <input type="hidden" name="action" value="visibloc_save_breakpoints">
+                <?php wp_nonce_field( 'visibloc_save_breakpoints', 'visibloc_nonce' ); ?>
+                <?php submit_button( __( 'Enregistrer les breakpoints', 'visi-bloc-jlg' ) ); ?>
+            </form>
         </div>
     </div>
     <?php
