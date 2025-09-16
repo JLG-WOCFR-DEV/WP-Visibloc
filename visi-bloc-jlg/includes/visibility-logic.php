@@ -15,10 +15,15 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         $is_after_end = $end_time && $current_time > $end_time;
         if ( $is_before_start || $is_after_end ) {
             if ( $can_preview ) {
-                $start_date_fr = $start_time ? wp_date( 'd/m/Y H:i', $start_time ) : 'N/A';
-                $end_date_fr = $end_time ? wp_date( 'd/m/Y H:i', $end_time ) : 'N/A';
-                $info = "Programmé (Début:{$start_date_fr} | Fin:{$end_date_fr})";
-                return '<div class="bloc-schedule-apercu" data-schedule-info="' . esc_attr($info) . '">' . $block_content . '</div>';
+                $start_date_fr = $start_time ? wp_date( 'd/m/Y H:i', $start_time ) : __( 'N/A', 'visi-bloc-jlg' );
+                $end_date_fr = $end_time ? wp_date( 'd/m/Y H:i', $end_time ) : __( 'N/A', 'visi-bloc-jlg' );
+                $info = sprintf(
+                    /* translators: 1: start date, 2: end date. */
+                    __( 'Programmé (Début:%1$s | Fin:%2$s)', 'visi-bloc-jlg' ),
+                    $start_date_fr,
+                    $end_date_fr
+                );
+                return '<div class="bloc-schedule-apercu" data-schedule-info="' . esc_attr( $info ) . '">' . $block_content . '</div>';
             }
             return '';
         }
