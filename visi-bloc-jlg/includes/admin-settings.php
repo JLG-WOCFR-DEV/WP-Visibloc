@@ -27,14 +27,14 @@ function visibloc_jlg_handle_options_save() {
     if ( wp_verify_nonce( $nonce, 'visibloc_toggle_debug' ) ) {
         $current_status = get_option( 'visibloc_debug_mode', 'off' );
         update_option( 'visibloc_debug_mode', ( $current_status === 'on' ) ? 'off' : 'on' );
-        wp_redirect( admin_url( 'admin.php?page=visi-bloc-jlg-help&status=updated' ) );
+        wp_safe_redirect( admin_url( 'admin.php?page=visi-bloc-jlg-help&status=updated' ) );
         exit;
     }
 
     if ( wp_verify_nonce( $nonce, 'visibloc_save_breakpoints' ) ) {
         if ( null !== $mobile_breakpoint ) update_option( 'visibloc_breakpoint_mobile', $mobile_breakpoint );
         if ( null !== $tablet_breakpoint ) update_option( 'visibloc_breakpoint_tablet', $tablet_breakpoint );
-        wp_redirect( admin_url( 'admin.php?page=visi-bloc-jlg-help&status=updated' ) );
+        wp_safe_redirect( admin_url( 'admin.php?page=visi-bloc-jlg-help&status=updated' ) );
         exit;
     }
 
@@ -45,7 +45,7 @@ function visibloc_jlg_handle_options_save() {
             $sanitized_roles[] = 'administrator';
         }
         update_option( 'visibloc_preview_roles', $sanitized_roles );
-        wp_redirect( admin_url( 'admin.php?page=visi-bloc-jlg-help&status=updated' ) );
+        wp_safe_redirect( admin_url( 'admin.php?page=visi-bloc-jlg-help&status=updated' ) );
         exit;
     }
 }
