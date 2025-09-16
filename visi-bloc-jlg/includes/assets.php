@@ -35,8 +35,12 @@ function visibloc_jlg_add_device_visibility_styles() {
         <?php else: ?>
         .vb-desktop-only, .vb-tablet-only, .vb-mobile-only, .vb-hide-on-desktop, .vb-hide-on-tablet, .vb-hide-on-mobile { position: relative; outline: 2px dashed #0073aa; outline-offset: 2px; }
         .vb-desktop-only::before, .vb-tablet-only::before, .vb-mobile-only::before, .vb-hide-on-desktop::before, .vb-hide-on-tablet::before, .vb-hide-on-mobile::before { content: attr(data-visibloc-label); position: absolute; bottom: -2px; right: -2px; background-color: #0073aa; color: white; padding: 2px 8px; font-size: 11px; font-family: sans-serif; font-weight: bold; z-index: 99; border-radius: 3px 0 3px 0; }
-        .vb-hide-on-mobile::before { content: 'Caché sur Mobile'; } .vb-hide-on-tablet::before { content: 'Caché sur Tablette'; } .vb-hide-on-desktop::before { content: 'Caché sur Desktop'; }
-        .vb-mobile-only::before { content: 'Visible sur Mobile Uniquement'; } .vb-tablet-only::before { content: 'Visible sur Tablette Uniquement'; } .vb-desktop-only::before { content: 'Visible sur Desktop Uniquement'; }
+        .vb-hide-on-mobile::before { content: <?php echo wp_json_encode( __( 'Caché sur Mobile', 'visi-bloc-jlg' ) ); ?>; }
+        .vb-hide-on-tablet::before { content: <?php echo wp_json_encode( __( 'Caché sur Tablette', 'visi-bloc-jlg' ) ); ?>; }
+        .vb-hide-on-desktop::before { content: <?php echo wp_json_encode( __( 'Caché sur Desktop', 'visi-bloc-jlg' ) ); ?>; }
+        .vb-mobile-only::before { content: <?php echo wp_json_encode( __( 'Visible sur Mobile Uniquement', 'visi-bloc-jlg' ) ); ?>; }
+        .vb-tablet-only::before { content: <?php echo wp_json_encode( __( 'Visible sur Tablette Uniquement', 'visi-bloc-jlg' ) ); ?>; }
+        .vb-desktop-only::before { content: <?php echo wp_json_encode( __( 'Visible sur Desktop Uniquement', 'visi-bloc-jlg' ) ); ?>; }
         <?php endif; ?>
     </style>
     <?php
