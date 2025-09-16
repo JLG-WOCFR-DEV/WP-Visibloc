@@ -26,6 +26,7 @@ function visibloc_jlg_can_user_preview() {
 
     // Récupère les rôles autorisés depuis les options, avec 'administrator' comme valeur par défaut sécurisée.
     $allowed_roles = (array) get_option( 'visibloc_preview_roles', ['administrator'] );
+    $allowed_roles = array_map( 'sanitize_key', $allowed_roles );
 
     // Si pour une raison quelconque l'option est vide, on sécurise en autorisant uniquement l'admin.
     if ( empty( $allowed_roles ) ) {
