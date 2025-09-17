@@ -50,7 +50,7 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         $is_logged_in = $user->exists();
         $user_roles = (array) $user->roles;
 
-        if ( isset( $_COOKIE['visibloc_preview_role'] ) ) {
+        if ( $can_preview && isset( $_COOKIE['visibloc_preview_role'] ) ) {
             $preview_role = sanitize_key( wp_unslash( $_COOKIE['visibloc_preview_role'] ) );
 
             if ( 'guest' === $preview_role ) {
@@ -63,6 +63,7 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         }
 
         $is_visible = false;
+        // Manual check: without preview access the cookie must not affect visibility.
         if ( in_array( 'logged-out', $attrs['visibilityRoles'] ) && ! $is_logged_in ) $is_visible = true;
         if ( ! $is_visible && in_array( 'logged-in', $attrs['visibilityRoles'] ) && $is_logged_in ) $is_visible = true;
         if ( ! $is_visible && ! empty( $user_roles ) && count( array_intersect( $user_roles, $attrs['visibilityRoles'] ) ) > 0 ) { $is_visible = true; }
