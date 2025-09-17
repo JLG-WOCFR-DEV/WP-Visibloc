@@ -77,8 +77,7 @@ function visibloc_jlg_add_role_switcher_menu( $wp_admin_bar ) {
 
     if ( ! $user_id ) { return; }
 
-    $should_display_admin_bar = is_admin_bar_showing() || $force_admin_bar;
-    if ( ! $should_display_admin_bar ) { return; }
+    if ( ! $force_admin_bar && ! is_admin_bar_showing() ) { return; }
     $real_user = get_userdata( $user_id );
     if ( ! $real_user || ! in_array( 'administrator', (array) $real_user->roles ) ) { return; }
     if ( ! function_exists( 'get_editable_roles' ) ) { require_once ABSPATH . 'wp-admin/includes/user.php'; }
@@ -138,11 +137,12 @@ function visibloc_jlg_filter_user_capabilities( $allcaps, $caps, $args, $user ) 
     if ( isset( $_COOKIE[$cookie_name] ) && is_object( $user ) && $user->ID === get_current_user_id() ) {
         $preview_role = sanitize_key( wp_unslash( $_COOKIE[$cookie_name] ) );
         if ( $preview_role === 'guest' ) {
-            $guest_caps = [
-                'exist'   => true,
-                'read'    => true,
-                'level_0' => true,
-            ];
+            $role_object = get_role( 'guest' );
+            $guest_caps  = $role_object ? $role_object->capabilities : [];
+
+            $guest_caps['exist']   = true;
+            $guest_caps['read']    = true;
+            $guest_caps['level_0'] = true;
 
             if ( isset( $allcaps['do_not_allow'] ) ) {
                 $guest_caps['do_not_allow'] = $allcaps['do_not_allow'];
@@ -151,7 +151,15 @@ function visibloc_jlg_filter_user_capabilities( $allcaps, $caps, $args, $user ) 
             return $guest_caps;
         }
         $role_object = get_role( $preview_role );
-        if ( $role_object ) { return $role_object->capabilities; }
+        if ( $role_object ) {
+            $caps_for_role = $role_object->capabilities;
+
+            if ( isset( $allcaps['do_not_allow'] ) ) {
+                $caps_for_role['do_not_allow'] = $allcaps['do_not_allow'];
+            }
+
+            return $caps_for_role;
+        }
     }
     return $allcaps;
 }
