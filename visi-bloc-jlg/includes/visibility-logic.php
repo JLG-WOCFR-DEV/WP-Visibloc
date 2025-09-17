@@ -9,10 +9,31 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
 
     if ( ! empty( $attrs['isSchedulingEnabled'] ) ) {
         $current_time = current_time( 'timestamp' );
-        $start_time = ! empty( $attrs['publishStartDate'] ) ? strtotime( $attrs['publishStartDate'] ) : null;
-        $end_time = ! empty( $attrs['publishEndDate'] ) ? strtotime( $attrs['publishEndDate'] ) : null;
-        $is_before_start = $start_time && $current_time < $start_time;
-        $is_after_end = $end_time && $current_time > $end_time;
+
+        $start_time = null;
+        if ( ! empty( $attrs['publishStartDate'] ) ) {
+            $start_timestamp_gmt = strtotime( $attrs['publishStartDate'] );
+            if ( false !== $start_timestamp_gmt ) {
+                $start_time_local = get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $start_timestamp_gmt ), 'U' );
+                if ( false !== $start_time_local ) {
+                    $start_time = (int) $start_time_local;
+                }
+            }
+        }
+
+        $end_time = null;
+        if ( ! empty( $attrs['publishEndDate'] ) ) {
+            $end_timestamp_gmt = strtotime( $attrs['publishEndDate'] );
+            if ( false !== $end_timestamp_gmt ) {
+                $end_time_local = get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $end_timestamp_gmt ), 'U' );
+                if ( false !== $end_time_local ) {
+                    $end_time = (int) $end_time_local;
+                }
+            }
+        }
+
+        $is_before_start = null !== $start_time && $current_time < $start_time;
+        $is_after_end = null !== $end_time && $current_time > $end_time;
         if ( $is_before_start || $is_after_end ) {
             if ( $can_preview ) {
                 $start_date_fr = $start_time ? wp_date( 'd/m/Y H:i', $start_time ) : __( 'N/A', 'visi-bloc-jlg' );
