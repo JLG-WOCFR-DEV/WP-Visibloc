@@ -8,7 +8,7 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
     $can_preview = visibloc_jlg_can_user_preview();
 
     if ( ! empty( $attrs['isSchedulingEnabled'] ) ) {
-        $current_time = current_time( 'timestamp' );
+        $current_time = current_time( 'timestamp', true );
         $timezone     = wp_timezone();
 
         $start_time = null;
