@@ -9,26 +9,21 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
 
     if ( ! empty( $attrs['isSchedulingEnabled'] ) ) {
         $current_time = current_time( 'timestamp' );
+        $timezone     = wp_timezone();
 
         $start_time = null;
         if ( ! empty( $attrs['publishStartDate'] ) ) {
-            $start_timestamp_gmt = strtotime( $attrs['publishStartDate'] );
-            if ( false !== $start_timestamp_gmt ) {
-                $start_time_local = get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $start_timestamp_gmt ), 'U' );
-                if ( false !== $start_time_local ) {
-                    $start_time = (int) $start_time_local;
-                }
+            $start_datetime = date_create_immutable( $attrs['publishStartDate'], $timezone );
+            if ( false !== $start_datetime ) {
+                $start_time = $start_datetime->getTimestamp();
             }
         }
 
         $end_time = null;
         if ( ! empty( $attrs['publishEndDate'] ) ) {
-            $end_timestamp_gmt = strtotime( $attrs['publishEndDate'] );
-            if ( false !== $end_timestamp_gmt ) {
-                $end_time_local = get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $end_timestamp_gmt ), 'U' );
-                if ( false !== $end_time_local ) {
-                    $end_time = (int) $end_time_local;
-                }
+            $end_datetime = date_create_immutable( $attrs['publishEndDate'], $timezone );
+            if ( false !== $end_datetime ) {
+                $end_time = $end_datetime->getTimestamp();
             }
         }
 
