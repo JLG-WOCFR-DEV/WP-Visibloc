@@ -127,8 +127,11 @@ function visibloc_jlg_set_preview_cookie( $value, $expires ) {
 
 add_action( 'init', 'visibloc_jlg_handle_role_switching' );
 function visibloc_jlg_handle_role_switching() {
-    $user_id = get_current_user_id();
-    if( ! $user_id ) return;
+    $user_id = visibloc_jlg_get_effective_user_id();
+    if ( ! $user_id ) {
+        return;
+    }
+
     $real_user = get_userdata( $user_id );
     if ( ! $real_user || ! in_array( 'administrator', (array) $real_user->roles ) ) { return; }
     if ( ! function_exists( 'get_editable_roles' ) ) { require_once ABSPATH . 'wp-admin/includes/user.php'; }
