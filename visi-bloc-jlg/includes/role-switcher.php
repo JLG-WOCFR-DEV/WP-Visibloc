@@ -55,12 +55,15 @@ function visibloc_jlg_handle_role_switching() {
 add_action( 'admin_bar_menu', 'visibloc_jlg_add_role_switcher_menu', 999 );
 function visibloc_jlg_add_role_switcher_menu( $wp_admin_bar ) {
     $user_id = get_current_user_id();
-    if ( ! $user_id || ! is_admin_bar_showing() ) { return; }
+    $cookie_name = 'visibloc_preview_role';
+    $current_preview_role = isset( $_COOKIE[$cookie_name] ) ? sanitize_key( wp_unslash( $_COOKIE[$cookie_name] ) ) : null;
+    $force_admin_bar = ( $current_preview_role === 'guest' );
+
+    if ( ! $user_id || ( ! $force_admin_bar && ! is_admin_bar_showing() ) ) { return; }
     $real_user = get_userdata( $user_id );
     if ( ! $real_user || ! in_array( 'administrator', (array) $real_user->roles ) ) { return; }
     if ( ! function_exists( 'get_editable_roles' ) ) { require_once ABSPATH . 'wp-admin/includes/user.php'; }
-    $cookie_name = 'visibloc_preview_role';
-    $current_preview_role = isset( $_COOKIE[$cookie_name] ) ? sanitize_key( wp_unslash( $_COOKIE[$cookie_name] ) ) : null;
+    
     $base_url = remove_query_arg( [ 'preview_role', 'stop_preview_role', '_wpnonce' ] );
     if ( $current_preview_role ) {
         $role_names = wp_roles()->get_names();
@@ -113,9 +116,15 @@ function visibloc_jlg_filter_user_capabilities( $allcaps, $caps, $args, $user ) 
         return $allcaps;
     }
     $cookie_name = 'visibloc_preview_role';
-    if ( isset( $_COOKIE[$cookie_name] ) && is_object($user) && $user->ID === get_current_user_id() ) {
+    if ( isset( $_COOKIE[$cookie_name] ) && is_object( $user ) && $user->ID === get_current_user_id() ) {
         $preview_role = sanitize_key( wp_unslash( $_COOKIE[$cookie_name] ) );
-        if ( $preview_role === 'guest' ) { return []; }
+        if ( $preview_role === 'guest' ) {
+            return [
+                'exist'   => true,
+                'read'    => true,
+                'level_0' => true,
+            ];
+        }
         $role_object = get_role( $preview_role );
         if ( $role_object ) { return $role_object->capabilities; }
     }
