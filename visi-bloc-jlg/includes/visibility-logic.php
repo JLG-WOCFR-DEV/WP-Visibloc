@@ -49,6 +49,19 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         $user = wp_get_current_user();
         $is_logged_in = $user->exists();
         $user_roles = (array) $user->roles;
+
+        if ( isset( $_COOKIE['visibloc_preview_role'] ) ) {
+            $preview_role = sanitize_key( wp_unslash( $_COOKIE['visibloc_preview_role'] ) );
+
+            if ( 'guest' === $preview_role ) {
+                $is_logged_in = false;
+                $user_roles = [];
+            } elseif ( '' !== $preview_role && get_role( $preview_role ) ) {
+                $is_logged_in = true;
+                $user_roles = [ $preview_role ];
+            }
+        }
+
         $is_visible = false;
         if ( in_array( 'logged-out', $attrs['visibilityRoles'] ) && ! $is_logged_in ) $is_visible = true;
         if ( ! $is_visible && in_array( 'logged-in', $attrs['visibilityRoles'] ) && $is_logged_in ) $is_visible = true;
