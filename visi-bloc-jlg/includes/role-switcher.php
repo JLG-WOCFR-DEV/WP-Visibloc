@@ -1,6 +1,64 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+function visibloc_jlg_set_preview_cookie( $value, $expires ) {
+    $cookie_name = 'visibloc_preview_role';
+    $cookie_args = [
+        'expires'  => (int) $expires,
+        'path'     => COOKIEPATH,
+        'domain'   => COOKIE_DOMAIN,
+        'secure'   => is_ssl(),
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ];
+
+    if ( PHP_VERSION_ID < 70300 ) {
+        $cookie_domain = empty( $cookie_args['domain'] ) ? '' : $cookie_args['domain'];
+        $result        = setcookie(
+            $cookie_name,
+            $value,
+            $cookie_args['expires'],
+            $cookie_args['path'],
+            $cookie_domain,
+            $cookie_args['secure'],
+            $cookie_args['httponly']
+        );
+
+        if ( ! headers_sent() ) {
+            $cookie_segments = [];
+            $cookie_segments[] = $cookie_name . '=' . rawurlencode( $value );
+
+            if ( $cookie_args['expires'] ) {
+                $cookie_segments[] = 'Expires=' . gmdate( 'D, d-M-Y H:i:s T', $cookie_args['expires'] );
+            }
+
+            if ( $cookie_args['path'] ) {
+                $cookie_segments[] = 'Path=' . $cookie_args['path'];
+            }
+
+            if ( ! empty( $cookie_domain ) ) {
+                $cookie_segments[] = 'Domain=' . $cookie_domain;
+            }
+
+            if ( $cookie_args['secure'] ) {
+                $cookie_segments[] = 'Secure';
+            }
+
+            if ( $cookie_args['httponly'] ) {
+                $cookie_segments[] = 'HttpOnly';
+            }
+
+            $cookie_segments[] = 'SameSite=' . $cookie_args['samesite'];
+
+            header( 'Set-Cookie: ' . implode( '; ', $cookie_segments ), false );
+        }
+
+        return $result;
+    }
+
+    return setcookie( $cookie_name, $value, $cookie_args );
+}
+
 add_action( 'init', 'visibloc_jlg_handle_role_switching' );
 function visibloc_jlg_handle_role_switching() {
     $user_id = get_current_user_id();
@@ -23,14 +81,7 @@ function visibloc_jlg_handle_role_switching() {
         if ( ! $role_to_preview || ! $nonce || ! wp_verify_nonce( $nonce, 'visibloc_switch_role_' . $role_to_preview ) ) {
             return;
         }
-        setcookie( $cookie_name, $role_to_preview, [
-            'expires'  => time() + 3600,
-            'path'     => COOKIEPATH,
-            'domain'   => COOKIE_DOMAIN,
-            'secure'   => is_ssl(),
-            'httponly' => true,
-            'samesite' => 'Lax',
-        ] );
+        visibloc_jlg_set_preview_cookie( $role_to_preview, time() + 3600 );
         wp_safe_redirect( remove_query_arg( [ 'preview_role', '_wpnonce' ] ) );
         exit;
     }
@@ -39,14 +90,7 @@ function visibloc_jlg_handle_role_switching() {
         if ( ! $nonce || ! wp_verify_nonce( $nonce, 'visibloc_switch_role_stop' ) ) {
             return;
         }
-        setcookie( $cookie_name, '', [
-            'expires'  => time() - 3600,
-            'path'     => COOKIEPATH,
-            'domain'   => COOKIE_DOMAIN,
-            'secure'   => is_ssl(),
-            'httponly' => true,
-            'samesite' => 'Lax',
-        ] );
+        visibloc_jlg_set_preview_cookie( '', time() - 3600 );
         wp_safe_redirect( remove_query_arg( [ 'stop_preview_role', '_wpnonce' ] ) );
         exit;
     }
