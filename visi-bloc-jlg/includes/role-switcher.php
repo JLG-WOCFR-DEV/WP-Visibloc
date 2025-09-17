@@ -1,6 +1,72 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+global $visibloc_jlg_real_user_id;
+if ( ! isset( $visibloc_jlg_real_user_id ) ) {
+    $visibloc_jlg_real_user_id = null;
+}
+
+function visibloc_jlg_get_preview_role_from_cookie() {
+    $cookie_name = 'visibloc_preview_role';
+
+    if ( ! isset( $_COOKIE[ $cookie_name ] ) ) {
+        return null;
+    }
+
+    return sanitize_key( wp_unslash( $_COOKIE[ $cookie_name ] ) );
+}
+
+function visibloc_jlg_store_real_user_id( $user_id ) {
+    global $visibloc_jlg_real_user_id;
+
+    if ( null === $user_id ) {
+        $visibloc_jlg_real_user_id = null;
+
+        return;
+    }
+
+    $visibloc_jlg_real_user_id = absint( $user_id );
+}
+
+function visibloc_jlg_get_stored_real_user_id() {
+    global $visibloc_jlg_real_user_id;
+
+    return $visibloc_jlg_real_user_id ? absint( $visibloc_jlg_real_user_id ) : 0;
+}
+
+function visibloc_jlg_get_effective_user_id() {
+    $stored_id = visibloc_jlg_get_stored_real_user_id();
+
+    if ( $stored_id ) {
+        return $stored_id;
+    }
+
+    return get_current_user_id();
+}
+
+add_filter( 'determine_current_user', 'visibloc_jlg_maybe_impersonate_guest', 99 );
+function visibloc_jlg_maybe_impersonate_guest( $user_id ) {
+    if ( is_admin() || wp_doing_ajax() || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) ) {
+        visibloc_jlg_store_real_user_id( null );
+
+        return $user_id;
+    }
+
+    $preview_role = visibloc_jlg_get_preview_role_from_cookie();
+
+    if ( 'guest' !== $preview_role ) {
+        visibloc_jlg_store_real_user_id( null );
+
+        return $user_id;
+    }
+
+    if ( $user_id ) {
+        visibloc_jlg_store_real_user_id( $user_id );
+    }
+
+    return 0;
+}
+
 function visibloc_jlg_set_preview_cookie( $value, $expires ) {
     $cookie_name = 'visibloc_preview_role';
     $cookie_args = [
@@ -102,10 +168,10 @@ function visibloc_jlg_force_admin_bar_during_guest_preview( $show ) {
         return $show;
     }
 
-    $cookie_name = 'visibloc_preview_role';
-    $current_preview_role = isset( $_COOKIE[ $cookie_name ] ) ? sanitize_key( wp_unslash( $_COOKIE[ $cookie_name ] ) ) : null;
+    $current_preview_role = visibloc_jlg_get_preview_role_from_cookie();
+    $real_user_id         = visibloc_jlg_get_stored_real_user_id();
 
-    if ( $current_preview_role === 'guest' && get_current_user_id() ) {
+    if ( $current_preview_role === 'guest' && $real_user_id ) {
         return true;
     }
 
@@ -114,9 +180,8 @@ function visibloc_jlg_force_admin_bar_during_guest_preview( $show ) {
 
 add_action( 'admin_bar_menu', 'visibloc_jlg_add_role_switcher_menu', 999 );
 function visibloc_jlg_add_role_switcher_menu( $wp_admin_bar ) {
-    $user_id = get_current_user_id();
-    $cookie_name = 'visibloc_preview_role';
-    $current_preview_role = isset( $_COOKIE[$cookie_name] ) ? sanitize_key( wp_unslash( $_COOKIE[$cookie_name] ) ) : null;
+    $user_id = visibloc_jlg_get_effective_user_id();
+    $current_preview_role = visibloc_jlg_get_preview_role_from_cookie();
     $force_admin_bar = ( $current_preview_role === 'guest' );
 
     if ( ! $user_id ) { return; }
@@ -177,9 +242,9 @@ function visibloc_jlg_filter_user_capabilities( $allcaps, $caps, $args, $user ) 
     if ( is_admin() || wp_doing_ajax() || ( defined('REST_REQUEST') && REST_REQUEST ) ) {
         return $allcaps;
     }
-    $cookie_name = 'visibloc_preview_role';
-    if ( isset( $_COOKIE[$cookie_name] ) && is_object( $user ) && $user->ID === get_current_user_id() ) {
-        $preview_role = sanitize_key( wp_unslash( $_COOKIE[$cookie_name] ) );
+    $preview_role = visibloc_jlg_get_preview_role_from_cookie();
+
+    if ( $preview_role && is_object( $user ) && $user->ID === visibloc_jlg_get_effective_user_id() ) {
         if ( $preview_role === 'guest' ) {
             $role_object = get_role( 'guest' );
             $guest_caps  = $role_object ? $role_object->capabilities : [];
