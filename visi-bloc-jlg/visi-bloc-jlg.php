@@ -9,6 +9,7 @@
 if ( ! defined( 'WPINC' ) ) { exit; }
 
 // Charge les différents modules du plugin
+require_once __DIR__ . '/includes/datetime-utils.php';
 require_once __DIR__ . '/includes/admin-settings.php';
 require_once __DIR__ . '/includes/assets.php';
 require_once __DIR__ . '/includes/visibility-logic.php';
