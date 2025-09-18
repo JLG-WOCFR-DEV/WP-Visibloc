@@ -37,3 +37,7 @@ npm run build
 The "Visi-Bloc - JLG" administration screen paginates the internal queries in batches of 100 post IDs and caches the compiled
 results for an hour. This keeps memory usage low, but on very large sites the first load after the cache expires may still take a
 little longer while the plugin analyses the content library.
+
+## Tests manuels
+
+- ✅ Connecté en tant que `subscriber`, forcer le cookie `visibloc_preview_role=administrator` puis vérifier que `current_user_can( 'manage_options' )` renvoie toujours `false`, y compris via XML-RPC le cas échéant.
