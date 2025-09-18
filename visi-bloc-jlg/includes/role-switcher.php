@@ -257,17 +257,36 @@ function visibloc_jlg_purge_preview_cookie() {
 add_action( 'init', 'visibloc_jlg_handle_role_switching' );
 function visibloc_jlg_handle_role_switching() {
     $user_id = visibloc_jlg_get_effective_user_id();
+
     if ( ! $user_id ) {
         return;
     }
 
-    $real_user = get_userdata( $user_id );
-    if ( ! $real_user || ! in_array( 'administrator', (array) $real_user->roles ) ) { return; }
-    if ( ! function_exists( 'get_editable_roles' ) ) { require_once ABSPATH . 'wp-admin/includes/user.php'; }
-    $previewable_roles = array_keys( get_editable_roles() );
-    if ( ! in_array( 'guest', $previewable_roles, true ) ) {
+    $can_impersonate = visibloc_jlg_is_user_allowed_to_impersonate( $user_id );
+    $can_preview     = visibloc_jlg_is_user_allowed_to_preview( $user_id );
+
+    if ( ! $can_impersonate && ! $can_preview ) {
+        return;
+    }
+
+    $previewable_roles = [];
+
+    if ( $can_impersonate ) {
+        if ( ! function_exists( 'get_editable_roles' ) ) {
+            require_once ABSPATH . 'wp-admin/includes/user.php';
+        }
+
+        $previewable_roles = array_keys( get_editable_roles() );
+    }
+
+    if ( $can_preview && ! in_array( 'guest', $previewable_roles, true ) ) {
         $previewable_roles[] = 'guest';
     }
+
+    if ( empty( $previewable_roles ) ) {
+        return;
+    }
+
     $cookie_name = 'visibloc_preview_role';
     if ( isset( $_GET['preview_role'] ) ) {
         $role_to_preview = sanitize_key( wp_unslash( $_GET['preview_role'] ) );
@@ -279,6 +298,15 @@ function visibloc_jlg_handle_role_switching() {
         if ( ! $role_to_preview || ! $nonce || ! wp_verify_nonce( $nonce, 'visibloc_switch_role_' . $role_to_preview ) ) {
             return;
         }
+
+        if ( 'guest' === $role_to_preview && ! $can_preview ) {
+            return;
+        }
+
+        if ( 'guest' !== $role_to_preview && ! $can_impersonate ) {
+            return;
+        }
+
         visibloc_jlg_set_preview_cookie( $role_to_preview, time() + 3600 );
         wp_safe_redirect( remove_query_arg( [ 'preview_role', '_wpnonce' ] ) );
         exit;
@@ -312,21 +340,37 @@ function visibloc_jlg_force_admin_bar_during_guest_preview( $show ) {
 
 add_action( 'admin_bar_menu', 'visibloc_jlg_add_role_switcher_menu', 999 );
 function visibloc_jlg_add_role_switcher_menu( $wp_admin_bar ) {
-    $user_id = visibloc_jlg_get_effective_user_id();
+    $user_id              = visibloc_jlg_get_effective_user_id();
     $current_preview_role = visibloc_jlg_get_preview_role_from_cookie();
-    $force_admin_bar = ( $current_preview_role === 'guest' );
+    $force_admin_bar      = ( $current_preview_role === 'guest' );
 
-    if ( ! $user_id ) { return; }
+    if ( ! $user_id ) {
+        return;
+    }
 
-    if ( ! $force_admin_bar && ! is_admin_bar_showing() ) { return; }
-    $real_user = get_userdata( $user_id );
-    if ( ! $real_user || ! in_array( 'administrator', (array) $real_user->roles ) ) { return; }
-    if ( ! function_exists( 'get_editable_roles' ) ) { require_once ABSPATH . 'wp-admin/includes/user.php'; }
-    
+    if ( ! $force_admin_bar && ! is_admin_bar_showing() ) {
+        return;
+    }
+
+    $can_impersonate = visibloc_jlg_is_user_allowed_to_impersonate( $user_id );
+    $can_preview     = visibloc_jlg_is_user_allowed_to_preview( $user_id );
+
+    if ( ! $can_impersonate && ! $can_preview ) {
+        return;
+    }
+
+    if ( $can_impersonate && ! function_exists( 'get_editable_roles' ) ) {
+        require_once ABSPATH . 'wp-admin/includes/user.php';
+    }
+
     $base_url = remove_query_arg( [ 'preview_role', 'stop_preview_role', '_wpnonce' ] );
+
     if ( $current_preview_role ) {
-        $role_names = wp_roles()->get_names();
-        $display_name = $current_preview_role === 'guest' ? __( 'Visiteur (Déconnecté)', 'visi-bloc-jlg' ) : ( $role_names[ $current_preview_role ] ?? ucfirst( $current_preview_role ) );
+        $role_names   = wp_roles()->get_names();
+        $display_name = 'guest' === $current_preview_role
+            ? __( 'Visiteur (Déconnecté)', 'visi-bloc-jlg' )
+            : ( $role_names[ $current_preview_role ] ?? ucfirst( $current_preview_role ) );
+
         $wp_admin_bar->add_node([
             'id'    => 'visibloc-alert',
             'title' => sprintf(
@@ -337,8 +381,10 @@ function visibloc_jlg_add_role_switcher_menu( $wp_admin_bar ) {
             'href'  => '#',
             'meta'  => [ 'style' => 'background-color: #d54e21 !important;' ],
         ]);
+
         $stop_preview_url = add_query_arg( 'stop_preview_role', 'true', $base_url );
         $stop_preview_url = wp_nonce_url( $stop_preview_url, 'visibloc_switch_role_stop' );
+
         $wp_admin_bar->add_node([
             'id'     => 'visibloc-stop-preview',
             'title'  => esc_html__( '✅ Retour à ma vue', 'visi-bloc-jlg' ),
@@ -346,6 +392,7 @@ function visibloc_jlg_add_role_switcher_menu( $wp_admin_bar ) {
             'parent' => 'top-secondary',
         ]);
     }
+
     $wp_admin_bar->add_node([
         'id'    => 'visibloc-role-switcher',
         'title' => sprintf(
@@ -354,18 +401,31 @@ function visibloc_jlg_add_role_switcher_menu( $wp_admin_bar ) {
         ),
         'href'  => '#',
     ]);
-    $guest_preview_url = add_query_arg( 'preview_role', 'guest', $base_url );
-    $guest_preview_url = wp_nonce_url( $guest_preview_url, 'visibloc_switch_role_guest' );
-    $wp_admin_bar->add_node([
-        'id'     => 'visibloc-role-guest',
-        'title'  => esc_html__( 'Visiteur (Déconnecté)', 'visi-bloc-jlg' ),
-        'href'   => $guest_preview_url,
-        'parent' => 'visibloc-role-switcher',
-    ]);
-    foreach ( get_editable_roles() as $slug => $details ) {
-        $preview_url = add_query_arg( 'preview_role', $slug, $base_url );
-        $preview_url = wp_nonce_url( $preview_url, 'visibloc_switch_role_' . $slug );
-        $wp_admin_bar->add_node(['id' => 'visibloc-role-' . $slug, 'title' => $details['name'], 'href' => $preview_url, 'parent' => 'visibloc-role-switcher']);
+
+    if ( $can_preview ) {
+        $guest_preview_url = add_query_arg( 'preview_role', 'guest', $base_url );
+        $guest_preview_url = wp_nonce_url( $guest_preview_url, 'visibloc_switch_role_guest' );
+
+        $wp_admin_bar->add_node([
+            'id'     => 'visibloc-role-guest',
+            'title'  => esc_html__( 'Visiteur (Déconnecté)', 'visi-bloc-jlg' ),
+            'href'   => $guest_preview_url,
+            'parent' => 'visibloc-role-switcher',
+        ]);
+    }
+
+    if ( $can_impersonate ) {
+        foreach ( get_editable_roles() as $slug => $details ) {
+            $preview_url = add_query_arg( 'preview_role', $slug, $base_url );
+            $preview_url = wp_nonce_url( $preview_url, 'visibloc_switch_role_' . $slug );
+
+            $wp_admin_bar->add_node([
+                'id'     => 'visibloc-role-' . $slug,
+                'title'  => $details['name'],
+                'href'   => $preview_url,
+                'parent' => 'visibloc-role-switcher',
+            ]);
+        }
     }
 }
 
