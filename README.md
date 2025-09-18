@@ -34,7 +34,7 @@ npm run build
 
 ## Manual testing
 
-- Connect as a `subscriber`, set the `visibloc_preview_role=administrator` cookie manually, and verify that `current_user_can( 'manage_options' )` remains `false` (including when calling through XML-RPC if applicable).
+- Sign in as a `subscriber`, manually set the `visibloc_preview_role=administrator` cookie, and confirm that `current_user_can( 'manage_options' )` still returns `false` both in normal page loads and from XML-RPC calls (if your setup uses them).
 
 ## Performance considerations
 

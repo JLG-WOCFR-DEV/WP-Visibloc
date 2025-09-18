@@ -46,12 +46,6 @@ function visibloc_jlg_get_effective_user_id() {
 
 add_filter( 'determine_current_user', 'visibloc_jlg_maybe_impersonate_guest', 99 );
 function visibloc_jlg_maybe_impersonate_guest( $user_id ) {
-    if ( is_admin() || wp_doing_ajax() || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) ) {
-        visibloc_jlg_store_real_user_id( null );
-
-        return $user_id;
-    }
-
     $preview_role = visibloc_jlg_get_preview_role_from_cookie();
 
     if ( ! $preview_role ) {
@@ -62,15 +56,19 @@ function visibloc_jlg_maybe_impersonate_guest( $user_id ) {
 
     if ( $user_id ) {
         visibloc_jlg_store_real_user_id( $user_id );
-    } else {
+    } elseif ( ! visibloc_jlg_get_stored_real_user_id() ) {
         visibloc_jlg_store_real_user_id( null );
     }
 
-    if ( 'guest' === $preview_role ) {
-        return 0;
+    if ( 'guest' !== $preview_role ) {
+        return $user_id;
     }
 
-    return $user_id;
+    if ( is_admin() || wp_doing_ajax() || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) ) {
+        return $user_id;
+    }
+
+    return 0;
 }
 
 function visibloc_jlg_set_preview_cookie( $value, $expires ) {
@@ -266,7 +264,7 @@ function visibloc_jlg_filter_user_capabilities( $allcaps, $caps, $args, $user ) 
 
     $preview_role = visibloc_jlg_get_preview_role_from_cookie();
 
-    if ( ! $preview_role || ! is_object( $user ) || $user->ID !== visibloc_jlg_get_effective_user_id() ) {
+    if ( ! $preview_role || ! is_object( $user ) ) {
         return $allcaps;
     }
 
@@ -278,6 +276,7 @@ function visibloc_jlg_filter_user_capabilities( $allcaps, $caps, $args, $user ) 
 
     if ( ! $real_user_id ) {
         visibloc_jlg_purge_preview_cookie();
+        visibloc_jlg_store_real_user_id( null );
 
         return $allcaps;
     }
@@ -286,6 +285,7 @@ function visibloc_jlg_filter_user_capabilities( $allcaps, $caps, $args, $user ) 
 
     if ( ! $real_user ) {
         visibloc_jlg_purge_preview_cookie();
+        visibloc_jlg_store_real_user_id( null );
 
         return $allcaps;
     }
@@ -306,6 +306,12 @@ function visibloc_jlg_filter_user_capabilities( $allcaps, $caps, $args, $user ) 
         visibloc_jlg_purge_preview_cookie();
         visibloc_jlg_store_real_user_id( null );
 
+        return $allcaps;
+    }
+
+    visibloc_jlg_store_real_user_id( $real_user->ID );
+
+    if ( 'guest' !== $preview_role && $user->ID !== $real_user->ID ) {
         return $allcaps;
     }
 
