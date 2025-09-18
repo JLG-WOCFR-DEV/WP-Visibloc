@@ -34,6 +34,46 @@ function visibloc_jlg_get_stored_real_user_id() {
     return $visibloc_jlg_real_user_id ? absint( $visibloc_jlg_real_user_id ) : 0;
 }
 
+function visibloc_jlg_get_allowed_preview_roles() {
+    $allowed_roles = get_option( 'visibloc_preview_roles', [ 'administrator' ] );
+
+    if ( ! is_array( $allowed_roles ) ) {
+        $allowed_roles = [ 'administrator' ];
+    }
+
+    $allowed_roles = array_filter( array_map( 'sanitize_key', $allowed_roles ) );
+
+    if ( empty( $allowed_roles ) ) {
+        $allowed_roles = [ 'administrator' ];
+    }
+
+    return array_values( array_unique( $allowed_roles ) );
+}
+
+function visibloc_jlg_is_user_allowed_to_preview( $user_id ) {
+    $user_id = absint( $user_id );
+
+    if ( ! $user_id ) {
+        return false;
+    }
+
+    $user = get_userdata( $user_id );
+
+    if ( ! $user ) {
+        return false;
+    }
+
+    $allowed_roles = visibloc_jlg_get_allowed_preview_roles();
+
+    foreach ( (array) $user->roles as $role ) {
+        if ( in_array( $role, $allowed_roles, true ) ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 function visibloc_jlg_get_effective_user_id() {
     $stored_id = visibloc_jlg_get_stored_real_user_id();
 
@@ -60,10 +100,20 @@ function visibloc_jlg_maybe_impersonate_guest( $user_id ) {
         return $user_id;
     }
 
-    if ( $user_id ) {
-        visibloc_jlg_store_real_user_id( $user_id );
+    $stored_real_user_id = visibloc_jlg_get_stored_real_user_id();
+    $real_user_id        = $user_id ? absint( $user_id ) : $stored_real_user_id;
+
+    if ( $real_user_id ) {
+        visibloc_jlg_store_real_user_id( $real_user_id );
     } else {
         visibloc_jlg_store_real_user_id( null );
+    }
+
+    if ( ! visibloc_jlg_is_user_allowed_to_preview( $real_user_id ) ) {
+        visibloc_jlg_purge_preview_cookie();
+        visibloc_jlg_store_real_user_id( null );
+
+        return $user_id;
     }
 
     if ( 'guest' === $preview_role ) {
@@ -266,7 +316,7 @@ function visibloc_jlg_filter_user_capabilities( $allcaps, $caps, $args, $user ) 
 
     $preview_role = visibloc_jlg_get_preview_role_from_cookie();
 
-    if ( ! $preview_role || ! is_object( $user ) || $user->ID !== visibloc_jlg_get_effective_user_id() ) {
+    if ( ! $preview_role || ! is_object( $user ) ) {
         return $allcaps;
     }
 
@@ -274,38 +324,19 @@ function visibloc_jlg_filter_user_capabilities( $allcaps, $caps, $args, $user ) 
 
     if ( ! $real_user_id ) {
         $real_user_id = get_current_user_id();
-    }
-
-    if ( ! $real_user_id ) {
-        visibloc_jlg_purge_preview_cookie();
-
-        return $allcaps;
-    }
-
-    $real_user = get_userdata( $real_user_id );
-
-    if ( ! $real_user ) {
-        visibloc_jlg_purge_preview_cookie();
-
-        return $allcaps;
-    }
-
-    $allowed_roles = (array) get_option( 'visibloc_preview_roles', [ 'administrator' ] );
-    $allowed_roles = array_filter( array_map( 'sanitize_key', $allowed_roles ) );
-
-    $has_allowed_role = false;
-
-    foreach ( (array) $real_user->roles as $role ) {
-        if ( in_array( $role, $allowed_roles, true ) ) {
-            $has_allowed_role = true;
-            break;
+        if ( $real_user_id ) {
+            visibloc_jlg_store_real_user_id( $real_user_id );
         }
     }
 
-    if ( ! $has_allowed_role ) {
+    if ( ! visibloc_jlg_is_user_allowed_to_preview( $real_user_id ) ) {
         visibloc_jlg_purge_preview_cookie();
         visibloc_jlg_store_real_user_id( null );
 
+        return $allcaps;
+    }
+
+    if ( 'guest' !== $preview_role && $user->ID !== visibloc_jlg_get_effective_user_id() ) {
         return $allcaps;
     }
 
