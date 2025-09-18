@@ -6,6 +6,10 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
     if ( empty( $block['attrs'] ) ) { return $block_content; }
     $attrs = $block['attrs'];
     $can_preview = visibloc_jlg_can_user_preview();
+    $effective_user_id = function_exists( 'visibloc_jlg_get_effective_user_id' ) ? visibloc_jlg_get_effective_user_id() : 0;
+    $is_legit_preview_requester = $effective_user_id && function_exists( 'visibloc_jlg_is_user_allowed_to_preview' )
+        ? visibloc_jlg_is_user_allowed_to_preview( $effective_user_id )
+        : false;
 
     if ( ! empty( $attrs['isSchedulingEnabled'] ) ) {
         $current_time = current_time( 'timestamp', true );
@@ -50,7 +54,7 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         $is_logged_in = $user->exists();
         $user_roles = (array) $user->roles;
 
-        if ( $can_preview && isset( $_COOKIE['visibloc_preview_role'] ) ) {
+        if ( $is_legit_preview_requester && isset( $_COOKIE['visibloc_preview_role'] ) ) {
             $preview_role = sanitize_key( wp_unslash( $_COOKIE['visibloc_preview_role'] ) );
 
             if ( 'guest' === $preview_role ) {
