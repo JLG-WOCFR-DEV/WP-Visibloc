@@ -32,6 +32,10 @@ npm install
 npm run build
 ```
 
+## Manual testing
+
+- Connect as a `subscriber`, set the `visibloc_preview_role=administrator` cookie manually, and verify that `current_user_can( 'manage_options' )` remains `false` (including when calling through XML-RPC if applicable).
+
 ## Performance considerations
 
 The "Visi-Bloc - JLG" administration screen paginates the internal queries in batches of 100 post IDs and caches the compiled
