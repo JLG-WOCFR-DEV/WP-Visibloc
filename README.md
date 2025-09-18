@@ -7,7 +7,7 @@ Visi-Bloc – JLG is a WordPress plugin that adds advanced visibility controls t
 - **Scheduling** – set start and end dates for blocks to appear.
 - **Manual hide** – hide blocks from the front end while still previewable to permitted roles.
 - **Device visibility utilities** – apply classes like `vb-hide-on-mobile`, `vb-mobile-only`, `vb-tablet-only`, or `vb-desktop-only` to control display by screen width.
-- **Role preview switcher** – administrators can preview the site as another role from the toolbar.
+- **Role preview switcher** – administrators (or roles explicitly granted via the `visibloc_jlg_allowed_impersonator_roles` filter) can preview the site as another role from the toolbar.
 
 ## Installation
 1. Download or clone this repository into `wp-content/plugins/` of your WordPress installation.
@@ -34,7 +34,7 @@ npm run build
 
 ## Manual testing
 
-1. Sign in as a `subscriber`.
+1. Sign in as a user who can view hidden blocks but is not allowed to impersonate other roles (for example a non-administrator after enabling their role on the plugin settings screen).
 2. Manually add the cookie `visibloc_preview_role=administrator` (for example through the browser developer tools).
 3. Confirm that `current_user_can( 'manage_options' )` still returns `false`, including when the check is performed through XML-RPC if your stack exposes it.
 
