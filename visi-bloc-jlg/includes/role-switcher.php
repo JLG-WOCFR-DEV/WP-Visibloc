@@ -54,7 +54,7 @@ function visibloc_jlg_maybe_impersonate_guest( $user_id ) {
 
     $preview_role = visibloc_jlg_get_preview_role_from_cookie();
 
-    if ( 'guest' !== $preview_role ) {
+    if ( ! $preview_role ) {
         visibloc_jlg_store_real_user_id( null );
 
         return $user_id;
@@ -62,9 +62,15 @@ function visibloc_jlg_maybe_impersonate_guest( $user_id ) {
 
     if ( $user_id ) {
         visibloc_jlg_store_real_user_id( $user_id );
+    } else {
+        visibloc_jlg_store_real_user_id( null );
     }
 
-    return 0;
+    if ( 'guest' === $preview_role ) {
+        return 0;
+    }
+
+    return $user_id;
 }
 
 function visibloc_jlg_set_preview_cookie( $value, $expires ) {
@@ -123,6 +129,18 @@ function visibloc_jlg_set_preview_cookie( $value, $expires ) {
     }
 
     return setcookie( $cookie_name, $value, $cookie_args );
+}
+
+function visibloc_jlg_purge_preview_cookie() {
+    static $purged = false;
+
+    if ( $purged ) {
+        return;
+    }
+
+    $purged = true;
+
+    visibloc_jlg_set_preview_cookie( '', time() - 3600 );
 }
 
 add_action( 'init', 'visibloc_jlg_handle_role_switching' );
@@ -242,36 +260,81 @@ function visibloc_jlg_add_role_switcher_menu( $wp_admin_bar ) {
 
 add_filter( 'user_has_cap', 'visibloc_jlg_filter_user_capabilities', 999, 4 );
 function visibloc_jlg_filter_user_capabilities( $allcaps, $caps, $args, $user ) {
-    if ( is_admin() || wp_doing_ajax() || ( defined('REST_REQUEST') && REST_REQUEST ) ) {
+    if ( is_admin() || wp_doing_ajax() || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) ) {
         return $allcaps;
     }
+
     $preview_role = visibloc_jlg_get_preview_role_from_cookie();
 
-    if ( $preview_role && is_object( $user ) && $user->ID === visibloc_jlg_get_effective_user_id() ) {
-        if ( $preview_role === 'guest' ) {
-            $role_object = get_role( 'guest' );
-            $guest_caps  = $role_object ? $role_object->capabilities : [];
+    if ( ! $preview_role || ! is_object( $user ) || $user->ID !== visibloc_jlg_get_effective_user_id() ) {
+        return $allcaps;
+    }
 
-            $guest_caps['exist']   = true;
-            $guest_caps['read']    = true;
-            $guest_caps['level_0'] = true;
+    $real_user_id = visibloc_jlg_get_stored_real_user_id();
 
-            if ( isset( $allcaps['do_not_allow'] ) ) {
-                $guest_caps['do_not_allow'] = $allcaps['do_not_allow'];
-            }
+    if ( ! $real_user_id ) {
+        $real_user_id = get_current_user_id();
+    }
 
-            return $guest_caps;
-        }
-        $role_object = get_role( $preview_role );
-        if ( $role_object ) {
-            $caps_for_role = $role_object->capabilities;
+    if ( ! $real_user_id ) {
+        visibloc_jlg_purge_preview_cookie();
 
-            if ( isset( $allcaps['do_not_allow'] ) ) {
-                $caps_for_role['do_not_allow'] = $allcaps['do_not_allow'];
-            }
+        return $allcaps;
+    }
 
-            return $caps_for_role;
+    $real_user = get_userdata( $real_user_id );
+
+    if ( ! $real_user ) {
+        visibloc_jlg_purge_preview_cookie();
+
+        return $allcaps;
+    }
+
+    $allowed_roles = (array) get_option( 'visibloc_preview_roles', [ 'administrator' ] );
+    $allowed_roles = array_filter( array_map( 'sanitize_key', $allowed_roles ) );
+
+    $has_allowed_role = false;
+
+    foreach ( (array) $real_user->roles as $role ) {
+        if ( in_array( $role, $allowed_roles, true ) ) {
+            $has_allowed_role = true;
+            break;
         }
     }
+
+    if ( ! $has_allowed_role ) {
+        visibloc_jlg_purge_preview_cookie();
+        visibloc_jlg_store_real_user_id( null );
+
+        return $allcaps;
+    }
+
+    if ( 'guest' === $preview_role ) {
+        $role_object = get_role( 'guest' );
+        $guest_caps  = $role_object ? $role_object->capabilities : [];
+
+        $guest_caps['exist']   = true;
+        $guest_caps['read']    = true;
+        $guest_caps['level_0'] = true;
+
+        if ( isset( $allcaps['do_not_allow'] ) ) {
+            $guest_caps['do_not_allow'] = $allcaps['do_not_allow'];
+        }
+
+        return $guest_caps;
+    }
+
+    $role_object = get_role( $preview_role );
+
+    if ( $role_object ) {
+        $caps_for_role = $role_object->capabilities;
+
+        if ( isset( $allcaps['do_not_allow'] ) ) {
+            $caps_for_role['do_not_allow'] = $allcaps['do_not_allow'];
+        }
+
+        return $caps_for_role;
+    }
+
     return $allcaps;
 }
