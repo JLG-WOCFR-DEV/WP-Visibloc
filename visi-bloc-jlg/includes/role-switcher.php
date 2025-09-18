@@ -50,6 +50,31 @@ function visibloc_jlg_get_allowed_preview_roles() {
     return array_values( array_unique( $allowed_roles ) );
 }
 
+/**
+ * Retrieve the list of roles that are allowed to impersonate another role.
+ *
+ * By default only administrators are permitted, but developers can extend the
+ * list via the {@see 'visibloc_jlg_allowed_impersonator_roles'} filter.
+ *
+ * @return string[] Sanitized role slugs.
+ */
+function visibloc_jlg_get_allowed_impersonator_roles() {
+    $default_roles = [ 'administrator' ];
+    $roles         = apply_filters( 'visibloc_jlg_allowed_impersonator_roles', $default_roles );
+
+    if ( ! is_array( $roles ) ) {
+        $roles = $default_roles;
+    }
+
+    $roles = array_filter( array_map( 'sanitize_key', $roles ) );
+
+    if ( empty( $roles ) ) {
+        $roles = $default_roles;
+    }
+
+    return array_values( array_unique( $roles ) );
+}
+
 function visibloc_jlg_is_user_allowed_to_preview( $user_id ) {
     $user_id = absint( $user_id );
 
@@ -64,6 +89,36 @@ function visibloc_jlg_is_user_allowed_to_preview( $user_id ) {
     }
 
     $allowed_roles = visibloc_jlg_get_allowed_preview_roles();
+
+    foreach ( (array) $user->roles as $role ) {
+        if ( in_array( $role, $allowed_roles, true ) ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Determine whether a user can impersonate another role on the front end.
+ *
+ * @param int $user_id User ID to evaluate.
+ * @return bool True if the user can impersonate, false otherwise.
+ */
+function visibloc_jlg_is_user_allowed_to_impersonate( $user_id ) {
+    $user_id = absint( $user_id );
+
+    if ( ! $user_id ) {
+        return false;
+    }
+
+    $user = get_userdata( $user_id );
+
+    if ( ! $user ) {
+        return false;
+    }
+
+    $allowed_roles = visibloc_jlg_get_allowed_impersonator_roles();
 
     foreach ( (array) $user->roles as $role ) {
         if ( in_array( $role, $allowed_roles, true ) ) {
@@ -112,6 +167,12 @@ function visibloc_jlg_maybe_impersonate_guest( $user_id ) {
     if ( ! visibloc_jlg_is_user_allowed_to_preview( $real_user_id ) ) {
         visibloc_jlg_purge_preview_cookie();
         visibloc_jlg_store_real_user_id( null );
+
+        return $user_id;
+    }
+
+    if ( 'guest' !== $preview_role && ! visibloc_jlg_is_user_allowed_to_impersonate( $real_user_id ) ) {
+        visibloc_jlg_purge_preview_cookie();
 
         return $user_id;
     }
@@ -353,6 +414,13 @@ function visibloc_jlg_filter_user_capabilities( $allcaps, $caps, $args, $user ) 
         }
 
         return $guest_caps;
+    }
+
+    // Ignore non-guest previews for users that are not allowed to impersonate roles.
+    if ( ! visibloc_jlg_is_user_allowed_to_impersonate( $real_user_id ) ) {
+        visibloc_jlg_purge_preview_cookie();
+
+        return $allcaps;
     }
 
     $role_object = get_role( $preview_role );
