@@ -33,8 +33,30 @@ function visibloc_jlg_handle_options_save() {
     }
 
     if ( wp_verify_nonce( $nonce, 'visibloc_save_breakpoints' ) ) {
-        if ( null !== $mobile_breakpoint ) update_option( 'visibloc_breakpoint_mobile', $mobile_breakpoint );
-        if ( null !== $tablet_breakpoint ) update_option( 'visibloc_breakpoint_tablet', $tablet_breakpoint );
+        $current_mobile_bp = get_option( 'visibloc_breakpoint_mobile', 781 );
+        $current_tablet_bp = get_option( 'visibloc_breakpoint_tablet', 1024 );
+
+        $new_mobile_bp = ( null !== $mobile_breakpoint ) ? $mobile_breakpoint : $current_mobile_bp;
+        $new_tablet_bp = ( null !== $tablet_breakpoint ) ? $tablet_breakpoint : $current_tablet_bp;
+
+        if ( $new_tablet_bp <= $new_mobile_bp ) {
+            $redirect_url = add_query_arg(
+                'status',
+                'invalid_breakpoints',
+                admin_url( 'admin.php?page=visi-bloc-jlg-help' )
+            );
+            wp_safe_redirect( $redirect_url );
+            exit;
+        }
+
+        if ( null !== $mobile_breakpoint && $mobile_breakpoint !== $current_mobile_bp ) {
+            update_option( 'visibloc_breakpoint_mobile', $mobile_breakpoint );
+        }
+
+        if ( null !== $tablet_breakpoint && $tablet_breakpoint !== $current_tablet_bp ) {
+            update_option( 'visibloc_breakpoint_tablet', $tablet_breakpoint );
+        }
+
         visibloc_jlg_clear_caches();
         wp_safe_redirect( admin_url( 'admin.php?page=visi-bloc-jlg-help&status=updated' ) );
         exit;
@@ -81,6 +103,8 @@ function visibloc_jlg_render_help_page_content() {
         <h1><?php esc_html_e( 'Visi-Bloc - JLG - Aide et Réglages', 'visi-bloc-jlg' ); ?></h1>
         <?php if ( 'updated' === $status ) : ?>
             <div id="message" class="updated notice is-dismissible"><p><?php esc_html_e( 'Réglages mis à jour.', 'visi-bloc-jlg' ); ?></p></div>
+        <?php elseif ( 'invalid_breakpoints' === $status ) : ?>
+            <div id="message" class="notice notice-error is-dismissible"><p><?php esc_html_e( 'La valeur de la tablette doit être supérieure à celle du mobile. Les réglages n’ont pas été enregistrés.', 'visi-bloc-jlg' ); ?></p></div>
         <?php endif; ?>
         <div id="poststuff">
             <?php

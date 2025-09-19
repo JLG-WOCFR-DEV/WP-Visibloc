@@ -26,13 +26,17 @@ function visibloc_jlg_add_device_visibility_styles() {
     $mobile_bp = get_option( 'visibloc_breakpoint_mobile', 781 );
     $tablet_bp = get_option( 'visibloc_breakpoint_tablet', 1024 );
     $tablet_min_bp = $mobile_bp + 1;
-    $desktop_min_bp = $tablet_bp + 1;
+    $has_valid_tablet_bp = ( $tablet_bp > $mobile_bp );
+    $desktop_reference_bp = $has_valid_tablet_bp ? $tablet_bp : $mobile_bp;
+    $desktop_min_bp = $desktop_reference_bp + 1;
     ?>
     <style id="visibloc-jlg-styles">
         <?php if ( ! $can_preview ) : ?>
         .vb-desktop-only, .vb-tablet-only, .vb-mobile-only { display: none; }
         @media (max-width: <?php echo intval( $mobile_bp ); ?>px) { .vb-hide-on-mobile { display: none !important; } .vb-mobile-only { display: block !important; } }
+        <?php if ( $has_valid_tablet_bp ) : ?>
         @media (min-width: <?php echo intval( $tablet_min_bp ); ?>px) and (max-width: <?php echo intval( $tablet_bp ); ?>px) { .vb-hide-on-tablet { display: none !important; } .vb-tablet-only { display: block !important; } }
+        <?php endif; ?>
         @media (min-width: <?php echo intval( $desktop_min_bp ); ?>px) { .vb-hide-on-desktop { display: none !important; } .vb-desktop-only { display: block !important; } }
         <?php else: ?>
         .vb-desktop-only, .vb-tablet-only, .vb-mobile-only, .vb-hide-on-desktop, .vb-hide-on-tablet, .vb-hide-on-mobile { position: relative; outline: 2px dashed #0073aa; outline-offset: 2px; }
