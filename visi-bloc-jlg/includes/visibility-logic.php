@@ -3,6 +3,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 add_filter( 'render_block', 'visibloc_jlg_render_block_filter', 10, 2 );
 function visibloc_jlg_render_block_filter( $block_content, $block ) {
+    if ( empty( $block['blockName'] ) || 'core/group' !== $block['blockName'] ) { return $block_content; }
     if ( empty( $block['attrs'] ) ) { return $block_content; }
     $attrs = $block['attrs'];
     $can_preview = visibloc_jlg_can_user_preview();
