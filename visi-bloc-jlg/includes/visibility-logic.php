@@ -13,23 +13,8 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
 
     if ( ! empty( $attrs['isSchedulingEnabled'] ) ) {
         $current_time = current_time( 'timestamp', true );
-        $timezone     = wp_timezone();
-
-        $start_time = null;
-        if ( ! empty( $attrs['publishStartDate'] ) ) {
-            $start_datetime = date_create_immutable( $attrs['publishStartDate'], $timezone );
-            if ( false !== $start_datetime ) {
-                $start_time = $start_datetime->getTimestamp();
-            }
-        }
-
-        $end_time = null;
-        if ( ! empty( $attrs['publishEndDate'] ) ) {
-            $end_datetime = date_create_immutable( $attrs['publishEndDate'], $timezone );
-            if ( false !== $end_datetime ) {
-                $end_time = $end_datetime->getTimestamp();
-            }
-        }
+        $start_time   = isset( $attrs['publishStartDate'] ) ? visibloc_jlg_parse_schedule_datetime( $attrs['publishStartDate'] ) : null;
+        $end_time     = isset( $attrs['publishEndDate'] ) ? visibloc_jlg_parse_schedule_datetime( $attrs['publishEndDate'] ) : null;
 
         $is_before_start = null !== $start_time && $current_time < $start_time;
         $is_after_end = null !== $end_time && $current_time > $end_time;
