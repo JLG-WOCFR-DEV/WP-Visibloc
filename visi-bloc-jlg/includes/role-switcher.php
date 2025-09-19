@@ -254,34 +254,58 @@ function visibloc_jlg_purge_preview_cookie() {
     visibloc_jlg_set_preview_cookie( '', time() - 3600 );
 }
 
-add_action( 'init', 'visibloc_jlg_handle_role_switching' );
-function visibloc_jlg_handle_role_switching() {
-    $user_id = visibloc_jlg_get_effective_user_id();
+/**
+ * Retrieve the preview context for a given user.
+ *
+ * @param int $user_id User ID.
+ * @return array{
+ *     user_id:int,
+ *     can_impersonate:bool,
+ *     can_preview:bool,
+ *     previewable_roles:string[],
+ * }
+ */
+function visibloc_jlg_get_user_preview_context( $user_id ) {
+    $user_id = absint( $user_id );
+
+    $context = [
+        'user_id'           => $user_id,
+        'can_impersonate'   => false,
+        'can_preview'       => false,
+        'previewable_roles' => [],
+    ];
 
     if ( ! $user_id ) {
-        return;
+        return $context;
     }
 
-    $can_impersonate = visibloc_jlg_is_user_allowed_to_impersonate( $user_id );
-    $can_preview     = visibloc_jlg_is_user_allowed_to_preview( $user_id );
+    $context['can_impersonate'] = visibloc_jlg_is_user_allowed_to_impersonate( $user_id );
+    $context['can_preview']     = visibloc_jlg_is_user_allowed_to_preview( $user_id );
 
-    if ( ! $can_impersonate && ! $can_preview ) {
-        return;
-    }
-
-    $previewable_roles = [];
-
-    if ( $can_impersonate ) {
+    if ( $context['can_impersonate'] ) {
         if ( ! function_exists( 'get_editable_roles' ) ) {
             require_once ABSPATH . 'wp-admin/includes/user.php';
         }
 
-        $previewable_roles = array_keys( get_editable_roles() );
+        $context['previewable_roles'] = array_keys( get_editable_roles() );
     }
 
-    if ( $can_preview && ! in_array( 'guest', $previewable_roles, true ) ) {
-        $previewable_roles[] = 'guest';
+    if ( $context['can_preview'] && ! in_array( 'guest', $context['previewable_roles'], true ) ) {
+        $context['previewable_roles'][] = 'guest';
     }
+
+    return $context;
+}
+
+add_action( 'init', 'visibloc_jlg_handle_role_switching' );
+function visibloc_jlg_handle_role_switching() {
+    $context = visibloc_jlg_get_user_preview_context( visibloc_jlg_get_effective_user_id() );
+
+    if ( ! $context['can_impersonate'] && ! $context['can_preview'] ) {
+        return;
+    }
+
+    $previewable_roles = $context['previewable_roles'];
 
     if ( empty( $previewable_roles ) ) {
         return;
@@ -299,11 +323,11 @@ function visibloc_jlg_handle_role_switching() {
             return;
         }
 
-        if ( 'guest' === $role_to_preview && ! $can_preview ) {
+        if ( 'guest' === $role_to_preview && ! $context['can_preview'] ) {
             return;
         }
 
-        if ( 'guest' !== $role_to_preview && ! $can_impersonate ) {
+        if ( 'guest' !== $role_to_preview && ! $context['can_impersonate'] ) {
             return;
         }
 
@@ -352,15 +376,29 @@ function visibloc_jlg_add_role_switcher_menu( $wp_admin_bar ) {
         return;
     }
 
-    $can_impersonate = visibloc_jlg_is_user_allowed_to_impersonate( $user_id );
-    $can_preview     = visibloc_jlg_is_user_allowed_to_preview( $user_id );
+    $context = visibloc_jlg_get_user_preview_context( $user_id );
 
-    if ( ! $can_impersonate && ! $can_preview ) {
+    if ( ! $context['can_impersonate'] && ! $context['can_preview'] ) {
         return;
     }
 
-    if ( $can_impersonate && ! function_exists( 'get_editable_roles' ) ) {
-        require_once ABSPATH . 'wp-admin/includes/user.php';
+    $previewable_roles = $context['previewable_roles'];
+
+    if ( empty( $previewable_roles ) ) {
+        return;
+    }
+
+    $can_impersonate = $context['can_impersonate'];
+    $can_preview     = $context['can_preview'];
+
+    $editable_roles = [];
+
+    if ( $can_impersonate ) {
+        if ( ! function_exists( 'get_editable_roles' ) ) {
+            require_once ABSPATH . 'wp-admin/includes/user.php';
+        }
+
+        $editable_roles = get_editable_roles();
     }
 
     $base_url = remove_query_arg( [ 'preview_role', 'stop_preview_role', '_wpnonce' ] );
@@ -415,7 +453,11 @@ function visibloc_jlg_add_role_switcher_menu( $wp_admin_bar ) {
     }
 
     if ( $can_impersonate ) {
-        foreach ( get_editable_roles() as $slug => $details ) {
+        foreach ( $editable_roles as $slug => $details ) {
+            if ( ! in_array( $slug, $previewable_roles, true ) ) {
+                continue;
+            }
+
             $preview_url = add_query_arg( 'preview_role', $slug, $base_url );
             $preview_url = wp_nonce_url( $preview_url, 'visibloc_switch_role_' . $slug );
 
