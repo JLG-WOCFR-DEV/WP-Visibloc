@@ -179,11 +179,11 @@ function visibloc_jlg_render_scheduled_blocks_section( $scheduled_posts ) {
                     </thead>
                     <tbody>
                         <?php foreach ( $scheduled_posts as $post_data ) :
-                            $start_timestamp = visibloc_jlg_parse_schedule_datetime( $post_data['start'] ?? null );
-                            $end_timestamp   = visibloc_jlg_parse_schedule_datetime( $post_data['end'] ?? null );
+                            $start_datetime = visibloc_jlg_create_schedule_datetime( $post_data['start'] ?? null );
+                            $end_datetime   = visibloc_jlg_create_schedule_datetime( $post_data['end'] ?? null );
 
-                            $start_display = null !== $start_timestamp ? wp_date( 'd/m/Y H:i', $start_timestamp ) : '–';
-                            $end_display   = null !== $end_timestamp ? wp_date( 'd/m/Y H:i', $end_timestamp ) : '–';
+                            $start_display = null !== $start_datetime ? wp_date( 'd/m/Y H:i', $start_datetime->getTimestamp() ) : '–';
+                            $end_display   = null !== $end_datetime ? wp_date( 'd/m/Y H:i', $end_datetime->getTimestamp() ) : '–';
                             ?>
                             <tr>
                                 <td><a href="<?php echo esc_url( $post_data['link'] ); ?>"><?php echo esc_html( $post_data['title'] ); ?></a></td>
