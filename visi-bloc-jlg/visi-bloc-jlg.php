@@ -4,6 +4,8 @@
  * Description:       Ajoute des options avancées pour cacher/afficher des blocs sur le site public.
  * Version:           1.1
  * Author:            Jérôme Le Gousse
+ * Text Domain:       visi-bloc-jlg
+ * Domain Path:       /languages
  */
 
 if ( ! defined( 'WPINC' ) ) { exit; }
@@ -14,6 +16,14 @@ require_once __DIR__ . '/includes/admin-settings.php';
 require_once __DIR__ . '/includes/assets.php';
 require_once __DIR__ . '/includes/visibility-logic.php';
 require_once __DIR__ . '/includes/role-switcher.php';
+
+/**
+ * Initialise la localisation du plugin.
+ */
+function visi_bloc_jlg_load_textdomain() {
+    load_plugin_textdomain( 'visi-bloc-jlg', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
+}
+add_action( 'plugins_loaded', 'visi_bloc_jlg_load_textdomain' );
 
 /**
  * Vérifie si l'utilisateur actuellement connecté a un rôle autorisé à voir les aperçus.
