@@ -202,15 +202,17 @@ function visibloc_jlg_render_scheduled_blocks_section( $scheduled_posts ) {
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ( $scheduled_posts as $post_data ) :
-                            $start_datetime = visibloc_jlg_create_schedule_datetime( $post_data['start'] ?? null );
-                            $end_datetime   = visibloc_jlg_create_schedule_datetime( $post_data['end'] ?? null );
+                        <?php foreach ( $scheduled_posts as $scheduled_block ) :
+                            $start_datetime = visibloc_jlg_create_schedule_datetime( $scheduled_block['start'] ?? null );
+                            $end_datetime   = visibloc_jlg_create_schedule_datetime( $scheduled_block['end'] ?? null );
 
                             $start_display = null !== $start_datetime ? wp_date( 'd/m/Y H:i', $start_datetime->getTimestamp() ) : '–';
                             $end_display   = null !== $end_datetime ? wp_date( 'd/m/Y H:i', $end_datetime->getTimestamp() ) : '–';
                             ?>
                             <tr>
-                                <td><a href="<?php echo esc_url( $post_data['link'] ); ?>"><?php echo esc_html( $post_data['title'] ); ?></a></td>
+                                <td>
+                                    <a href="<?php echo esc_url( $scheduled_block['link'] ); ?>"><?php echo esc_html( $scheduled_block['title'] ); ?></a>
+                                </td>
                                 <td><?php echo esc_html( $start_display ); ?></td>
                                 <td><?php echo esc_html( $end_display ); ?></td>
                             </tr>
@@ -309,12 +311,18 @@ function visibloc_jlg_get_posts_with_condition( $attribute_callback ) {
             $found_blocks = visibloc_jlg_find_blocks_recursive( $blocks, $attribute_callback );
 
             if ( ! empty( $found_blocks ) ) {
-                $found_posts[] = [
-                    'id'    => $post_id,
-                    'title' => get_the_title( $post_id ),
-                    'link'  => get_edit_post_link( $post_id ),
-                    'attrs' => $found_blocks[0]['attrs'] ?? [],
-                ];
+                $post_title = get_the_title( $post_id );
+                $post_link  = get_edit_post_link( $post_id );
+
+                foreach ( $found_blocks as $block ) {
+                    $found_posts[] = [
+                        'id'        => $post_id,
+                        'title'     => $post_title,
+                        'link'      => $post_link,
+                        'blockName' => $block['blockName'] ?? '',
+                        'attrs'     => $block['attrs'] ?? [],
+                    ];
+                }
             }
         }
 
@@ -377,13 +385,13 @@ function visibloc_jlg_get_scheduled_posts() {
     }
 
     $formatted_posts = [];
-    foreach ( $cached as $post ) {
+    foreach ( $cached as $post_block ) {
         $formatted_posts[] = [
-            'id'    => $post['id'],
-            'title' => $post['title'],
-            'link'  => $post['link'],
-            'start' => $post['attrs']['publishStartDate'] ?? null,
-            'end'   => $post['attrs']['publishEndDate'] ?? null,
+            'id'    => $post_block['id'],
+            'title' => $post_block['title'],
+            'link'  => $post_block['link'],
+            'start' => $post_block['attrs']['publishStartDate'] ?? null,
+            'end'   => $post_block['attrs']['publishEndDate'] ?? null,
         ];
     }
 
