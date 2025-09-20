@@ -1,0 +1,13 @@
+{
+  "name": "visi-bloc-jlg",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "wp-scripts build"
+  },
+  "devDependencies": {
+    "@wordpress/scripts": "^26.0.0",
+    "hasown": "2.0.2",
+    "p-try": "3.0.0"
+  }
+}
