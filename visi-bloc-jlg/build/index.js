@@ -205,6 +205,7 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
+const { sprintf } = _wordpress_i18n__WEBPACK_IMPORTED_MODULE_5__;
 const DEVICE_VISIBILITY_OPTIONS = [{
   label: (0,_wordpress_i18n__WEBPACK_IMPORTED_MODULE_5__.__)('Visible sur tous les appareils', 'visi-bloc-jlg'),
   value: 'all'
@@ -295,11 +296,11 @@ const withVisibilityControls = (0,_wordpress_compose__WEBPACK_IMPORTED_MODULE_2_
       const startDate = publishStartDate ? (0,_wordpress_date__WEBPACK_IMPORTED_MODULE_6__.format)('d/m/Y H:i', publishStartDate) : null;
       const endDate = publishEndDate ? (0,_wordpress_date__WEBPACK_IMPORTED_MODULE_6__.format)('d/m/Y H:i', publishEndDate) : null;
       if (startDate && endDate) {
-        scheduleSummary = `Du ${startDate} au ${endDate}.`;
+        scheduleSummary = sprintf((0,_wordpress_i18n__WEBPACK_IMPORTED_MODULE_5__.__)('Du %s au %s.', 'visi-bloc-jlg'), startDate, endDate);
       } else if (startDate) {
-        scheduleSummary = `À partir du ${startDate}.`;
+        scheduleSummary = sprintf((0,_wordpress_i18n__WEBPACK_IMPORTED_MODULE_5__.__)('À partir du %s.', 'visi-bloc-jlg'), startDate);
       } else if (endDate) {
-        scheduleSummary = `Jusqu'au ${endDate}.`;
+        scheduleSummary = sprintf((0,_wordpress_i18n__WEBPACK_IMPORTED_MODULE_5__.__)('Jusqu\'au %s.', 'visi-bloc-jlg'), endDate);
       } else {
         scheduleSummary = (0,_wordpress_i18n__WEBPACK_IMPORTED_MODULE_5__.__)('Activée, mais sans date définie.', 'visi-bloc-jlg');
       }
