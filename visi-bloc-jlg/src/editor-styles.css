@@ -1,0 +1,16 @@
+.visi-bloc-panel-schedule .components-base-control {
+    margin-bottom: 16px;
+}
+
+.visi-bloc-datepicker-wrapper {
+    margin-bottom: 16px;
+    padding-left: 20px;
+}
+
+.components-datetime__date-picker .components-datetime__day {
+    justify-content: center;
+    align-items: center;
+    display: flex;
+    width: 28px;
+    height: 28px;
+}
