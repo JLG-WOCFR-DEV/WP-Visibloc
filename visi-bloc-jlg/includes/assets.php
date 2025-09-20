@@ -31,14 +31,13 @@ function visibloc_jlg_add_device_visibility_styles() {
     $desktop_min_bp = $desktop_reference_bp + 1;
     ?>
     <style id="visibloc-jlg-styles">
-        <?php if ( ! $can_preview ) : ?>
         .vb-desktop-only, .vb-tablet-only, .vb-mobile-only { display: none; }
         @media (max-width: <?php echo intval( $mobile_bp ); ?>px) { .vb-hide-on-mobile { display: none !important; } .vb-mobile-only { display: block !important; } }
         <?php if ( $has_valid_tablet_bp ) : ?>
         @media (min-width: <?php echo intval( $tablet_min_bp ); ?>px) and (max-width: <?php echo intval( $tablet_bp ); ?>px) { .vb-hide-on-tablet { display: none !important; } .vb-tablet-only { display: block !important; } }
         <?php endif; ?>
         @media (min-width: <?php echo intval( $desktop_min_bp ); ?>px) { .vb-hide-on-desktop { display: none !important; } .vb-desktop-only { display: block !important; } }
-        <?php else: ?>
+        <?php if ( $can_preview ) : ?>
         .vb-desktop-only, .vb-tablet-only, .vb-mobile-only, .vb-hide-on-desktop, .vb-hide-on-tablet, .vb-hide-on-mobile { position: relative; outline: 2px dashed #0073aa; outline-offset: 2px; }
         .vb-desktop-only::before, .vb-tablet-only::before, .vb-mobile-only::before, .vb-hide-on-desktop::before, .vb-hide-on-tablet::before, .vb-hide-on-mobile::before { content: attr(data-visibloc-label); position: absolute; bottom: -2px; right: -2px; background-color: #0073aa; color: white; padding: 2px 8px; font-size: 11px; font-family: sans-serif; font-weight: bold; z-index: 99; border-radius: 3px 0 3px 0; }
         .vb-hide-on-mobile::before { content: <?php echo wp_json_encode( __( 'Caché sur Mobile', 'visi-bloc-jlg' ) ); ?>; }
