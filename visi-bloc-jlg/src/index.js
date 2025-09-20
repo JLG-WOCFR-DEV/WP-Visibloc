@@ -130,17 +130,20 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                 : null;
 
             if (startDate && endDate) {
+                /* translators: 1: Start date, 2: end date. */
                 scheduleSummary = sprintf(
                     __('Du %s au %s.', 'visi-bloc-jlg'),
                     startDate,
                     endDate,
                 );
             } else if (startDate) {
+                /* translators: %s: Start date. */
                 scheduleSummary = sprintf(
                     __('À partir du %s.', 'visi-bloc-jlg'),
                     startDate,
                 );
             } else if (endDate) {
+                /* translators: %s: End date. */
                 scheduleSummary = sprintf(
                     __('Jusqu\'au %s.', 'visi-bloc-jlg'),
                     endDate,
