@@ -9,14 +9,30 @@ function visibloc_jlg_handle_options_save() {
     $nonce = sanitize_text_field( wp_unslash( $_POST['visibloc_nonce'] ) );
     if ( '' === $nonce ) return;
 
-    $mobile_breakpoint = null;
+    $mobile_breakpoint          = null;
+    $mobile_breakpoint_invalid  = false;
     if ( isset( $_POST['visibloc_breakpoint_mobile'] ) ) {
-        $mobile_breakpoint = absint( wp_unslash( $_POST['visibloc_breakpoint_mobile'] ) );
+        $raw_mobile_breakpoint = trim( wp_unslash( $_POST['visibloc_breakpoint_mobile'] ) );
+        if ( '' !== $raw_mobile_breakpoint ) {
+            $mobile_breakpoint = absint( $raw_mobile_breakpoint );
+            if ( $mobile_breakpoint < 1 ) {
+                $mobile_breakpoint_invalid = true;
+                $mobile_breakpoint         = null;
+            }
+        }
     }
 
-    $tablet_breakpoint = null;
+    $tablet_breakpoint          = null;
+    $tablet_breakpoint_invalid  = false;
     if ( isset( $_POST['visibloc_breakpoint_tablet'] ) ) {
-        $tablet_breakpoint = absint( wp_unslash( $_POST['visibloc_breakpoint_tablet'] ) );
+        $raw_tablet_breakpoint = trim( wp_unslash( $_POST['visibloc_breakpoint_tablet'] ) );
+        if ( '' !== $raw_tablet_breakpoint ) {
+            $tablet_breakpoint = absint( $raw_tablet_breakpoint );
+            if ( $tablet_breakpoint < 1 ) {
+                $tablet_breakpoint_invalid = true;
+                $tablet_breakpoint         = null;
+            }
+        }
     }
 
     $submitted_roles = [];
@@ -36,10 +52,20 @@ function visibloc_jlg_handle_options_save() {
         $current_mobile_bp = get_option( 'visibloc_breakpoint_mobile', 781 );
         $current_tablet_bp = get_option( 'visibloc_breakpoint_tablet', 1024 );
 
+        if ( $mobile_breakpoint_invalid || $tablet_breakpoint_invalid ) {
+            $redirect_url = add_query_arg(
+                'status',
+                'invalid_breakpoints',
+                admin_url( 'admin.php?page=visi-bloc-jlg-help' )
+            );
+            wp_safe_redirect( $redirect_url );
+            exit;
+        }
+
         $new_mobile_bp = ( null !== $mobile_breakpoint ) ? $mobile_breakpoint : $current_mobile_bp;
         $new_tablet_bp = ( null !== $tablet_breakpoint ) ? $tablet_breakpoint : $current_tablet_bp;
 
-        if ( $new_tablet_bp <= $new_mobile_bp ) {
+        if ( $new_mobile_bp < 1 || $new_tablet_bp < 1 || $new_tablet_bp <= $new_mobile_bp ) {
             $redirect_url = add_query_arg(
                 'status',
                 'invalid_breakpoints',
@@ -104,7 +130,7 @@ function visibloc_jlg_render_help_page_content() {
         <?php if ( 'updated' === $status ) : ?>
             <div id="message" class="updated notice is-dismissible"><p><?php esc_html_e( 'Réglages mis à jour.', 'visi-bloc-jlg' ); ?></p></div>
         <?php elseif ( 'invalid_breakpoints' === $status ) : ?>
-            <div id="message" class="notice notice-error is-dismissible"><p><?php esc_html_e( 'La valeur de la tablette doit être supérieure à celle du mobile. Les réglages n’ont pas été enregistrés.', 'visi-bloc-jlg' ); ?></p></div>
+            <div id="message" class="notice notice-error is-dismissible"><p><?php esc_html_e( 'Les valeurs de breakpoint doivent être des nombres positifs et la tablette doit être supérieure au mobile. Les réglages n’ont pas été enregistrés.', 'visi-bloc-jlg' ); ?></p></div>
         <?php endif; ?>
         <div id="poststuff">
             <?php
