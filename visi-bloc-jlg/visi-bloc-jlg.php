@@ -31,32 +31,52 @@ add_action( 'plugins_loaded', 'visi_bloc_jlg_load_textdomain' );
  * @return bool True si l'utilisateur peut voir les aperçus, sinon false.
  */
 function visibloc_jlg_can_user_preview() {
-    if ( ! is_user_logged_in() ) {
-        return false;
-    }
+    if ( function_exists( 'visibloc_jlg_get_allowed_preview_roles' ) ) {
+        $allowed_roles = visibloc_jlg_get_allowed_preview_roles();
+    } else {
+        $allowed_roles = (array) get_option( 'visibloc_preview_roles', [ 'administrator' ] );
+        $allowed_roles = array_map( 'sanitize_key', $allowed_roles );
 
-    // Récupère les rôles autorisés depuis les options, avec 'administrator' comme valeur par défaut sécurisée.
-    $allowed_roles = (array) get_option( 'visibloc_preview_roles', ['administrator'] );
-    $allowed_roles = array_map( 'sanitize_key', $allowed_roles );
-
-    // Si pour une raison quelconque l'option est vide, on sécurise en autorisant uniquement l'admin.
-    if ( empty( $allowed_roles ) ) {
-        $allowed_roles = ['administrator'];
-    }
-
-    // Vérifie si un rôle simulé est appliqué via le switcher.
-    $preview_role_cookie = isset( $_COOKIE['visibloc_preview_role'] ) ? sanitize_key( wp_unslash( $_COOKIE['visibloc_preview_role'] ) ) : '';
-    if ( $preview_role_cookie ) {
-        if ( 'guest' === $preview_role_cookie || ! in_array( $preview_role_cookie, $allowed_roles, true ) ) {
-            return false;
+        if ( empty( $allowed_roles ) ) {
+            $allowed_roles = [ 'administrator' ];
         }
     }
 
-    $user = wp_get_current_user();
-    $user_roles = (array) $user->roles;
+    if ( function_exists( 'visibloc_jlg_get_preview_role_from_cookie' ) ) {
+        $preview_role_cookie = visibloc_jlg_get_preview_role_from_cookie();
+    } else {
+        $preview_role_cookie = isset( $_COOKIE['visibloc_preview_role'] ) ? sanitize_key( wp_unslash( $_COOKIE['visibloc_preview_role'] ) ) : '';
+    }
 
-    // Vérifie s'il y a une intersection entre les rôles de l'utilisateur et les rôles autorisés.
-    if ( count( array_intersect( $user_roles, $allowed_roles ) ) > 0 ) {
+    if ( $preview_role_cookie && 'guest' !== $preview_role_cookie && ! in_array( $preview_role_cookie, $allowed_roles, true ) ) {
+        return false;
+    }
+
+    if ( function_exists( 'visibloc_jlg_get_effective_user_id' ) ) {
+        $user_id = visibloc_jlg_get_effective_user_id();
+    } elseif ( function_exists( 'visibloc_jlg_get_stored_real_user_id' ) ) {
+        $user_id = visibloc_jlg_get_stored_real_user_id();
+
+        if ( ! $user_id ) {
+            $user_id = get_current_user_id();
+        }
+    } else {
+        $user_id = get_current_user_id();
+    }
+
+    $user_id = absint( $user_id );
+
+    if ( ! $user_id ) {
+        return false;
+    }
+
+    $user = get_userdata( $user_id );
+
+    if ( ! $user ) {
+        return false;
+    }
+
+    if ( count( array_intersect( (array) $user->roles, $allowed_roles ) ) > 0 ) {
         return true;
     }
 
