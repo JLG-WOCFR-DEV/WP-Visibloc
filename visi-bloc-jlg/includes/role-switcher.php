@@ -28,6 +28,70 @@ function visibloc_jlg_store_real_user_id( $user_id ) {
     $visibloc_jlg_real_user_id = absint( $user_id );
 }
 
+/**
+ * Determine whether the current request should ignore any preview overrides.
+ *
+ * Guest impersonation should remain active for front-end requests (including
+ * AJAX/REST calls triggered from the public site) but must be disabled inside
+ * the admin or during purely technical operations such as cron, CLI, or admin
+ * initiated background calls.
+ *
+ * @return bool
+ */
+function visibloc_jlg_is_admin_or_technical_request() {
+    if ( is_admin() ) {
+        return true;
+    }
+
+    if ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) {
+        return true;
+    }
+
+    if ( defined( 'WP_CLI' ) && WP_CLI ) {
+        return true;
+    }
+
+    $request_uri = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+
+    $is_admin_path = function( $url ) {
+        if ( empty( $url ) ) {
+            return false;
+        }
+
+        $admin_url = admin_url();
+
+        return 0 === strpos( $url, $admin_url );
+    };
+
+    if ( wp_doing_ajax() ) {
+        // AJAX calls always hit admin-ajax.php but we only want to opt-out when
+        // they originate from the dashboard (e.g. Gutenberg/editor requests).
+        if ( false !== strpos( $request_uri, '/wp-admin/' ) ) {
+            $referer = wp_get_referer();
+
+            if ( $is_admin_path( $referer ) ) {
+                return true;
+            }
+        }
+    }
+
+    if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+        $referer = wp_get_referer();
+
+        if ( $is_admin_path( $referer ) ) {
+            return true;
+        }
+
+        $context = isset( $_GET['context'] ) ? sanitize_key( wp_unslash( $_GET['context'] ) ) : '';
+
+        if ( 'edit' === $context ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 function visibloc_jlg_get_stored_real_user_id() {
     global $visibloc_jlg_real_user_id;
 
@@ -141,7 +205,7 @@ function visibloc_jlg_get_effective_user_id() {
 
 add_filter( 'determine_current_user', 'visibloc_jlg_maybe_impersonate_guest', 99 );
 function visibloc_jlg_maybe_impersonate_guest( $user_id ) {
-    if ( is_admin() || wp_doing_ajax() || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) ) {
+    if ( visibloc_jlg_is_admin_or_technical_request() ) {
         visibloc_jlg_store_real_user_id( null );
 
         return $user_id;
@@ -473,7 +537,7 @@ function visibloc_jlg_add_role_switcher_menu( $wp_admin_bar ) {
 
 add_filter( 'user_has_cap', 'visibloc_jlg_filter_user_capabilities', 999, 4 );
 function visibloc_jlg_filter_user_capabilities( $allcaps, $caps, $args, $user ) {
-    if ( is_admin() || wp_doing_ajax() || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) ) {
+    if ( visibloc_jlg_is_admin_or_technical_request() ) {
         return $allcaps;
     }
 
