@@ -345,32 +345,50 @@ function addSaveClasses(extraProps, blockType, attributes) {
 }
 
 function syncListView() {
-    const { getBlockOrder } = select('core/block-editor');
-    const clientIds = getBlockOrder();
+    const blockEditor = select('core/block-editor');
 
-    if (!clientIds.length) {
+    if (!blockEditor) {
         return;
     }
 
-    clientIds.forEach((clientId) => {
-        const block = select('core/block-editor').getBlock(clientId);
+    const rootClientIds = blockEditor.getBlockOrder();
 
-        if (!block || block.name !== 'core/group') {
-            return;
+    if (!rootClientIds.length) {
+        return;
+    }
+
+    const stack = [...rootClientIds];
+
+    while (stack.length) {
+        const clientId = stack.pop();
+        const block = blockEditor.getBlock(clientId);
+
+        if (!block) {
+            continue;
         }
 
-        const row = document.querySelector(
-            `.block-editor-list-view__block[data-block="${clientId}"]`,
-        );
+        if (block.name === 'core/group') {
+            const row = document.querySelector(
+                `.block-editor-list-view__block[data-block="${clientId}"]`,
+            );
 
-        if (row) {
-            if (block.attributes.isHidden) {
-                row.classList.add('bloc-editeur-cache');
-            } else {
-                row.classList.remove('bloc-editeur-cache');
+            if (row) {
+                if (block.attributes.isHidden) {
+                    row.classList.add('bloc-editeur-cache');
+                } else {
+                    row.classList.remove('bloc-editeur-cache');
+                }
             }
         }
-    });
+
+        if (block.innerBlocks && block.innerBlocks.length) {
+            block.innerBlocks.forEach((innerBlock) => {
+                if (innerBlock && innerBlock.clientId) {
+                    stack.push(innerBlock.clientId);
+                }
+            });
+        }
+    }
 }
 
 addFilter(
