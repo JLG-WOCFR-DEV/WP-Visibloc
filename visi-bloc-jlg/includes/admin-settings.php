@@ -118,7 +118,13 @@ function visibloc_jlg_render_help_page_content() {
     $debug_status   = get_option( 'visibloc_debug_mode', 'off' );
     $mobile_bp      = get_option( 'visibloc_breakpoint_mobile', 781 );
     $tablet_bp      = get_option( 'visibloc_breakpoint_tablet', 1024 );
-    $allowed_roles  = get_option( 'visibloc_preview_roles', [ 'administrator' ] );
+
+    $allowed_roles_option = get_option( 'visibloc_preview_roles', [ 'administrator' ] );
+    $allowed_roles        = array_filter( (array) $allowed_roles_option );
+
+    if ( empty( $allowed_roles ) ) {
+        $allowed_roles = [ 'administrator' ];
+    }
     $scheduled_posts = visibloc_jlg_get_scheduled_posts();
     $hidden_posts    = visibloc_jlg_get_hidden_posts();
     $device_posts    = visibloc_jlg_get_device_specific_posts();
@@ -147,6 +153,10 @@ function visibloc_jlg_render_help_page_content() {
 }
 
 function visibloc_jlg_render_permissions_section( $allowed_roles ) {
+    if ( ! is_array( $allowed_roles ) ) {
+        return;
+    }
+
     ?>
     <div class="postbox">
         <h2 class="hndle"><span><?php esc_html_e( "Permissions d'Aperçu", 'visi-bloc-jlg' ); ?></span></h2>
