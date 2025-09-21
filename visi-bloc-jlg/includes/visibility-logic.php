@@ -11,27 +11,25 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         ? visibloc_jlg_is_user_allowed_to_preview( $effective_user_id )
         : false;
 
+    if ( function_exists( 'visibloc_jlg_get_allowed_preview_roles' ) ) {
+        $allowed_preview_roles = visibloc_jlg_get_allowed_preview_roles();
+    } else {
+        $allowed_preview_roles = (array) get_option( 'visibloc_preview_roles', [ 'administrator' ] );
+        $allowed_preview_roles = array_map( 'sanitize_key', $allowed_preview_roles );
+
+        if ( empty( $allowed_preview_roles ) ) {
+            $allowed_preview_roles = [ 'administrator' ];
+        }
+    }
+
     if ( function_exists( 'visibloc_jlg_get_preview_role_from_cookie' ) ) {
         $preview_role = visibloc_jlg_get_preview_role_from_cookie();
     } else {
-        $preview_role = isset( $_COOKIE['visibloc_preview_role'] ) ? sanitize_key( wp_unslash( $_COOKIE['visibloc_preview_role'] ) ) : null;
+        $preview_role = isset( $_COOKIE['visibloc_preview_role'] ) ? sanitize_key( wp_unslash( $_COOKIE['visibloc_preview_role'] ) ) : '';
     }
 
-    if ( $preview_role && 'guest' !== $preview_role ) {
-        if ( function_exists( 'visibloc_jlg_get_allowed_preview_roles' ) ) {
-            $allowed_preview_roles = visibloc_jlg_get_allowed_preview_roles();
-        } else {
-            $allowed_preview_roles = (array) get_option( 'visibloc_preview_roles', [ 'administrator' ] );
-            $allowed_preview_roles = array_map( 'sanitize_key', $allowed_preview_roles );
-
-            if ( empty( $allowed_preview_roles ) ) {
-                $allowed_preview_roles = [ 'administrator' ];
-            }
-        }
-
-        if ( ! in_array( $preview_role, $allowed_preview_roles, true ) ) {
-            $is_legit_preview_requester = false;
-        }
+    if ( $preview_role && 'guest' !== $preview_role && ! in_array( $preview_role, $allowed_preview_roles, true ) ) {
+        $is_legit_preview_requester = false;
     }
 
     if ( ! empty( $attrs['isSchedulingEnabled'] ) ) {
@@ -63,9 +61,7 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         $is_logged_in = $user->exists();
         $user_roles = (array) $user->roles;
 
-        if ( $is_legit_preview_requester && isset( $_COOKIE['visibloc_preview_role'] ) ) {
-            $preview_role = sanitize_key( wp_unslash( $_COOKIE['visibloc_preview_role'] ) );
-
+        if ( $is_legit_preview_requester && '' !== $preview_role ) {
             if ( 'guest' === $preview_role ) {
                 $is_logged_in = false;
                 $user_roles = [];
