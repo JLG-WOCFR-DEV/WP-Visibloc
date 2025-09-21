@@ -6,7 +6,6 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
     if ( empty( $block['blockName'] ) || 'core/group' !== $block['blockName'] ) { return $block_content; }
     if ( empty( $block['attrs'] ) ) { return $block_content; }
     $attrs = $block['attrs'];
-    $can_preview = visibloc_jlg_can_user_preview();
     $effective_user_id = function_exists( 'visibloc_jlg_get_effective_user_id' ) ? visibloc_jlg_get_effective_user_id() : 0;
     $is_legit_preview_requester = $effective_user_id && function_exists( 'visibloc_jlg_is_user_allowed_to_preview' )
         ? visibloc_jlg_is_user_allowed_to_preview( $effective_user_id )
@@ -21,7 +20,7 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         $is_before_start = null !== $start_time && $current_time < $start_time;
         $is_after_end = null !== $end_time && $current_time > $end_time;
         if ( $is_before_start || $is_after_end ) {
-            if ( $can_preview ) {
+            if ( $is_legit_preview_requester ) {
                 $start_date_fr = $start_time ? wp_date( 'd/m/Y H:i', $start_time ) : __( 'N/A', 'visi-bloc-jlg' );
                 $end_date_fr = $end_time ? wp_date( 'd/m/Y H:i', $end_time ) : __( 'N/A', 'visi-bloc-jlg' );
                 $info = sprintf(
@@ -62,7 +61,7 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
     }
     
     if ( isset( $attrs['isHidden'] ) && $attrs['isHidden'] === true ) {
-        if ( $can_preview ) {
+        if ( $is_legit_preview_requester ) {
             return '<div class="bloc-cache-apercu">' . $block_content . '</div>';
         }
         return '';
