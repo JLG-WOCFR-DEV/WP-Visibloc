@@ -81,7 +81,11 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
     
     if ( isset( $attrs['isHidden'] ) && $attrs['isHidden'] === true ) {
         if ( $is_legit_preview_requester ) {
-            return '<div class="bloc-cache-apercu">' . $block_content . '</div>';
+            return sprintf(
+                '<div class="bloc-cache-apercu" data-visibloc-label="%s">%s</div>',
+                esc_attr__( 'Hidden block', 'visi-bloc-jlg' ),
+                $block_content
+            );
         }
         return '';
     }
