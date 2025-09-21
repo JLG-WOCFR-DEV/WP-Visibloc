@@ -7,7 +7,7 @@
     box-sizing: border-box;
 }
 .bloc-cache-apercu::before {
-    content: "Bloc caché";
+    content: attr(data-visibloc-label);
     position: absolute;
     top: -12px;
     left: 10px;
