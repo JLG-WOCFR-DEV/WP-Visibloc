@@ -317,7 +317,7 @@ function visibloc_jlg_find_blocks_recursive( $blocks, $callback ) {
 
 function visibloc_jlg_get_posts_with_condition( $attribute_callback ) {
     $found_posts = [];
-    $post_types  = apply_filters( 'visibloc_jlg_scanned_post_types', [ 'post', 'page', 'wp_template' ] );
+    $post_types  = apply_filters( 'visibloc_jlg_scanned_post_types', [ 'post', 'page', 'wp_template', 'wp_template_part' ] );
     $page        = 1;
 
     while ( true ) {
