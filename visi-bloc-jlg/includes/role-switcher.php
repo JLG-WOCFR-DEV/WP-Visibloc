@@ -43,6 +43,10 @@ function visibloc_jlg_is_admin_or_technical_request() {
         return true;
     }
 
+    if ( defined( 'XMLRPC_REQUEST' ) && XMLRPC_REQUEST ) {
+        return true;
+    }
+
     if ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) {
         return true;
     }
