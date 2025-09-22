@@ -184,16 +184,26 @@ function visibloc_jlg_render_permissions_section( $allowed_roles ) {
 }
 
 function visibloc_jlg_render_hidden_blocks_section( $hidden_posts ) {
+    $grouped_hidden_posts = visibloc_jlg_group_posts_by_id( $hidden_posts );
+
     ?>
     <div class="postbox">
         <h2 class="hndle"><span><?php esc_html_e( 'Tableau de bord des blocs masqués (via Œil)', 'visi-bloc-jlg' ); ?></span></h2>
         <div class="inside">
-            <?php if ( empty( $hidden_posts ) ) : ?>
+            <?php if ( empty( $grouped_hidden_posts ) ) : ?>
                 <p><?php esc_html_e( "Aucun bloc masqué manuellement n'a été trouvé.", 'visi-bloc-jlg' ); ?></p>
             <?php else : ?>
                 <ul style="list-style: disc; padding-left: 20px;">
-                    <?php foreach ( $hidden_posts as $post_data ) : ?>
-                        <li><a href="<?php echo esc_url( $post_data['link'] ); ?>"><?php echo esc_html( $post_data['title'] ); ?></a></li>
+                    <?php foreach ( $grouped_hidden_posts as $post_data ) :
+                        $block_count = isset( $post_data['block_count'] ) ? (int) $post_data['block_count'] : 0;
+                        $label       = $post_data['title'] ?? '';
+
+                        if ( $block_count > 1 ) {
+                            /* translators: 1: Post title. 2: Number of blocks. */
+                            $label = sprintf( __( '%1$s (%2$d blocs)', 'visi-bloc-jlg' ), $label, $block_count );
+                        }
+                        ?>
+                        <li><a href="<?php echo esc_url( $post_data['link'] ?? '' ); ?>"><?php echo esc_html( $label ); ?></a></li>
                     <?php endforeach; ?>
                 </ul>
             <?php endif; ?>
@@ -203,16 +213,26 @@ function visibloc_jlg_render_hidden_blocks_section( $hidden_posts ) {
 }
 
 function visibloc_jlg_render_device_visibility_section( $device_posts ) {
+    $grouped_device_posts = visibloc_jlg_group_posts_by_id( $device_posts );
+
     ?>
     <div class="postbox">
         <h2 class="hndle"><span><?php esc_html_e( 'Tableau de bord des blocs avec visibilité par appareil', 'visi-bloc-jlg' ); ?></span></h2>
         <div class="inside">
-            <?php if ( empty( $device_posts ) ) : ?>
+            <?php if ( empty( $grouped_device_posts ) ) : ?>
                 <p><?php esc_html_e( "Aucun bloc avec une règle de visibilité par appareil n'a été trouvé.", 'visi-bloc-jlg' ); ?></p>
             <?php else : ?>
                 <ul style="list-style: disc; padding-left: 20px;">
-                    <?php foreach ( $device_posts as $post_data ) : ?>
-                        <li><a href="<?php echo esc_url( $post_data['link'] ); ?>"><?php echo esc_html( $post_data['title'] ); ?></a></li>
+                    <?php foreach ( $grouped_device_posts as $post_data ) :
+                        $block_count = isset( $post_data['block_count'] ) ? (int) $post_data['block_count'] : 0;
+                        $label       = $post_data['title'] ?? '';
+
+                        if ( $block_count > 1 ) {
+                            /* translators: 1: Post title. 2: Number of blocks. */
+                            $label = sprintf( __( '%1$s (%2$d blocs)', 'visi-bloc-jlg' ), $label, $block_count );
+                        }
+                        ?>
+                        <li><a href="<?php echo esc_url( $post_data['link'] ?? '' ); ?>"><?php echo esc_html( $label ); ?></a></li>
                     <?php endforeach; ?>
                 </ul>
             <?php endif; ?>
@@ -304,6 +324,39 @@ function visibloc_jlg_render_breakpoints_section( $mobile_bp, $tablet_bp ) {
         </div>
     </div>
     <?php
+}
+
+function visibloc_jlg_group_posts_by_id( $posts ) {
+    if ( ! is_array( $posts ) ) {
+        return [];
+    }
+
+    $grouped_posts = [];
+
+    foreach ( $posts as $post_data ) {
+        if ( ! is_array( $post_data ) ) {
+            continue;
+        }
+
+        $post_id = isset( $post_data['id'] ) ? absint( $post_data['id'] ) : 0;
+
+        if ( 0 === $post_id ) {
+            continue;
+        }
+
+        if ( ! isset( $grouped_posts[ $post_id ] ) ) {
+            $grouped_posts[ $post_id ] = [
+                'id'          => $post_id,
+                'title'       => $post_data['title'] ?? '',
+                'link'        => $post_data['link'] ?? '',
+                'block_count' => 0,
+            ];
+        }
+
+        $grouped_posts[ $post_id ]['block_count']++;
+    }
+
+    return array_values( $grouped_posts );
 }
 
 function visibloc_jlg_find_blocks_recursive( $blocks, $callback ) {
