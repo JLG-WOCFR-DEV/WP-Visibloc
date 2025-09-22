@@ -28,6 +28,10 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         $preview_role = isset( $_COOKIE['visibloc_preview_role'] ) ? sanitize_key( wp_unslash( $_COOKIE['visibloc_preview_role'] ) ) : '';
     }
 
+    if ( 'guest' === $preview_role ) {
+        $is_legit_preview_requester = false;
+    }
+
     if ( $preview_role && 'guest' !== $preview_role && ! in_array( $preview_role, $allowed_preview_roles, true ) ) {
         $is_legit_preview_requester = false;
     }
