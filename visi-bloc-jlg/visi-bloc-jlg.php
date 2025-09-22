@@ -48,6 +48,10 @@ function visibloc_jlg_can_user_preview() {
         $preview_role_cookie = isset( $_COOKIE['visibloc_preview_role'] ) ? sanitize_key( wp_unslash( $_COOKIE['visibloc_preview_role'] ) ) : '';
     }
 
+    if ( 'guest' === $preview_role_cookie ) {
+        return false;
+    }
+
     if ( $preview_role_cookie && 'guest' !== $preview_role_cookie && ! in_array( $preview_role_cookie, $allowed_roles, true ) ) {
         return false;
     }
