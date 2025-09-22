@@ -6,6 +6,10 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
     if ( empty( $block['blockName'] ) || 'core/group' !== $block['blockName'] ) { return $block_content; }
     if ( empty( $block['attrs'] ) ) { return $block_content; }
     $attrs = $block['attrs'];
+    $is_admin_or_technical_request = function_exists( 'visibloc_jlg_is_admin_or_technical_request' )
+        ? visibloc_jlg_is_admin_or_technical_request()
+        : false;
+    $is_preview_role_neutralized = $is_admin_or_technical_request;
     $effective_user_id = function_exists( 'visibloc_jlg_get_effective_user_id' ) ? visibloc_jlg_get_effective_user_id() : 0;
     $is_legit_preview_requester = $effective_user_id && function_exists( 'visibloc_jlg_is_user_allowed_to_preview' )
         ? visibloc_jlg_is_user_allowed_to_preview( $effective_user_id )
@@ -22,17 +26,19 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         }
     }
 
-    if ( function_exists( 'visibloc_jlg_get_preview_role_from_cookie' ) ) {
+    if ( $is_preview_role_neutralized ) {
+        $preview_role = '';
+    } elseif ( function_exists( 'visibloc_jlg_get_preview_role_from_cookie' ) ) {
         $preview_role = visibloc_jlg_get_preview_role_from_cookie();
     } else {
         $preview_role = isset( $_COOKIE['visibloc_preview_role'] ) ? sanitize_key( wp_unslash( $_COOKIE['visibloc_preview_role'] ) ) : '';
     }
 
-    if ( 'guest' === $preview_role ) {
+    if ( ! $is_preview_role_neutralized && 'guest' === $preview_role ) {
         $is_legit_preview_requester = false;
     }
 
-    if ( $preview_role && 'guest' !== $preview_role && ! in_array( $preview_role, $allowed_preview_roles, true ) ) {
+    if ( ! $is_preview_role_neutralized && $preview_role && 'guest' !== $preview_role && ! in_array( $preview_role, $allowed_preview_roles, true ) ) {
         $is_legit_preview_requester = false;
     }
 
