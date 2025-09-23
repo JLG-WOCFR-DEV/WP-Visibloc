@@ -128,7 +128,7 @@ function visibloc_jlg_render_help_page_content() {
     $scheduled_posts = visibloc_jlg_get_scheduled_posts();
     $hidden_posts    = visibloc_jlg_get_hidden_posts();
     $device_posts    = visibloc_jlg_get_device_specific_posts();
-    $status          = isset( $_GET['status'] ) ? sanitize_key( wp_unslash( $_GET['status'] ) ) : '';
+    $status          = visibloc_jlg_get_sanitized_query_arg( 'status' );
 
     ?>
     <div class="wrap">
