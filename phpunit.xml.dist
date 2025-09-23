@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit bootstrap="visi-bloc-jlg/tests/phpunit/bootstrap.php" colors="true">
+    <testsuites>
+        <testsuite name="Integration">
+            <directory suffix="Test.php">visi-bloc-jlg/tests/phpunit/integration</directory>
+        </testsuite>
+    </testsuites>
+</phpunit>

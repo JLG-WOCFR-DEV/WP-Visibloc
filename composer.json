@@ -1,0 +1,6 @@
+{
+    "name": "visibloc/wp-visibloc",
+    "require-dev": {
+        "phpunit/phpunit": "^9.6"
+    }
+}

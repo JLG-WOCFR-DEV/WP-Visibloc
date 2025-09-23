@@ -1,0 +1,59 @@
+<?php
+
+use PHPUnit\Framework\TestCase;
+
+class VisibilityLogicTest extends TestCase {
+    protected function setUp(): void {
+        visibloc_test_reset_state();
+    }
+
+    public function test_administrator_impersonating_editor_sees_editor_view_without_hidden_blocks(): void {
+        global $visibloc_test_state;
+
+        $visibloc_test_state['effective_user_id'] = 1;
+        $visibloc_test_state['can_preview_users'][1] = true;
+        $visibloc_test_state['can_impersonate_users'][1] = true;
+        $visibloc_test_state['allowed_preview_roles'] = [ 'administrator' ];
+        $visibloc_test_state['preview_role'] = 'editor';
+        $visibloc_test_state['current_user'] = new Visibloc_Test_User( 1, [ 'administrator' ] );
+
+        $visible_for_editors = [
+            'blockName' => 'core/group',
+            'attrs'     => [
+                'visibilityRoles' => [ 'editor' ],
+            ],
+        ];
+
+        $this->assertSame(
+            '<p>Editor content</p>',
+            visibloc_jlg_render_block_filter( '<p>Editor content</p>', $visible_for_editors ),
+            'Blocks targeted to editors should remain visible during editor preview.'
+        );
+
+        $admin_only_block = [
+            'blockName' => 'core/group',
+            'attrs'     => [
+                'visibilityRoles' => [ 'administrator' ],
+            ],
+        ];
+
+        $this->assertSame(
+            '',
+            visibloc_jlg_render_block_filter( '<p>Administrator only</p>', $admin_only_block ),
+            'Administrator-only blocks must be hidden when previewing as an editor.'
+        );
+
+        $hidden_block = [
+            'blockName' => 'core/group',
+            'attrs'     => [
+                'isHidden' => true,
+            ],
+        ];
+
+        $this->assertSame(
+            '',
+            visibloc_jlg_render_block_filter( '<p>Hidden content</p>', $hidden_block ),
+            'Hidden blocks should not appear without preview permission for the simulated role.'
+        );
+    }
+}
