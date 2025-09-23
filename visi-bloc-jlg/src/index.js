@@ -349,6 +349,13 @@ const pendingListViewUpdates = new Map();
 let listViewRafHandle = null;
 
 function flushListViewUpdates() {
+    if (typeof document === 'undefined') {
+        pendingListViewUpdates.clear();
+        listViewRafHandle = null;
+
+        return;
+    }
+
     pendingListViewUpdates.forEach((isHidden, clientId) => {
         const row = document.querySelector(
             `.block-editor-list-view__block[data-block="${clientId}"]`,
@@ -370,13 +377,19 @@ function flushListViewUpdates() {
 }
 
 function queueListViewUpdate(clientId, isHidden) {
+    if (pendingListViewUpdates.get(clientId) === isHidden) {
+        return;
+    }
+
     pendingListViewUpdates.set(clientId, isHidden);
 
     if (listViewRafHandle) {
         return;
     }
 
-    listViewRafHandle = window.requestAnimationFrame(flushListViewUpdates);
+    listViewRafHandle = window.requestAnimationFrame(() => {
+        flushListViewUpdates();
+    });
 }
 
 function syncListView() {
