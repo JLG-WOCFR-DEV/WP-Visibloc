@@ -11,6 +11,9 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         : false;
     $is_preview_role_neutralized = $is_admin_or_technical_request;
     $effective_user_id = function_exists( 'visibloc_jlg_get_effective_user_id' ) ? visibloc_jlg_get_effective_user_id() : 0;
+    $can_impersonate = $effective_user_id && function_exists( 'visibloc_jlg_is_user_allowed_to_impersonate' )
+        ? visibloc_jlg_is_user_allowed_to_impersonate( $effective_user_id )
+        : false;
     $is_legit_preview_requester = $effective_user_id && function_exists( 'visibloc_jlg_is_user_allowed_to_preview' )
         ? visibloc_jlg_is_user_allowed_to_preview( $effective_user_id )
         : false;
@@ -40,6 +43,10 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
 
     if ( ! $is_preview_role_neutralized && $preview_role && 'guest' !== $preview_role && ! in_array( $preview_role, $allowed_preview_roles, true ) ) {
         $is_legit_preview_requester = false;
+    }
+
+    if ( ! $is_preview_role_neutralized && $preview_role && 'guest' !== $preview_role && ! $can_impersonate ) {
+        $preview_role = '';
     }
 
     if ( ! empty( $attrs['isSchedulingEnabled'] ) ) {
