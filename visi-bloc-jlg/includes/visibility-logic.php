@@ -47,6 +47,7 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
 
     if ( ! $is_preview_role_neutralized && $preview_role && 'guest' !== $preview_role && ! $can_impersonate ) {
         $preview_role = '';
+        $is_legit_preview_requester = false;
     }
 
     if ( ! empty( $attrs['isSchedulingEnabled'] ) ) {
