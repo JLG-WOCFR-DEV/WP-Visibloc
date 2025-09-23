@@ -344,6 +344,41 @@ function addSaveClasses(extraProps, blockType, attributes) {
     };
 }
 
+const blockVisibilityState = new Map();
+const pendingListViewUpdates = new Map();
+let listViewRafHandle = null;
+
+function flushListViewUpdates() {
+    pendingListViewUpdates.forEach((isHidden, clientId) => {
+        const row = document.querySelector(
+            `.block-editor-list-view__block[data-block="${clientId}"]`,
+        );
+
+        if (!row) {
+            return;
+        }
+
+        if (isHidden) {
+            row.classList.add('bloc-editeur-cache');
+        } else {
+            row.classList.remove('bloc-editeur-cache');
+        }
+    });
+
+    pendingListViewUpdates.clear();
+    listViewRafHandle = null;
+}
+
+function queueListViewUpdate(clientId, isHidden) {
+    pendingListViewUpdates.set(clientId, isHidden);
+
+    if (listViewRafHandle) {
+        return;
+    }
+
+    listViewRafHandle = window.requestAnimationFrame(flushListViewUpdates);
+}
+
 function syncListView() {
     const blockEditor = select('core/block-editor');
 
@@ -358,6 +393,7 @@ function syncListView() {
     }
 
     const stack = [...rootClientIds];
+    const seenGroups = new Set();
 
     while (stack.length) {
         const clientId = stack.pop();
@@ -368,17 +404,15 @@ function syncListView() {
         }
 
         if (block.name === 'core/group') {
-            const row = document.querySelector(
-                `.block-editor-list-view__block[data-block="${clientId}"]`,
-            );
+            const isHidden = Boolean(block.attributes.isHidden);
+            const previousState = blockVisibilityState.get(clientId);
 
-            if (row) {
-                if (block.attributes.isHidden) {
-                    row.classList.add('bloc-editeur-cache');
-                } else {
-                    row.classList.remove('bloc-editeur-cache');
-                }
+            if (previousState !== isHidden) {
+                queueListViewUpdate(clientId, isHidden);
             }
+
+            blockVisibilityState.set(clientId, isHidden);
+            seenGroups.add(clientId);
         }
 
         if (block.innerBlocks && block.innerBlocks.length) {
@@ -388,6 +422,14 @@ function syncListView() {
                 }
             });
         }
+    }
+
+    if (seenGroups.size !== blockVisibilityState.size) {
+        Array.from(blockVisibilityState.keys()).forEach((clientId) => {
+            if (!seenGroups.has(clientId)) {
+                blockVisibilityState.delete(clientId);
+            }
+        });
     }
 }
 
