@@ -14,7 +14,7 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
     $can_impersonate = $effective_user_id && function_exists( 'visibloc_jlg_is_user_allowed_to_impersonate' )
         ? visibloc_jlg_is_user_allowed_to_impersonate( $effective_user_id )
         : false;
-    $is_legit_preview_requester = $effective_user_id && function_exists( 'visibloc_jlg_is_user_allowed_to_preview' )
+    $can_preview_hidden_blocks = $effective_user_id && function_exists( 'visibloc_jlg_is_user_allowed_to_preview' )
         ? visibloc_jlg_is_user_allowed_to_preview( $effective_user_id )
         : false;
 
@@ -37,17 +37,35 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         $preview_role = isset( $_COOKIE['visibloc_preview_role'] ) ? sanitize_key( wp_unslash( $_COOKIE['visibloc_preview_role'] ) ) : '';
     }
 
-    if ( ! $is_preview_role_neutralized && 'guest' === $preview_role ) {
-        $is_legit_preview_requester = false;
+    $preview_role = is_string( $preview_role ) ? $preview_role : '';
+
+    if ( $can_preview_hidden_blocks && $is_preview_role_neutralized ) {
+        $can_preview_hidden_blocks = false;
     }
 
-    if ( ! $is_preview_role_neutralized && $preview_role && 'guest' !== $preview_role && ! in_array( $preview_role, $allowed_preview_roles, true ) ) {
-        $is_legit_preview_requester = false;
+    $should_apply_preview_role = false;
+
+    if ( ! $is_preview_role_neutralized && '' !== $preview_role ) {
+        if ( 'guest' === $preview_role ) {
+            $can_preview_hidden_blocks = false;
+            $should_apply_preview_role = $can_impersonate;
+        } else {
+            if ( ! in_array( $preview_role, $allowed_preview_roles, true ) ) {
+                $can_preview_hidden_blocks = false;
+            }
+
+            if ( ! $can_impersonate ) {
+                $preview_role = '';
+            } elseif ( ! get_role( $preview_role ) ) {
+                $preview_role = '';
+            } else {
+                $should_apply_preview_role = true;
+            }
+        }
     }
 
-    if ( ! $is_preview_role_neutralized && $preview_role && 'guest' !== $preview_role && ! $can_impersonate ) {
-        $preview_role = '';
-        $is_legit_preview_requester = false;
+    if ( '' === $preview_role ) {
+        $should_apply_preview_role = false;
     }
 
     if ( ! empty( $attrs['isSchedulingEnabled'] ) ) {
@@ -59,7 +77,7 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         $is_before_start = null !== $start_time && $current_time < $start_time;
         $is_after_end = null !== $end_time && $current_time > $end_time;
         if ( $is_before_start || $is_after_end ) {
-            if ( $is_legit_preview_requester ) {
+            if ( $can_preview_hidden_blocks ) {
                 $start_date_fr = $start_time ? wp_date( 'd/m/Y H:i', $start_time ) : __( 'N/A', 'visi-bloc-jlg' );
                 $end_date_fr = $end_time ? wp_date( 'd/m/Y H:i', $end_time ) : __( 'N/A', 'visi-bloc-jlg' );
                 $info = sprintf(
@@ -79,7 +97,7 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         $is_logged_in = $user->exists();
         $user_roles = (array) $user->roles;
 
-        if ( $is_legit_preview_requester && '' !== $preview_role ) {
+        if ( $should_apply_preview_role ) {
             if ( 'guest' === $preview_role ) {
                 $is_logged_in = false;
                 $user_roles = [];
@@ -98,7 +116,7 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
     }
     
     if ( isset( $attrs['isHidden'] ) && $attrs['isHidden'] === true ) {
-        if ( $is_legit_preview_requester ) {
+        if ( $can_preview_hidden_blocks ) {
             return sprintf(
                 '<div class="bloc-cache-apercu" data-visibloc-label="%s">%s</div>',
                 esc_attr__( 'Hidden block', 'visi-bloc-jlg' ),
