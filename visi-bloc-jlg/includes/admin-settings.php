@@ -368,10 +368,20 @@ function visibloc_jlg_find_blocks_recursive( $blocks, $callback ) {
     return $found_blocks;
 }
 
-function visibloc_jlg_get_posts_with_condition( $attribute_callback ) {
-    $found_posts = [];
-    $post_types  = apply_filters( 'visibloc_jlg_scanned_post_types', [ 'post', 'page', 'wp_template', 'wp_template_part' ] );
-    $page        = 1;
+function visibloc_jlg_collect_group_block_metadata() {
+    $cache_key = 'visibloc_group_block_metadata';
+    $cached    = get_transient( $cache_key );
+    if ( false !== $cached && is_array( $cached ) ) {
+        return $cached;
+    }
+
+    $post_types = apply_filters( 'visibloc_jlg_scanned_post_types', [ 'post', 'page', 'wp_template', 'wp_template_part' ] );
+    $page       = 1;
+    $collected  = [
+        'hidden'    => [],
+        'device'    => [],
+        'scheduled' => [],
+    ];
 
     while ( true ) {
         $query = new WP_Query( [
@@ -396,21 +406,47 @@ function visibloc_jlg_get_posts_with_condition( $attribute_callback ) {
                 continue;
             }
 
-            $blocks       = parse_blocks( $post_content );
-            $found_blocks = visibloc_jlg_find_blocks_recursive( $blocks, $attribute_callback );
+            $blocks = parse_blocks( $post_content );
+            $found  = visibloc_jlg_find_blocks_recursive(
+                $blocks,
+                function( $block ) {
+                    return ( isset( $block['blockName'] ) && 'core/group' === $block['blockName'] );
+                }
+            );
 
-            if ( ! empty( $found_blocks ) ) {
-                $post_title = get_the_title( $post_id );
-                $post_link  = get_edit_post_link( $post_id );
+            if ( empty( $found ) ) {
+                continue;
+            }
 
-                foreach ( $found_blocks as $block ) {
-                    $found_posts[] = [
-                        'id'        => $post_id,
-                        'title'     => $post_title,
-                        'link'      => $post_link,
-                        'blockName' => $block['blockName'] ?? '',
-                        'attrs'     => $block['attrs'] ?? [],
-                    ];
+            $post_title = get_the_title( $post_id );
+            $post_link  = get_edit_post_link( $post_id );
+
+            foreach ( $found as $block ) {
+                $attrs = $block['attrs'] ?? [];
+
+                $block_entry = [
+                    'id'        => $post_id,
+                    'title'     => $post_title,
+                    'link'      => $post_link,
+                    'blockName' => $block['blockName'] ?? '',
+                    'attrs'     => $attrs,
+                ];
+
+                if ( ! empty( $attrs['isHidden'] ) ) {
+                    $collected['hidden'][] = $block_entry;
+                }
+
+                if ( ! empty( $attrs['deviceVisibility'] ) && 'all' !== $attrs['deviceVisibility'] ) {
+                    $collected['device'][] = $block_entry;
+                }
+
+                $has_scheduling_window = (
+                    ! empty( $attrs['publishStartDate'] )
+                    || ! empty( $attrs['publishEndDate'] )
+                );
+
+                if ( ! empty( $attrs['isSchedulingEnabled'] ) && $has_scheduling_window ) {
+                    $collected['scheduled'][] = $block_entry;
                 }
             }
         }
@@ -418,69 +454,37 @@ function visibloc_jlg_get_posts_with_condition( $attribute_callback ) {
         $page++;
     }
 
-    return $found_posts;
+    set_transient( $cache_key, $collected, HOUR_IN_SECONDS );
+
+    return $collected;
 }
 
 function visibloc_jlg_get_hidden_posts() {
-    $cache_key = 'visibloc_hidden_posts';
-    $cached    = get_transient( $cache_key );
-    if ( false !== $cached ) {
-        return $cached;
-    }
+    $collected = visibloc_jlg_collect_group_block_metadata();
 
-    $posts = visibloc_jlg_get_posts_with_condition( function( $block ) {
-        return ( isset( $block['blockName'] ) && $block['blockName'] === 'core/group' && ! empty( $block['attrs']['isHidden'] ) );
-    } );
-
-    set_transient( $cache_key, $posts, HOUR_IN_SECONDS );
-    return $posts;
+    return isset( $collected['hidden'] ) ? $collected['hidden'] : [];
 }
 
 function visibloc_jlg_get_device_specific_posts() {
-    $cache_key = 'visibloc_device_posts';
-    $cached    = get_transient( $cache_key );
-    if ( false !== $cached ) {
-        return $cached;
-    }
+    $collected = visibloc_jlg_collect_group_block_metadata();
 
-    $posts = visibloc_jlg_get_posts_with_condition( function( $block ) {
-        return ( isset( $block['blockName'] ) && $block['blockName'] === 'core/group' && ! empty( $block['attrs']['deviceVisibility'] ) && $block['attrs']['deviceVisibility'] !== 'all' );
-    } );
-
-    set_transient( $cache_key, $posts, HOUR_IN_SECONDS );
-    return $posts;
+    return isset( $collected['device'] ) ? $collected['device'] : [];
 }
 
 function visibloc_jlg_get_scheduled_posts() {
-    $cache_key = 'visibloc_scheduled_posts';
-    $cached    = get_transient( $cache_key );
-    if ( false === $cached ) {
-        $cached = visibloc_jlg_get_posts_with_condition(
-            function( $block ) {
-                $has_scheduling_window = (
-                    ! empty( $block['attrs']['publishStartDate'] )
-                    || ! empty( $block['attrs']['publishEndDate'] )
-                );
-
-                return (
-                    isset( $block['blockName'] )
-                    && $block['blockName'] === 'core/group'
-                    && ! empty( $block['attrs']['isSchedulingEnabled'] )
-                    && $has_scheduling_window
-                );
-            }
-        );
-        set_transient( $cache_key, $cached, HOUR_IN_SECONDS );
-    }
+    $collected = visibloc_jlg_collect_group_block_metadata();
+    $scheduled = isset( $collected['scheduled'] ) ? $collected['scheduled'] : [];
 
     $formatted_posts = [];
-    foreach ( $cached as $post_block ) {
+    foreach ( $scheduled as $post_block ) {
+        $attrs = isset( $post_block['attrs'] ) && is_array( $post_block['attrs'] ) ? $post_block['attrs'] : [];
+
         $formatted_posts[] = [
             'id'    => $post_block['id'],
             'title' => $post_block['title'],
             'link'  => $post_block['link'],
-            'start' => $post_block['attrs']['publishStartDate'] ?? null,
-            'end'   => $post_block['attrs']['publishEndDate'] ?? null,
+            'start' => $attrs['publishStartDate'] ?? null,
+            'end'   => $attrs['publishEndDate'] ?? null,
         ];
     }
 
@@ -491,6 +495,7 @@ function visibloc_jlg_clear_caches( $unused_post_id = null ) {
     delete_transient( 'visibloc_hidden_posts' );
     delete_transient( 'visibloc_device_posts' );
     delete_transient( 'visibloc_scheduled_posts' );
+    delete_transient( 'visibloc_group_block_metadata' );
 }
 
 add_action( 'save_post', 'visibloc_jlg_clear_caches' );
