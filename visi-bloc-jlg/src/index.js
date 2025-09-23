@@ -348,13 +348,51 @@ const blockVisibilityState = new Map();
 const pendingListViewUpdates = new Map();
 let listViewRafHandle = null;
 
+function getIsListViewOpened() {
+    const editPostStore = select('core/edit-post');
+
+    if (!editPostStore) {
+        return false;
+    }
+
+    if (typeof editPostStore.isListViewOpened === 'function') {
+        return editPostStore.isListViewOpened();
+    }
+
+    if (typeof editPostStore.isFeatureActive === 'function') {
+        return editPostStore.isFeatureActive('listView');
+    }
+
+    return false;
+}
+
+function replayPendingListViewUpdates() {
+    if (!pendingListViewUpdates.size) {
+        return;
+    }
+
+    const updates = Array.from(pendingListViewUpdates.entries());
+
+    pendingListViewUpdates.clear();
+
+    if (listViewRafHandle) {
+        window.cancelAnimationFrame(listViewRafHandle);
+        listViewRafHandle = null;
+    }
+
+    updates.forEach(([clientId, isHidden]) => {
+        queueListViewUpdate(clientId, isHidden);
+    });
+}
+
 function flushListViewUpdates() {
     if (typeof document === 'undefined') {
-        pendingListViewUpdates.clear();
         listViewRafHandle = null;
 
         return;
     }
+
+    const unresolvedUpdates = new Map();
 
     pendingListViewUpdates.forEach((isHidden, clientId) => {
         const row = document.querySelector(
@@ -362,6 +400,8 @@ function flushListViewUpdates() {
         );
 
         if (!row) {
+            unresolvedUpdates.set(clientId, isHidden);
+
             return;
         }
 
@@ -373,6 +413,21 @@ function flushListViewUpdates() {
     });
 
     pendingListViewUpdates.clear();
+
+    if (unresolvedUpdates.size) {
+        unresolvedUpdates.forEach((isHidden, clientId) => {
+            pendingListViewUpdates.set(clientId, isHidden);
+        });
+    }
+
+    if (pendingListViewUpdates.size && getIsListViewOpened()) {
+        listViewRafHandle = window.requestAnimationFrame(() => {
+            flushListViewUpdates();
+        });
+
+        return;
+    }
+
     listViewRafHandle = null;
 }
 
@@ -441,6 +496,7 @@ function syncListView() {
         Array.from(blockVisibilityState.keys()).forEach((clientId) => {
             if (!seenGroups.has(clientId)) {
                 blockVisibilityState.delete(clientId);
+                pendingListViewUpdates.delete(clientId);
             }
         });
     }
@@ -467,4 +523,18 @@ addFilter(
     addEditorCanvasClasses,
 );
 
-subscribe(syncListView);
+let wasListViewOpened = getIsListViewOpened();
+
+function handleEditorSubscription() {
+    const isCurrentlyOpened = getIsListViewOpened();
+
+    syncListView();
+
+    if (isCurrentlyOpened && !wasListViewOpened) {
+        replayPendingListViewUpdates();
+    }
+
+    wasListViewOpened = isCurrentlyOpened;
+}
+
+subscribe(handleEditorSubscription);
