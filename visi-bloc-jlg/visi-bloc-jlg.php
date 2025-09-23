@@ -10,6 +10,31 @@
 
 if ( ! defined( 'WPINC' ) ) { exit; }
 
+if ( ! function_exists( 'visibloc_jlg_get_sanitized_query_arg' ) ) {
+    /**
+     * Retrieve a sanitized value from the $_GET superglobal using sanitize_key.
+     *
+     * Only string values are accepted to avoid unexpected sanitization results
+     * or PHP notices when arrays/objects are provided.
+     *
+     * @param string $key Query arg key to read from $_GET.
+     * @return string Sanitized string or an empty string when unavailable/invalid.
+     */
+    function visibloc_jlg_get_sanitized_query_arg( $key ) {
+        if ( ! isset( $_GET[ $key ] ) ) {
+            return '';
+        }
+
+        $value = $_GET[ $key ];
+
+        if ( ! is_string( $value ) ) {
+            return '';
+        }
+
+        return sanitize_key( wp_unslash( $value ) );
+    }
+}
+
 // Charge les différents modules du plugin
 require_once __DIR__ . '/includes/datetime-utils.php';
 require_once __DIR__ . '/includes/admin-settings.php';

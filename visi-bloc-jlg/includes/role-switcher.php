@@ -86,7 +86,7 @@ function visibloc_jlg_is_admin_or_technical_request() {
             return true;
         }
 
-        $context = isset( $_GET['context'] ) ? sanitize_key( wp_unslash( $_GET['context'] ) ) : '';
+        $context = visibloc_jlg_get_sanitized_query_arg( 'context' );
 
         if ( 'edit' === $context ) {
             return true;
@@ -381,7 +381,12 @@ function visibloc_jlg_handle_role_switching() {
 
     $cookie_name = 'visibloc_preview_role';
     if ( isset( $_GET['preview_role'] ) ) {
-        $role_to_preview = sanitize_key( wp_unslash( $_GET['preview_role'] ) );
+        $role_to_preview = visibloc_jlg_get_sanitized_query_arg( 'preview_role' );
+
+        if ( '' === $role_to_preview ) {
+            return;
+        }
+
         if ( ! in_array( $role_to_preview, $previewable_roles, true ) ) {
             error_log( sprintf( 'Visibloc role switcher: invalid preview role requested (%s).', $role_to_preview ) );
             return;
