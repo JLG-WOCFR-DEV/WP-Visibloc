@@ -17,6 +17,7 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
     $can_preview_hidden_blocks = $effective_user_id && function_exists( 'visibloc_jlg_is_user_allowed_to_preview' )
         ? visibloc_jlg_is_user_allowed_to_preview( $effective_user_id )
         : false;
+    $had_preview_permission = $can_preview_hidden_blocks;
 
     if ( function_exists( 'visibloc_jlg_get_allowed_preview_roles' ) ) {
         $allowed_preview_roles = visibloc_jlg_get_allowed_preview_roles();
@@ -48,7 +49,7 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
     if ( ! $is_preview_role_neutralized && '' !== $preview_role ) {
         if ( 'guest' === $preview_role ) {
             $can_preview_hidden_blocks = false;
-            $should_apply_preview_role = $can_impersonate;
+            $should_apply_preview_role = ( $had_preview_permission || $can_impersonate );
         } else {
             if ( ! in_array( $preview_role, $allowed_preview_roles, true ) ) {
                 $can_preview_hidden_blocks = false;

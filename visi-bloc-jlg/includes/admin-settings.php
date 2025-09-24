@@ -353,7 +353,12 @@ function visibloc_jlg_group_posts_by_id( $posts ) {
             ];
         }
 
-        $grouped_posts[ $post_id ]['block_count']++;
+        $increment = isset( $post_data['block_count'] ) ? (int) $post_data['block_count'] : 1;
+        if ( $increment < 1 ) {
+            $increment = 1;
+        }
+
+        $grouped_posts[ $post_id ]['block_count'] += $increment;
     }
 
     return array_values( $grouped_posts );
@@ -368,20 +373,112 @@ function visibloc_jlg_find_blocks_recursive( $blocks, $callback ) {
     return $found_blocks;
 }
 
-function visibloc_jlg_collect_group_block_metadata() {
-    $cache_key = 'visibloc_group_block_metadata';
-    $cached    = get_transient( $cache_key );
-    if ( false !== $cached && is_array( $cached ) ) {
-        return $cached;
+function visibloc_jlg_generate_group_block_summary_from_content( $post_id, $post_content = null ) {
+    if ( null === $post_content ) {
+        $post_content = get_post_field( 'post_content', $post_id );
     }
 
+    if ( ! is_string( $post_content ) || '' === $post_content || false === strpos( $post_content, '<!-- wp:' ) ) {
+        return [
+            'hidden'    => 0,
+            'device'    => 0,
+            'scheduled' => [],
+        ];
+    }
+
+    $blocks = parse_blocks( $post_content );
+    $found  = visibloc_jlg_find_blocks_recursive(
+        $blocks,
+        function( $block ) {
+            return ( isset( $block['blockName'] ) && 'core/group' === $block['blockName'] );
+        }
+    );
+
+    if ( empty( $found ) ) {
+        return [
+            'hidden'    => 0,
+            'device'    => 0,
+            'scheduled' => [],
+        ];
+    }
+
+    $hidden_count = 0;
+    $device_count = 0;
+    $scheduled    = [];
+
+    foreach ( $found as $block ) {
+        $attrs = isset( $block['attrs'] ) && is_array( $block['attrs'] ) ? $block['attrs'] : [];
+
+        if ( ! empty( $attrs['isHidden'] ) ) {
+            $hidden_count++;
+        }
+
+        if ( ! empty( $attrs['deviceVisibility'] ) && 'all' !== $attrs['deviceVisibility'] ) {
+            $device_count++;
+        }
+
+        $has_scheduling_window = (
+            ! empty( $attrs['publishStartDate'] )
+            || ! empty( $attrs['publishEndDate'] )
+        );
+
+        if ( ! empty( $attrs['isSchedulingEnabled'] ) && $has_scheduling_window ) {
+            $scheduled[] = [
+                'start' => isset( $attrs['publishStartDate'] ) ? (string) $attrs['publishStartDate'] : null,
+                'end'   => isset( $attrs['publishEndDate'] ) ? (string) $attrs['publishEndDate'] : null,
+            ];
+        }
+    }
+
+    return [
+        'hidden'    => $hidden_count,
+        'device'    => $device_count,
+        'scheduled' => $scheduled,
+    ];
+}
+
+function visibloc_jlg_group_block_summary_has_data( $summary ) {
+    if ( ! is_array( $summary ) ) {
+        return false;
+    }
+
+    if ( ! empty( $summary['hidden'] ) ) {
+        return true;
+    }
+
+    if ( ! empty( $summary['device'] ) ) {
+        return true;
+    }
+
+    if ( ! empty( $summary['scheduled'] ) && is_array( $summary['scheduled'] ) ) {
+        return ! empty( $summary['scheduled'] );
+    }
+
+    return false;
+}
+
+function visibloc_jlg_get_group_block_summary_index() {
+    $stored = get_option( 'visibloc_group_block_summary', [] );
+
+    if ( ! is_array( $stored ) ) {
+        return [];
+    }
+
+    return $stored;
+}
+
+function visibloc_jlg_store_group_block_summary_index( $index ) {
+    if ( ! is_array( $index ) ) {
+        $index = [];
+    }
+
+    update_option( 'visibloc_group_block_summary', $index, false );
+}
+
+function visibloc_jlg_rebuild_group_block_summary_index() {
     $post_types = apply_filters( 'visibloc_jlg_scanned_post_types', [ 'post', 'page', 'wp_template', 'wp_template_part' ] );
     $page       = 1;
-    $collected  = [
-        'hidden'    => [],
-        'device'    => [],
-        'scheduled' => [],
-    ];
+    $summaries  = [];
 
     while ( true ) {
         $query = new WP_Query( [
@@ -400,58 +497,130 @@ function visibloc_jlg_collect_group_block_metadata() {
         }
 
         foreach ( $query->posts as $post_id ) {
-            $post_content = get_post_field( 'post_content', $post_id );
+            $summary = visibloc_jlg_generate_group_block_summary_from_content( $post_id );
 
-            if ( false === strpos( $post_content, '<!-- wp:' ) ) {
-                continue;
-            }
-
-            $blocks = parse_blocks( $post_content );
-            $found  = visibloc_jlg_find_blocks_recursive(
-                $blocks,
-                function( $block ) {
-                    return ( isset( $block['blockName'] ) && 'core/group' === $block['blockName'] );
-                }
-            );
-
-            if ( empty( $found ) ) {
-                continue;
-            }
-
-            $post_title = get_the_title( $post_id );
-            $post_link  = get_edit_post_link( $post_id );
-
-            foreach ( $found as $block ) {
-                $attrs = $block['attrs'] ?? [];
-
-                $block_entry = [
-                    'id'        => $post_id,
-                    'title'     => $post_title,
-                    'link'      => $post_link,
-                    'blockName' => $block['blockName'] ?? '',
-                    'attrs'     => $attrs,
-                ];
-
-                if ( ! empty( $attrs['isHidden'] ) ) {
-                    $collected['hidden'][] = $block_entry;
-                }
-
-                if ( ! empty( $attrs['deviceVisibility'] ) && 'all' !== $attrs['deviceVisibility'] ) {
-                    $collected['device'][] = $block_entry;
-                }
-
-                $has_scheduling_window = (
-                    ! empty( $attrs['publishStartDate'] )
-                    || ! empty( $attrs['publishEndDate'] )
-                );
-
-                if ( ! empty( $attrs['isSchedulingEnabled'] ) && $has_scheduling_window ) {
-                    $collected['scheduled'][] = $block_entry;
-                }
+            if ( visibloc_jlg_group_block_summary_has_data( $summary ) ) {
+                $summaries[ $post_id ] = $summary;
             }
         }
 
         $page++;
+    }
+
+    visibloc_jlg_store_group_block_summary_index( $summaries );
+
+    return $summaries;
+}
+
+function visibloc_jlg_refresh_group_block_summary_on_save( $post_id, $post, $update ) {
+    if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+        return;
+    }
+
+    if ( wp_is_post_revision( $post_id ) ) {
+        return;
+    }
+
+    $post_types = apply_filters( 'visibloc_jlg_scanned_post_types', [ 'post', 'page', 'wp_template', 'wp_template_part' ] );
+
+    $post_object = $post instanceof WP_Post ? $post : get_post( $post_id );
+
+    if ( ! $post_object || ! in_array( $post_object->post_type, $post_types, true ) ) {
+        visibloc_jlg_remove_group_block_summary_for_post( $post_id );
+        return;
+    }
+
+    $summary = visibloc_jlg_generate_group_block_summary_from_content( $post_id, $post_object->post_content );
+    $index   = visibloc_jlg_get_group_block_summary_index();
+
+    if ( visibloc_jlg_group_block_summary_has_data( $summary ) ) {
+        $index[ $post_id ] = $summary;
+    } else {
+        unset( $index[ $post_id ] );
+    }
+
+    visibloc_jlg_store_group_block_summary_index( $index );
+    visibloc_jlg_clear_caches();
+}
+
+function visibloc_jlg_remove_group_block_summary_for_post( $post_id ) {
+    $post_id = absint( $post_id );
+
+    if ( $post_id <= 0 ) {
+        return;
+    }
+
+    $index = visibloc_jlg_get_group_block_summary_index();
+
+    if ( isset( $index[ $post_id ] ) ) {
+        unset( $index[ $post_id ] );
+        visibloc_jlg_store_group_block_summary_index( $index );
+        visibloc_jlg_clear_caches();
+    }
+}
+
+function visibloc_jlg_collect_group_block_metadata() {
+    $cache_key = 'visibloc_group_block_metadata';
+    $cached    = get_transient( $cache_key );
+    if ( false !== $cached && is_array( $cached ) ) {
+        return $cached;
+    }
+
+    $collected = [
+        'hidden'    => [],
+        'device'    => [],
+        'scheduled' => [],
+    ];
+
+    $summaries = visibloc_jlg_get_group_block_summary_index();
+
+    if ( empty( $summaries ) ) {
+        $summaries = visibloc_jlg_rebuild_group_block_summary_index();
+    }
+
+    foreach ( $summaries as $post_id => $summary ) {
+        $post_id = absint( $post_id );
+
+        if ( $post_id <= 0 ) {
+            continue;
+        }
+
+        $post_title = get_the_title( $post_id );
+        $post_link  = get_edit_post_link( $post_id );
+
+        if ( ! empty( $summary['hidden'] ) ) {
+            $collected['hidden'][] = [
+                'id'          => $post_id,
+                'title'       => $post_title,
+                'link'        => $post_link,
+                'block_count' => (int) $summary['hidden'],
+            ];
+        }
+
+        if ( ! empty( $summary['device'] ) ) {
+            $collected['device'][] = [
+                'id'          => $post_id,
+                'title'       => $post_title,
+                'link'        => $post_link,
+                'block_count' => (int) $summary['device'],
+            ];
+        }
+
+        if ( ! empty( $summary['scheduled'] ) && is_array( $summary['scheduled'] ) ) {
+            foreach ( $summary['scheduled'] as $schedule ) {
+                if ( ! is_array( $schedule ) ) {
+                    continue;
+                }
+
+                $collected['scheduled'][] = [
+                    'id'    => $post_id,
+                    'title' => $post_title,
+                    'link'  => $post_link,
+                    'start' => $schedule['start'] ?? null,
+                    'end'   => $schedule['end'] ?? null,
+                ];
+            }
+        }
     }
 
     set_transient( $cache_key, $collected, HOUR_IN_SECONDS );
@@ -473,22 +642,8 @@ function visibloc_jlg_get_device_specific_posts() {
 
 function visibloc_jlg_get_scheduled_posts() {
     $collected = visibloc_jlg_collect_group_block_metadata();
-    $scheduled = isset( $collected['scheduled'] ) ? $collected['scheduled'] : [];
 
-    $formatted_posts = [];
-    foreach ( $scheduled as $post_block ) {
-        $attrs = isset( $post_block['attrs'] ) && is_array( $post_block['attrs'] ) ? $post_block['attrs'] : [];
-
-        $formatted_posts[] = [
-            'id'    => $post_block['id'],
-            'title' => $post_block['title'],
-            'link'  => $post_block['link'],
-            'start' => $attrs['publishStartDate'] ?? null,
-            'end'   => $attrs['publishEndDate'] ?? null,
-        ];
-    }
-
-    return $formatted_posts;
+    return isset( $collected['scheduled'] ) ? $collected['scheduled'] : [];
 }
 
 function visibloc_jlg_clear_caches( $unused_post_id = null ) {
@@ -498,6 +653,6 @@ function visibloc_jlg_clear_caches( $unused_post_id = null ) {
     delete_transient( 'visibloc_group_block_metadata' );
 }
 
-add_action( 'save_post', 'visibloc_jlg_clear_caches' );
-add_action( 'deleted_post', 'visibloc_jlg_clear_caches' );
-add_action( 'trashed_post', 'visibloc_jlg_clear_caches' );
+add_action( 'save_post', 'visibloc_jlg_refresh_group_block_summary_on_save', 20, 3 );
+add_action( 'deleted_post', 'visibloc_jlg_remove_group_block_summary_for_post' );
+add_action( 'trashed_post', 'visibloc_jlg_remove_group_block_summary_for_post' );

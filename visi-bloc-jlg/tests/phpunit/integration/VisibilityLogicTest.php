@@ -90,4 +90,41 @@ class VisibilityLogicTest extends TestCase {
             'The logged-out marker should work when passed as a scalar value.'
         );
     }
+
+    public function test_guest_preview_forces_logged_out_state_without_impersonation(): void {
+        global $visibloc_test_state;
+
+        $visibloc_test_state['effective_user_id']             = 3;
+        $visibloc_test_state['can_preview_users'][3]          = true;
+        $visibloc_test_state['can_impersonate_users'][3]      = false;
+        $visibloc_test_state['allowed_preview_roles']         = [ 'administrator' ];
+        $visibloc_test_state['preview_role']                  = 'guest';
+        $visibloc_test_state['current_user']                  = new Visibloc_Test_User( 3, [ 'editor' ] );
+
+        $logged_in_block = [
+            'blockName' => 'core/group',
+            'attrs'     => [
+                'visibilityRoles' => [ 'logged-in' ],
+            ],
+        ];
+
+        $this->assertSame(
+            '',
+            visibloc_jlg_render_block_filter( '<p>Members content</p>', $logged_in_block ),
+            'Previewing as a guest should hide blocks reserved for logged-in users even without impersonation rights.'
+        );
+
+        $logged_out_block = [
+            'blockName' => 'core/group',
+            'attrs'     => [
+                'visibilityRoles' => [ 'logged-out' ],
+            ],
+        ];
+
+        $this->assertSame(
+            '<p>Guest view</p>',
+            visibloc_jlg_render_block_filter( '<p>Guest view</p>', $logged_out_block ),
+            'Previewing as a guest should expose content intended for visitors.'
+        );
+    }
 }
