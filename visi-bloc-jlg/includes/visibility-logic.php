@@ -68,17 +68,57 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         $should_apply_preview_role = ! empty( $preview_context['should_apply_preview_role'] );
         $preview_role              = is_string( $preview_context['preview_role'] ?? '' ) ? $preview_context['preview_role'] : '';
 
-        $user = wp_get_current_user();
-        $is_logged_in = $user->exists();
-        $user_roles = (array) $user->roles;
+        static $cached_user_ref = null;
+        static $cached_user_logged_in = null;
+        static $cached_user_roles = null;
+
+        $current_user       = wp_get_current_user();
+        $current_roles      = (array) $current_user->roles;
+        $current_is_logged_in = $current_user->exists();
+
+        if ( ! ( $cached_user_ref instanceof WP_User )
+            || $cached_user_ref !== $current_user
+            || $cached_user_logged_in !== $current_is_logged_in
+            || $cached_user_roles !== $current_roles
+        ) {
+            $cached_user_ref      = $current_user;
+            $cached_user_logged_in = $current_is_logged_in;
+            $cached_user_roles     = $current_roles;
+        }
+
+        $is_logged_in = $cached_user_logged_in;
+        $user_roles   = $cached_user_roles;
 
         if ( $should_apply_preview_role ) {
             if ( 'guest' === $preview_role ) {
                 $is_logged_in = false;
-                $user_roles = [];
-            } elseif ( '' !== $preview_role && get_role( $preview_role ) ) {
-                $is_logged_in = true;
-                $user_roles = [ $preview_role ];
+                $user_roles   = [];
+            } elseif ( '' !== $preview_role ) {
+                static $allowed_preview_roles_cache = null;
+
+                if ( null === $allowed_preview_roles_cache ) {
+                    $allowed_preview_roles_cache = function_exists( 'visibloc_jlg_get_allowed_preview_roles' )
+                        ? (array) visibloc_jlg_get_allowed_preview_roles()
+                        : [];
+                }
+
+                static $role_exists_cache = [];
+
+                if ( ! array_key_exists( $preview_role, $role_exists_cache ) ) {
+                    $role_exists_cache[ $preview_role ] = (bool) get_role( $preview_role );
+                }
+
+                if ( $role_exists_cache[ $preview_role ] ) {
+                    if ( ! in_array( $preview_role, $allowed_preview_roles_cache, true ) ) {
+                        $can_preview_hidden_blocks = false;
+                    }
+
+                    $is_logged_in = true;
+                    $user_roles   = [ $preview_role ];
+                } else {
+                    $should_apply_preview_role = false;
+                    $preview_role             = '';
+                }
             }
         }
 

@@ -4,6 +4,10 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 add_action( 'admin_init', 'visibloc_jlg_handle_options_save' );
 function visibloc_jlg_handle_options_save() {
     if ( ! current_user_can( 'manage_options' ) ) return;
+
+    $request_method = isset( $_SERVER['REQUEST_METHOD'] ) ? strtoupper( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : '';
+    if ( 'POST' !== $request_method ) return;
+
     if ( ! isset( $_POST['visibloc_nonce'] ) ) return;
 
     $nonce = isset( $_POST['visibloc_nonce'] ) ? wp_unslash( $_POST['visibloc_nonce'] ) : '';
