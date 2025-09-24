@@ -11,3 +11,4 @@ delete_option( 'visibloc_preview_roles' );
 delete_transient( 'visibloc_hidden_posts' );
 delete_transient( 'visibloc_device_posts' );
 delete_transient( 'visibloc_scheduled_posts' );
+delete_transient( 'visibloc_group_block_metadata' );
