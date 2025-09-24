@@ -92,7 +92,21 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         }
     }
 
-    if ( ! empty( $attrs['visibilityRoles'] ) ) {
+    $visibility_roles = [];
+
+    if ( array_key_exists( 'visibilityRoles', $attrs ) ) {
+        $raw_visibility_roles = $attrs['visibilityRoles'];
+
+        if ( is_array( $raw_visibility_roles ) ) {
+            $visibility_roles = $raw_visibility_roles;
+        } elseif ( is_string( $raw_visibility_roles ) ) {
+            $visibility_roles = '' === trim( $raw_visibility_roles ) ? [] : [ $raw_visibility_roles ];
+        } elseif ( is_scalar( $raw_visibility_roles ) ) {
+            $visibility_roles = [ $raw_visibility_roles ];
+        }
+    }
+
+    if ( ! empty( $visibility_roles ) ) {
         $user = wp_get_current_user();
         $is_logged_in = $user->exists();
         $user_roles = (array) $user->roles;
@@ -109,9 +123,9 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
 
         $is_visible = false;
         // Manual check: without preview access the cookie must not affect visibility.
-        if ( in_array( 'logged-out', $attrs['visibilityRoles'] ) && ! $is_logged_in ) $is_visible = true;
-        if ( ! $is_visible && in_array( 'logged-in', $attrs['visibilityRoles'] ) && $is_logged_in ) $is_visible = true;
-        if ( ! $is_visible && ! empty( $user_roles ) && count( array_intersect( $user_roles, $attrs['visibilityRoles'] ) ) > 0 ) { $is_visible = true; }
+        if ( in_array( 'logged-out', $visibility_roles, true ) && ! $is_logged_in ) $is_visible = true;
+        if ( ! $is_visible && in_array( 'logged-in', $visibility_roles, true ) && $is_logged_in ) $is_visible = true;
+        if ( ! $is_visible && ! empty( $user_roles ) && count( array_intersect( $user_roles, $visibility_roles ) ) > 0 ) { $is_visible = true; }
         if ( ! $is_visible ) return '';
     }
     
