@@ -19,6 +19,8 @@ $GLOBALS['visibloc_test_state'] = [
         'editor'        => (object) [ 'name' => 'Editor', 'capabilities' => [] ],
         'guest'         => (object) [ 'name' => 'Guest', 'capabilities' => [] ],
     ],
+    'timezone'                => 'UTC',
+    'current_time'            => null,
 ];
 
 function visibloc_test_reset_state() {
@@ -34,7 +36,43 @@ function visibloc_test_reset_state() {
             'editor'        => (object) [ 'name' => 'Editor', 'capabilities' => [] ],
             'guest'         => (object) [ 'name' => 'Guest', 'capabilities' => [] ],
         ],
+        'timezone'                => 'UTC',
+        'current_time'            => null,
     ];
+}
+
+function visibloc_test_set_timezone( $timezone_string ) {
+    $GLOBALS['visibloc_test_state']['timezone'] = $timezone_string;
+}
+
+function wp_timezone() {
+    $timezone_string = $GLOBALS['visibloc_test_state']['timezone'] ?? 'UTC';
+
+    try {
+        return new DateTimeZone( $timezone_string );
+    } catch ( Exception $e ) {
+        return new DateTimeZone( 'UTC' );
+    }
+}
+
+function visibloc_test_set_current_time( $timestamp ) {
+    $GLOBALS['visibloc_test_state']['current_time'] = is_numeric( $timestamp ) ? (int) $timestamp : null;
+}
+
+function visibloc_test_get_current_time() {
+    if ( isset( $GLOBALS['visibloc_test_state']['current_time'] ) && null !== $GLOBALS['visibloc_test_state']['current_time'] ) {
+        return (int) $GLOBALS['visibloc_test_state']['current_time'];
+    }
+
+    return time();
+}
+
+function visibloc_test_get_timezone_offset( $timestamp ) {
+    $timezone = wp_timezone();
+
+    $datetime = ( new DateTimeImmutable( '@' . $timestamp ) )->setTimezone( $timezone );
+
+    return $datetime->getOffset();
 }
 
 function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
@@ -136,11 +174,19 @@ function wp_unslash( $value ) {
 }
 
 function current_time( $type, $gmt = 0 ) {
+    $timestamp = visibloc_test_get_current_time();
+
     if ( 'timestamp' === $type ) {
-        return time();
+        if ( $gmt ) {
+            return $timestamp - visibloc_test_get_timezone_offset( $timestamp );
+        }
+
+        return $timestamp;
     }
 
-    return date( 'Y-m-d H:i:s' );
+    $timezone = $gmt ? new DateTimeZone( 'UTC' ) : wp_timezone();
+
+    return ( new DateTimeImmutable( '@' . $timestamp ) )->setTimezone( $timezone )->format( 'Y-m-d H:i:s' );
 }
 
 if ( ! function_exists( 'wp_json_encode' ) ) {
@@ -154,9 +200,13 @@ function visibloc_jlg_parse_schedule_datetime( $value ) {
         return null;
     }
 
-    $timestamp = strtotime( $value );
+    $datetime = date_create_immutable( $value, wp_timezone() );
 
-    return false === $timestamp ? null : $timestamp;
+    if ( false === $datetime ) {
+        return null;
+    }
+
+    return $datetime->getTimestamp();
 }
 
 function wp_date( $format, $timestamp ) {
