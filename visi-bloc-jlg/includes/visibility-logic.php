@@ -41,7 +41,7 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
     $can_preview_hidden_blocks = ! empty( $preview_context['can_preview_hidden_blocks'] );
 
     if ( $has_schedule_enabled ) {
-        $current_time = current_time( 'timestamp', true );
+        $current_time = current_time( 'timestamp' );
 
         $start_time = visibloc_jlg_parse_schedule_datetime( $attrs['publishStartDate'] ?? null );
         $end_time   = visibloc_jlg_parse_schedule_datetime( $attrs['publishEndDate'] ?? null );

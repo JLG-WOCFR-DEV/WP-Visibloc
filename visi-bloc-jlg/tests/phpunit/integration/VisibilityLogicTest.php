@@ -172,6 +172,35 @@ class VisibilityLogicTest extends TestCase {
         $this->assertStringContainsString( '<p>Scheduled content</p>', $output );
     }
 
+    public function test_scheduled_block_uses_site_timezone_window(): void {
+        visibloc_test_set_timezone( 'Europe/Paris' );
+
+        $block = [
+            'blockName' => 'core/group',
+            'attrs'     => [
+                'isSchedulingEnabled' => true,
+                'publishStartDate'    => '2024-07-10 10:00:00',
+                'publishEndDate'      => '2024-07-10 18:00:00',
+            ],
+        ];
+
+        visibloc_test_set_current_time( visibloc_jlg_parse_schedule_datetime( '2024-07-10 09:30:00' ) );
+
+        $this->assertSame(
+            '',
+            visibloc_jlg_render_block_filter( '<p>Scheduled content</p>', $block ),
+            'Blocks should remain hidden before the scheduled start in the configured site timezone.'
+        );
+
+        visibloc_test_set_current_time( visibloc_jlg_parse_schedule_datetime( '2024-07-10 11:00:00' ) );
+
+        $this->assertSame(
+            '<p>Scheduled content</p>',
+            visibloc_jlg_render_block_filter( '<p>Scheduled content</p>', $block ),
+            'Blocks should become visible once the local start time has passed.'
+        );
+    }
+
     public function test_generate_device_visibility_css_respects_preview_context(): void {
         $css_without_preview = visibloc_jlg_generate_device_visibility_css( false, 781, 1024 );
         $this->assertSame( '', trim( $css_without_preview ) );
