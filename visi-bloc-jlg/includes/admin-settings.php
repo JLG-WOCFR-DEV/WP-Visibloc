@@ -89,11 +89,20 @@ function visibloc_jlg_handle_options_save() {
     }
 
     if ( wp_verify_nonce( $nonce, 'visibloc_save_permissions' ) ) {
-        $sanitized_roles = $submitted_roles;
+        if ( ! function_exists( 'get_editable_roles' ) ) {
+            require_once ABSPATH . 'wp-admin/includes/user.php';
+        }
+
+        $editable_roles = array_keys( (array) get_editable_roles() );
+        $editable_roles = array_map( 'sanitize_key', $editable_roles );
+
+        $sanitized_roles = array_values( array_unique( array_intersect( $editable_roles, $submitted_roles ) ) );
+
         // On s'assure que l'administrateur est toujours inclus
-        if ( ! in_array( 'administrator', $sanitized_roles ) ) {
+        if ( ! in_array( 'administrator', $sanitized_roles, true ) ) {
             $sanitized_roles[] = 'administrator';
         }
+
         update_option( 'visibloc_preview_roles', $sanitized_roles );
         visibloc_jlg_clear_caches();
         wp_safe_redirect( admin_url( 'admin.php?page=visi-bloc-jlg-help&status=updated' ) );

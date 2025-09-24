@@ -173,11 +173,15 @@ class VisibilityLogicTest extends TestCase {
     }
 
     public function test_generate_device_visibility_css_respects_preview_context(): void {
-        $css_without_preview = visibloc_jlg_generate_device_visibility_css( false );
-        $this->assertStringContainsString( '@media (max-width: 781px)', $css_without_preview );
-        $this->assertStringNotContainsString( 'outline: 2px dashed', $css_without_preview );
+        $css_without_preview = visibloc_jlg_generate_device_visibility_css( false, 781, 1024 );
+        $this->assertSame( '', trim( $css_without_preview ) );
 
-        $css_with_preview = visibloc_jlg_generate_device_visibility_css( true );
+        $css_with_custom_breakpoints = visibloc_jlg_generate_device_visibility_css( false, 700, 900 );
+        $this->assertStringContainsString( '@media (max-width: 700px)', $css_with_custom_breakpoints );
+        $this->assertStringContainsString( '@media (min-width: 901px)', $css_with_custom_breakpoints );
+        $this->assertStringNotContainsString( 'outline: 2px dashed', $css_with_custom_breakpoints );
+
+        $css_with_preview = visibloc_jlg_generate_device_visibility_css( true, 781, 1024 );
         $this->assertStringContainsString( 'outline: 2px dashed #0073aa', $css_with_preview );
         $this->assertStringContainsString( 'Visible sur Desktop Uniquement', $css_with_preview );
     }

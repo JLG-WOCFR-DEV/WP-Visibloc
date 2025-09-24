@@ -439,6 +439,83 @@ function visibloc_jlg_get_user_preview_context( $user_id ) {
     return $context;
 }
 
+/**
+ * Retrieve the runtime preview context used across front-end rendering.
+ *
+ * @return array{
+ *     can_impersonate:bool,
+ *     can_preview_hidden_blocks:bool,
+ *     had_preview_permission:bool,
+ *     is_preview_role_neutralized:bool,
+ *     preview_role:string,
+ *     should_apply_preview_role:bool,
+ * }
+ */
+function visibloc_jlg_get_preview_runtime_context() {
+    static $cached_context = null;
+
+    if ( null !== $cached_context ) {
+        return $cached_context;
+    }
+
+    $is_preview_role_neutralized = visibloc_jlg_is_admin_or_technical_request();
+    $effective_user_id           = visibloc_jlg_get_effective_user_id();
+
+    $can_impersonate           = $effective_user_id ? visibloc_jlg_is_user_allowed_to_impersonate( $effective_user_id ) : false;
+    $can_preview_hidden_blocks = $effective_user_id ? visibloc_jlg_is_user_allowed_to_preview( $effective_user_id ) : false;
+    $had_preview_permission    = $can_preview_hidden_blocks;
+
+    $allowed_preview_roles = visibloc_jlg_get_allowed_preview_roles();
+
+    $preview_role = '';
+
+    if ( ! $is_preview_role_neutralized ) {
+        $raw_preview_role = visibloc_jlg_get_preview_role_from_cookie();
+
+        if ( is_string( $raw_preview_role ) ) {
+            $preview_role = $raw_preview_role;
+        }
+    }
+
+    if ( $can_preview_hidden_blocks && $is_preview_role_neutralized ) {
+        $can_preview_hidden_blocks = false;
+    }
+
+    $should_apply_preview_role = false;
+
+    if ( '' !== $preview_role ) {
+        if ( 'guest' === $preview_role ) {
+            $can_preview_hidden_blocks = false;
+            $should_apply_preview_role = ( $had_preview_permission || $can_impersonate );
+        } else {
+            if ( ! in_array( $preview_role, $allowed_preview_roles, true ) ) {
+                $can_preview_hidden_blocks = false;
+            }
+
+            if ( ! $can_impersonate || ! get_role( $preview_role ) ) {
+                $preview_role = '';
+            } else {
+                $should_apply_preview_role = true;
+            }
+        }
+    }
+
+    if ( '' === $preview_role ) {
+        $should_apply_preview_role = false;
+    }
+
+    $cached_context = [
+        'can_impersonate'            => $can_impersonate,
+        'can_preview_hidden_blocks'  => $can_preview_hidden_blocks,
+        'had_preview_permission'     => $had_preview_permission,
+        'is_preview_role_neutralized'=> $is_preview_role_neutralized,
+        'preview_role'               => $preview_role,
+        'should_apply_preview_role'  => $should_apply_preview_role,
+    ];
+
+    return $cached_context;
+}
+
 add_action( 'init', 'visibloc_jlg_handle_role_switching' );
 function visibloc_jlg_handle_role_switching() {
     $context = visibloc_jlg_get_user_preview_context( visibloc_jlg_get_effective_user_id() );

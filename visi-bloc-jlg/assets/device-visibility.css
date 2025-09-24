@@ -1,0 +1,23 @@
+@media (max-width: 781px) {
+    .vb-hide-on-mobile,
+    .vb-tablet-only,
+    .vb-desktop-only {
+        display: none !important;
+    }
+}
+
+@media (min-width: 782px) and (max-width: 1024px) {
+    .vb-hide-on-tablet,
+    .vb-mobile-only,
+    .vb-desktop-only {
+        display: none !important;
+    }
+}
+
+@media (min-width: 1025px) {
+    .vb-hide-on-desktop,
+    .vb-mobile-only,
+    .vb-tablet-only {
+        display: none !important;
+    }
+}
