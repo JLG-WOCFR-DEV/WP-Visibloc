@@ -37,7 +37,23 @@ function visibloc_test_reset_state() {
     ];
 }
 
+function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
+    // No-op for tests.
+}
+
 function add_filter( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
+    // No-op for tests.
+}
+
+function wp_register_style( $handle, $src = '', $deps = [], $ver = false, $media = 'all' ) {
+    // No-op for tests.
+}
+
+function wp_enqueue_style( $handle, $src = '', $deps = [], $ver = false, $media = 'all' ) {
+    // No-op for tests.
+}
+
+function wp_add_inline_style( $handle, $data ) {
     // No-op for tests.
 }
 
@@ -81,6 +97,12 @@ function current_time( $type, $gmt = 0 ) {
     }
 
     return date( 'Y-m-d H:i:s' );
+}
+
+if ( ! function_exists( 'wp_json_encode' ) ) {
+    function wp_json_encode( $data ) {
+        return json_encode( $data );
+    }
 }
 
 function visibloc_jlg_parse_schedule_datetime( $value ) {

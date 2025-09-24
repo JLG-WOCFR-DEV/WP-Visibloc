@@ -364,12 +364,25 @@ function visibloc_jlg_group_posts_by_id( $posts ) {
     return array_values( $grouped_posts );
 }
 
-function visibloc_jlg_find_blocks_recursive( $blocks, $callback ) {
-    $found_blocks = [];
-    foreach ( $blocks as $block ) {
-        if ( $callback( $block ) ) $found_blocks[] = $block;
-        if ( ! empty( $block['innerBlocks'] ) ) $found_blocks = array_merge( $found_blocks, visibloc_jlg_find_blocks_recursive( $block['innerBlocks'], $callback ) );
+function visibloc_jlg_find_blocks_recursive( $blocks, $callback, &$found_blocks = null ) {
+    if ( null === $found_blocks ) {
+        $found_blocks = [];
     }
+
+    if ( empty( $blocks ) || ! is_array( $blocks ) ) {
+        return $found_blocks;
+    }
+
+    foreach ( $blocks as $block ) {
+        if ( $callback( $block ) ) {
+            $found_blocks[] = $block;
+        }
+
+        if ( ! empty( $block['innerBlocks'] ) ) {
+            visibloc_jlg_find_blocks_recursive( $block['innerBlocks'], $callback, $found_blocks );
+        }
+    }
+
     return $found_blocks;
 }
 
@@ -578,6 +591,9 @@ function visibloc_jlg_collect_group_block_metadata() {
         $summaries = visibloc_jlg_rebuild_group_block_summary_index();
     }
 
+    static $post_title_cache = [];
+    static $post_link_cache  = [];
+
     foreach ( $summaries as $post_id => $summary ) {
         $post_id = absint( $post_id );
 
@@ -585,8 +601,16 @@ function visibloc_jlg_collect_group_block_metadata() {
             continue;
         }
 
-        $post_title = get_the_title( $post_id );
-        $post_link  = get_edit_post_link( $post_id );
+        if ( ! array_key_exists( $post_id, $post_title_cache ) ) {
+            $post_title_cache[ $post_id ] = get_the_title( $post_id );
+        }
+
+        if ( ! array_key_exists( $post_id, $post_link_cache ) ) {
+            $post_link_cache[ $post_id ] = get_edit_post_link( $post_id );
+        }
+
+        $post_title = $post_title_cache[ $post_id ];
+        $post_link  = $post_link_cache[ $post_id ];
 
         if ( ! empty( $summary['hidden'] ) ) {
             $collected['hidden'][] = [
