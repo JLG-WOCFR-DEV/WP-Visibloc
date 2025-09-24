@@ -6,8 +6,9 @@ function visibloc_jlg_handle_options_save() {
     if ( ! current_user_can( 'manage_options' ) ) return;
     if ( ! isset( $_POST['visibloc_nonce'] ) ) return;
 
-    $nonce = sanitize_text_field( wp_unslash( $_POST['visibloc_nonce'] ) );
-    if ( '' === $nonce ) return;
+    $nonce = isset( $_POST['visibloc_nonce'] ) ? wp_unslash( $_POST['visibloc_nonce'] ) : '';
+
+    if ( ! is_string( $nonce ) || '' === $nonce ) return;
 
     $mobile_breakpoint          = null;
     $mobile_breakpoint_invalid  = false;

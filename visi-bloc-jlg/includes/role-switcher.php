@@ -530,11 +530,21 @@ function visibloc_jlg_handle_role_switching() {
         return;
     }
 
-    $cookie_name = 'visibloc_preview_role';
     if ( isset( $_GET['preview_role'] ) ) {
-        $role_to_preview = visibloc_jlg_get_sanitized_query_arg( 'preview_role' );
+        $requested_role = wp_unslash( $_GET['preview_role'] );
+
+        if ( ! is_string( $requested_role ) || '' === $requested_role ) {
+            return;
+        }
+
+        $role_to_preview = sanitize_key( $requested_role );
 
         if ( '' === $role_to_preview ) {
+            return;
+        }
+
+        $nonce = isset( $_GET['_wpnonce'] ) ? wp_unslash( $_GET['_wpnonce'] ) : '';
+        if ( ! is_string( $nonce ) || '' === $nonce || ! wp_verify_nonce( $nonce, 'visibloc_switch_role_' . $role_to_preview ) ) {
             return;
         }
 
@@ -545,10 +555,6 @@ function visibloc_jlg_handle_role_switching() {
 
             visibloc_jlg_set_preview_cookie( '', time() - 3600 );
 
-            return;
-        }
-        $nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ) : '';
-        if ( ! $role_to_preview || ! $nonce || ! wp_verify_nonce( $nonce, 'visibloc_switch_role_' . $role_to_preview ) ) {
             return;
         }
 
@@ -568,8 +574,8 @@ function visibloc_jlg_handle_role_switching() {
         exit;
     }
     if ( isset( $_GET['stop_preview_role'] ) ) {
-        $nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ) : '';
-        if ( ! $nonce || ! wp_verify_nonce( $nonce, 'visibloc_switch_role_stop' ) ) {
+        $nonce = isset( $_GET['_wpnonce'] ) ? wp_unslash( $_GET['_wpnonce'] ) : '';
+        if ( ! is_string( $nonce ) || '' === $nonce || ! wp_verify_nonce( $nonce, 'visibloc_switch_role_stop' ) ) {
             return;
         }
         visibloc_jlg_set_preview_cookie( '', time() - 3600 );
