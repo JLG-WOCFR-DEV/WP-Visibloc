@@ -56,4 +56,38 @@ class VisibilityLogicTest extends TestCase {
             'Hidden blocks should not appear without preview permission for the simulated role.'
         );
     }
+
+    public function test_visibility_roles_accepts_string_role_values(): void {
+        global $visibloc_test_state;
+
+        $visibloc_test_state['current_user'] = new Visibloc_Test_User( 2, [ 'editor' ] );
+
+        $block = [
+            'blockName' => 'core/group',
+            'attrs'     => [
+                'visibilityRoles' => 'editor',
+            ],
+        ];
+
+        $this->assertSame(
+            '<p>Visible content</p>',
+            visibloc_jlg_render_block_filter( '<p>Visible content</p>', $block ),
+            'A scalar string value should be treated as a single role entry.'
+        );
+    }
+
+    public function test_visibility_roles_accepts_logged_out_string_marker(): void {
+        $block = [
+            'blockName' => 'core/group',
+            'attrs'     => [
+                'visibilityRoles' => 'logged-out',
+            ],
+        ];
+
+        $this->assertSame(
+            '<p>Guest content</p>',
+            visibloc_jlg_render_block_filter( '<p>Guest content</p>', $block ),
+            'The logged-out marker should work when passed as a scalar value.'
+        );
+    }
 }
