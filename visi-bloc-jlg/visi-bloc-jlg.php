@@ -62,68 +62,14 @@ function visibloc_jlg_can_user_preview() {
         return $cached_can_preview;
     }
 
-    if ( function_exists( 'visibloc_jlg_get_allowed_preview_roles' ) ) {
-        $allowed_roles = visibloc_jlg_get_allowed_preview_roles();
-    } else {
-        $allowed_roles = (array) get_option( 'visibloc_preview_roles', [ 'administrator' ] );
-        $allowed_roles = array_map( 'sanitize_key', $allowed_roles );
-
-        if ( empty( $allowed_roles ) ) {
-            $allowed_roles = [ 'administrator' ];
-        }
-    }
-
-    if ( function_exists( 'visibloc_jlg_get_preview_role_from_cookie' ) ) {
-        $preview_role_cookie = visibloc_jlg_get_preview_role_from_cookie();
-    } else {
-        if ( isset( $_COOKIE['visibloc_preview_role'] ) && is_string( $_COOKIE['visibloc_preview_role'] ) ) {
-            $preview_role_cookie = sanitize_key( wp_unslash( $_COOKIE['visibloc_preview_role'] ) );
-        } else {
-            $preview_role_cookie = '';
-        }
-    }
-
-    if ( 'guest' === $preview_role_cookie ) {
-        $cached_can_preview = false;
+    if ( function_exists( 'visibloc_jlg_get_preview_runtime_context' ) ) {
+        $runtime_context = visibloc_jlg_get_preview_runtime_context();
+        $cached_can_preview = ! empty( $runtime_context['can_preview_hidden_blocks'] );
 
         return $cached_can_preview;
     }
 
-    if ( $preview_role_cookie && 'guest' !== $preview_role_cookie && ! in_array( $preview_role_cookie, $allowed_roles, true ) ) {
-        $cached_can_preview = false;
-
-        return $cached_can_preview;
-    }
-
-    if ( function_exists( 'visibloc_jlg_get_effective_user_id' ) ) {
-        $user_id = visibloc_jlg_get_effective_user_id();
-    } elseif ( function_exists( 'visibloc_jlg_get_stored_real_user_id' ) ) {
-        $user_id = visibloc_jlg_get_stored_real_user_id();
-
-        if ( ! $user_id ) {
-            $user_id = get_current_user_id();
-        }
-    } else {
-        $user_id = get_current_user_id();
-    }
-
-    $user_id = absint( $user_id );
-
-    if ( ! $user_id ) {
-        $cached_can_preview = false;
-
-        return $cached_can_preview;
-    }
-
-    $user = get_userdata( $user_id );
-
-    if ( ! $user ) {
-        $cached_can_preview = false;
-
-        return $cached_can_preview;
-    }
-
-    $cached_can_preview = count( array_intersect( (array) $user->roles, $allowed_roles ) ) > 0;
+    $cached_can_preview = false;
 
     return $cached_can_preview;
 }
