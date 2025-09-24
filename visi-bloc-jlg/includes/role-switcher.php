@@ -316,6 +316,74 @@ function visibloc_jlg_set_preview_cookie( $value, $expires ) {
     return setcookie( $cookie_name, $value, $cookie_args );
 }
 
+/**
+ * Build the absolute URL for the current request.
+ *
+ * @return string
+ */
+function visibloc_jlg_get_current_request_url() {
+    $request_uri = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+
+    if ( '' === $request_uri ) {
+        return esc_url_raw( home_url( '/' ) );
+    }
+
+    if ( preg_match( '#^https?://#i', $request_uri ) ) {
+        return esc_url_raw( $request_uri );
+    }
+
+    $first_char = $request_uri[0];
+
+    if ( '?' === $first_char ) {
+        $request_uri = '/' . $request_uri;
+    } elseif ( '/' !== $first_char ) {
+        $request_uri = '/' . ltrim( $request_uri, '/' );
+    }
+
+    $scheme = is_ssl() ? 'https' : 'http';
+
+    $home_url   = home_url();
+    $home_parts = wp_parse_url( $home_url );
+
+    if ( isset( $home_parts['scheme'] ) ) {
+        $scheme = $home_parts['scheme'];
+    }
+
+    $host = isset( $_SERVER['HTTP_HOST'] ) ? wp_unslash( $_SERVER['HTTP_HOST'] ) : '';
+
+    if ( '' === $host && isset( $home_parts['host'] ) ) {
+        $host = $home_parts['host'];
+
+        if ( isset( $home_parts['port'] ) ) {
+            $host .= ':' . $home_parts['port'];
+        }
+    }
+
+    if ( '' === $host ) {
+        return esc_url_raw( $request_uri );
+    }
+
+    $url = $scheme . '://' . $host . $request_uri;
+
+    return esc_url_raw( $url );
+}
+
+/**
+ * Retrieve the base URL for the role preview switcher links.
+ *
+ * @return string Absolute URL without the preview query arguments.
+ */
+function visibloc_jlg_get_preview_switch_base_url() {
+    $current_url = visibloc_jlg_get_current_request_url();
+    $base_url    = remove_query_arg( [ 'preview_role', 'stop_preview_role', '_wpnonce' ], $current_url );
+
+    if ( ! $base_url ) {
+        $base_url = home_url( '/' );
+    }
+
+    return esc_url_raw( $base_url );
+}
+
 function visibloc_jlg_purge_preview_cookie() {
     static $purged = false;
 
@@ -411,7 +479,10 @@ function visibloc_jlg_handle_role_switching() {
         }
 
         visibloc_jlg_set_preview_cookie( $role_to_preview, time() + 3600 );
-        wp_safe_redirect( remove_query_arg( [ 'preview_role', '_wpnonce' ] ) );
+
+        $redirect_target = visibloc_jlg_get_preview_switch_base_url();
+
+        wp_safe_redirect( $redirect_target );
         exit;
     }
     if ( isset( $_GET['stop_preview_role'] ) ) {
@@ -420,7 +491,10 @@ function visibloc_jlg_handle_role_switching() {
             return;
         }
         visibloc_jlg_set_preview_cookie( '', time() - 3600 );
-        wp_safe_redirect( remove_query_arg( [ 'stop_preview_role', '_wpnonce' ] ) );
+
+        $redirect_target = visibloc_jlg_get_preview_switch_base_url();
+
+        wp_safe_redirect( $redirect_target );
         exit;
     }
 }
@@ -480,7 +554,7 @@ function visibloc_jlg_add_role_switcher_menu( $wp_admin_bar ) {
         $editable_roles = get_editable_roles();
     }
 
-    $base_url = remove_query_arg( [ 'preview_role', 'stop_preview_role', '_wpnonce' ] );
+    $base_url = visibloc_jlg_get_preview_switch_base_url();
 
     if ( $current_preview_role ) {
         $role_names   = wp_roles()->get_names();
