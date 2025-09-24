@@ -56,6 +56,12 @@ add_action( 'plugins_loaded', 'visi_bloc_jlg_load_textdomain' );
  * @return bool True si l'utilisateur peut voir les aperçus, sinon false.
  */
 function visibloc_jlg_can_user_preview() {
+    static $cached_can_preview = null;
+
+    if ( null !== $cached_can_preview ) {
+        return $cached_can_preview;
+    }
+
     if ( function_exists( 'visibloc_jlg_get_allowed_preview_roles' ) ) {
         $allowed_roles = visibloc_jlg_get_allowed_preview_roles();
     } else {
@@ -78,11 +84,15 @@ function visibloc_jlg_can_user_preview() {
     }
 
     if ( 'guest' === $preview_role_cookie ) {
-        return false;
+        $cached_can_preview = false;
+
+        return $cached_can_preview;
     }
 
     if ( $preview_role_cookie && 'guest' !== $preview_role_cookie && ! in_array( $preview_role_cookie, $allowed_roles, true ) ) {
-        return false;
+        $cached_can_preview = false;
+
+        return $cached_can_preview;
     }
 
     if ( function_exists( 'visibloc_jlg_get_effective_user_id' ) ) {
@@ -100,18 +110,20 @@ function visibloc_jlg_can_user_preview() {
     $user_id = absint( $user_id );
 
     if ( ! $user_id ) {
-        return false;
+        $cached_can_preview = false;
+
+        return $cached_can_preview;
     }
 
     $user = get_userdata( $user_id );
 
     if ( ! $user ) {
-        return false;
+        $cached_can_preview = false;
+
+        return $cached_can_preview;
     }
 
-    if ( count( array_intersect( (array) $user->roles, $allowed_roles ) ) > 0 ) {
-        return true;
-    }
+    $cached_can_preview = count( array_intersect( (array) $user->roles, $allowed_roles ) ) > 0;
 
-    return false;
+    return $cached_can_preview;
 }

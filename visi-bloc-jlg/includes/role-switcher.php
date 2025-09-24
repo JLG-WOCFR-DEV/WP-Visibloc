@@ -462,7 +462,12 @@ function visibloc_jlg_handle_role_switching() {
         }
 
         if ( ! in_array( $role_to_preview, $previewable_roles, true ) ) {
-            error_log( sprintf( 'Visibloc role switcher: invalid preview role requested (%s).', $role_to_preview ) );
+            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                trigger_error( sprintf( 'Visibloc role switcher: invalid preview role requested (%s).', $role_to_preview ), E_USER_NOTICE );
+            }
+
+            visibloc_jlg_set_preview_cookie( '', time() - 3600 );
+
             return;
         }
         $nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ) : '';
@@ -616,7 +621,7 @@ function visibloc_jlg_add_role_switcher_menu( $wp_admin_bar ) {
 
             $wp_admin_bar->add_node([
                 'id'     => 'visibloc-role-' . $slug,
-                'title'  => $details['name'],
+                'title'  => esc_html( isset( $details['name'] ) ? $details['name'] : $slug ),
                 'href'   => $preview_url,
                 'parent' => 'visibloc-role-switcher',
             ]);

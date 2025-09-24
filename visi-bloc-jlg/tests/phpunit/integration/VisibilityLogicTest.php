@@ -2,6 +2,8 @@
 
 use PHPUnit\Framework\TestCase;
 
+require_once __DIR__ . '/../../../includes/assets.php';
+
 class VisibilityLogicTest extends TestCase {
     protected function setUp(): void {
         visibloc_test_reset_state();
@@ -126,5 +128,57 @@ class VisibilityLogicTest extends TestCase {
             visibloc_jlg_render_block_filter( '<p>Guest view</p>', $logged_out_block ),
             'Previewing as a guest should expose content intended for visitors.'
         );
+    }
+
+    public function test_scheduled_block_hidden_outside_window_without_preview_permission(): void {
+        $block = [
+            'blockName' => 'core/group',
+            'attrs'     => [
+                'isSchedulingEnabled' => true,
+                'publishStartDate'    => '2099-01-01 00:00:00',
+                'publishEndDate'      => '2099-01-02 00:00:00',
+            ],
+        ];
+
+        $this->assertSame(
+            '',
+            visibloc_jlg_render_block_filter( '<p>Scheduled content</p>', $block ),
+            'Scheduled blocks must remain hidden outside their window when no preview privilege is granted.'
+        );
+    }
+
+    public function test_scheduled_block_shows_preview_wrapper_for_authorized_user(): void {
+        global $visibloc_test_state;
+
+        $visibloc_test_state['effective_user_id']       = 9;
+        $visibloc_test_state['current_user']            = new Visibloc_Test_User( 9, [ 'administrator' ] );
+        $visibloc_test_state['can_preview_users'][9]    = true;
+        $visibloc_test_state['allowed_preview_roles']   = [ 'administrator' ];
+        $visibloc_test_state['preview_role']            = '';
+
+        $block = [
+            'blockName' => 'core/group',
+            'attrs'     => [
+                'isSchedulingEnabled' => true,
+                'publishStartDate'    => '2099-01-01 00:00:00',
+                'publishEndDate'      => '2099-01-02 00:00:00',
+            ],
+        ];
+
+        $output = visibloc_jlg_render_block_filter( '<p>Scheduled content</p>', $block );
+
+        $this->assertStringContainsString( 'bloc-schedule-apercu', $output );
+        $this->assertStringContainsString( 'Programmé (Début:', $output );
+        $this->assertStringContainsString( '<p>Scheduled content</p>', $output );
+    }
+
+    public function test_generate_device_visibility_css_respects_preview_context(): void {
+        $css_without_preview = visibloc_jlg_generate_device_visibility_css( false );
+        $this->assertStringContainsString( '@media (max-width: 781px)', $css_without_preview );
+        $this->assertStringNotContainsString( 'outline: 2px dashed', $css_without_preview );
+
+        $css_with_preview = visibloc_jlg_generate_device_visibility_css( true );
+        $this->assertStringContainsString( 'outline: 2px dashed #0073aa', $css_with_preview );
+        $this->assertStringContainsString( 'Visible sur Desktop Uniquement', $css_with_preview );
     }
 }
