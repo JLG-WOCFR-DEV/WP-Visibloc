@@ -70,7 +70,11 @@ function visibloc_jlg_can_user_preview() {
     if ( function_exists( 'visibloc_jlg_get_preview_role_from_cookie' ) ) {
         $preview_role_cookie = visibloc_jlg_get_preview_role_from_cookie();
     } else {
-        $preview_role_cookie = isset( $_COOKIE['visibloc_preview_role'] ) ? sanitize_key( wp_unslash( $_COOKIE['visibloc_preview_role'] ) ) : '';
+        if ( isset( $_COOKIE['visibloc_preview_role'] ) && is_string( $_COOKIE['visibloc_preview_role'] ) ) {
+            $preview_role_cookie = sanitize_key( wp_unslash( $_COOKIE['visibloc_preview_role'] ) );
+        } else {
+            $preview_role_cookie = '';
+        }
     }
 
     if ( 'guest' === $preview_role_cookie ) {

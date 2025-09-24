@@ -13,7 +13,13 @@ function visibloc_jlg_get_preview_role_from_cookie() {
         return null;
     }
 
-    return sanitize_key( wp_unslash( $_COOKIE[ $cookie_name ] ) );
+    $cookie_value = $_COOKIE[ $cookie_name ];
+
+    if ( ! is_string( $cookie_value ) ) {
+        return '';
+    }
+
+    return sanitize_key( wp_unslash( $cookie_value ) );
 }
 
 function visibloc_jlg_store_real_user_id( $user_id ) {
