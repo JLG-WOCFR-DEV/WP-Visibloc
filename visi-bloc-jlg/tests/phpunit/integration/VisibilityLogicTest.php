@@ -227,7 +227,24 @@ class VisibilityLogicTest extends TestCase {
 
     public function test_generate_device_visibility_css_respects_preview_context(): void {
         $css_without_preview = visibloc_jlg_generate_device_visibility_css( false, 781, 1024 );
-        $this->assertSame( '', trim( $css_without_preview ) );
+        $expected_default_css = <<<CSS
+@media (max-width: 781px) {
+    .vb-hide-on-mobile,
+    .vb-tablet-only,
+    .vb-desktop-only { display: none !important; }
+}
+@media (min-width: 782px) and (max-width: 1024px) {
+    .vb-hide-on-tablet,
+    .vb-mobile-only,
+    .vb-desktop-only { display: none !important; }
+}
+@media (min-width: 1025px) {
+    .vb-hide-on-desktop,
+    .vb-mobile-only,
+    .vb-tablet-only { display: none !important; }
+}
+CSS;
+        $this->assertSame( $expected_default_css, trim( $css_without_preview ) );
 
         $css_with_custom_breakpoints = visibloc_jlg_generate_device_visibility_css( false, 700, 900 );
         $this->assertStringContainsString( '@media (max-width: 700px)', $css_with_custom_breakpoints );
