@@ -59,6 +59,30 @@ class VisibilityLogicTest extends TestCase {
         );
     }
 
+    public function test_hidden_block_placeholder_visible_for_authorized_previewers_with_role_mismatch(): void {
+        global $visibloc_test_state;
+
+        $visibloc_test_state['effective_user_id']       = 42;
+        $visibloc_test_state['current_user']            = new Visibloc_Test_User( 42, [ 'administrator' ] );
+        $visibloc_test_state['can_preview_users'][42]   = true;
+        $visibloc_test_state['can_impersonate_users'][42] = true;
+        $visibloc_test_state['allowed_preview_roles']   = [ 'administrator', 'editor' ];
+        $visibloc_test_state['preview_role']            = 'editor';
+
+        $block = [
+            'blockName' => 'core/group',
+            'attrs'     => [
+                'isHidden'         => true,
+                'visibilityRoles'  => [ 'administrator' ],
+            ],
+        ];
+
+        $output = visibloc_jlg_render_block_filter( '<p>Hidden admin content</p>', $block );
+
+        $this->assertStringContainsString( 'bloc-cache-apercu', $output );
+        $this->assertStringContainsString( '<p>Hidden admin content</p>', $output );
+    }
+
     public function test_visibility_roles_accepts_string_role_values(): void {
         global $visibloc_test_state;
 
