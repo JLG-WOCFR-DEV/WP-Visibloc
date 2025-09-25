@@ -39,6 +39,16 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         ];
 
     $can_preview_hidden_blocks = ! empty( $preview_context['can_preview_hidden_blocks'] );
+    $should_show_hidden_preview = $has_hidden_flag && $can_preview_hidden_blocks;
+    $hidden_preview_markup = null;
+
+    if ( $should_show_hidden_preview ) {
+        $hidden_preview_markup = sprintf(
+            '<div class="bloc-cache-apercu" data-visibloc-label="%s">%s</div>',
+            esc_attr__( 'Hidden block', 'visi-bloc-jlg' ),
+            $block_content
+        );
+    }
 
     if ( $has_schedule_enabled ) {
         $current_time = current_time( 'timestamp' );
@@ -127,18 +137,13 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         if ( in_array( 'logged-out', $visibility_roles, true ) && ! $is_logged_in ) $is_visible = true;
         if ( ! $is_visible && in_array( 'logged-in', $visibility_roles, true ) && $is_logged_in ) $is_visible = true;
         if ( ! $is_visible && ! empty( $user_roles ) && count( array_intersect( $user_roles, $visibility_roles ) ) > 0 ) { $is_visible = true; }
-        if ( ! $is_visible ) return '';
-    }
-    
-    if ( $has_hidden_flag ) {
-        if ( $can_preview_hidden_blocks ) {
-            return sprintf(
-                '<div class="bloc-cache-apercu" data-visibloc-label="%s">%s</div>',
-                esc_attr__( 'Hidden block', 'visi-bloc-jlg' ),
-                $block_content
-            );
+        if ( ! $is_visible ) {
+            return $should_show_hidden_preview ? $hidden_preview_markup : '';
         }
-        return '';
+    }
+
+    if ( $has_hidden_flag ) {
+        return $should_show_hidden_preview ? $hidden_preview_markup : '';
     }
 
     return $block_content;
