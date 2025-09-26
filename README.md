@@ -38,6 +38,18 @@ npm run build
 2. Manually add the cookie `visibloc_preview_role=administrator` (for example through the browser developer tools).
 3. Confirm that `current_user_can( 'manage_options' )` still returns `false`, including when the check is performed through XML-RPC if your stack exposes it.
 
+## Automated testing
+
+End-to-end coverage is provided through the Gutenberg Playwright test harness. The suite boots a disposable WordPress environment, activates the plugin, and exercises the editor UI just like an editor would.
+
+```bash
+cd visi-bloc-jlg
+npm install
+npm run test:e2e
+```
+
+The tests rely on [`@wordpress/env`](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-env/) and Playwright. The first `npm install` may take several minutes while browsers are downloaded.
+
 ## Performance considerations
 
 The "Visi-Bloc - JLG" administration screen paginates the internal queries in batches of 100 post IDs and caches the compiled

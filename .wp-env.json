@@ -1,0 +1,6 @@
+{
+  "plugins": ["./visi-bloc-jlg"],
+  "config": {
+    "WP_DEBUG": true
+  }
+}
