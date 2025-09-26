@@ -23,8 +23,8 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         $visibility_roles = array_filter( array_map( 'sanitize_key', $visibility_roles ) );
     }
 
-    $has_hidden_flag      = ! empty( $attrs['isHidden'] );
-    $has_schedule_enabled = ! empty( $attrs['isSchedulingEnabled'] );
+    $has_hidden_flag      = isset( $attrs['isHidden'] ) ? visibloc_jlg_normalize_boolean( $attrs['isHidden'] ) : false;
+    $has_schedule_enabled = isset( $attrs['isSchedulingEnabled'] ) ? visibloc_jlg_normalize_boolean( $attrs['isSchedulingEnabled'] ) : false;
 
     if ( ! $has_hidden_flag && ! $has_schedule_enabled && empty( $visibility_roles ) ) {
         return $block_content;
