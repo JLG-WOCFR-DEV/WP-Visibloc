@@ -1,0 +1,32 @@
+name: E2E tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  playwright:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+          cache-dependency-path: visi-bloc-jlg/package-lock.json
+
+      - name: Install dependencies
+        working-directory: visi-bloc-jlg
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: visi-bloc-jlg
+        run: npx playwright install --with-deps
+
+      - name: Run Playwright tests
+        working-directory: visi-bloc-jlg
+        run: npm run test:e2e

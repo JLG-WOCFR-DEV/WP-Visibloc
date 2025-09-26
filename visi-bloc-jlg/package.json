@@ -3,9 +3,13 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "wp-scripts build"
+    "build": "wp-scripts build",
+    "test:e2e": "wp-scripts test-e2e",
+    "test:e2e:debug": "PWDEBUG=1 wp-scripts test-e2e -- --debug"
   },
   "devDependencies": {
+    "@wordpress/e2e-test-utils-playwright": "^1.31.0",
+    "@wordpress/env": "^9.2.0",
     "@wordpress/scripts": "^26.0.0",
     "hasown": "2.0.2",
     "p-try": "3.0.0"
