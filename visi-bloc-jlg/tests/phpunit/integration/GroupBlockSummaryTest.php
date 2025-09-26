@@ -1,0 +1,160 @@
+<?php
+
+use PHPUnit\Framework\TestCase;
+
+require_once __DIR__ . '/../../../includes/admin-settings.php';
+
+class GroupBlockSummaryTest extends TestCase {
+    protected function setUp(): void {
+        parent::setUp();
+
+        visibloc_test_reset_state();
+        $GLOBALS['visibloc_posts']           = [];
+        $GLOBALS['visibloc_test_options']    = [];
+        $GLOBALS['visibloc_test_transients'] = [];
+
+        if ( function_exists( 'visibloc_jlg_clear_caches' ) ) {
+            visibloc_jlg_clear_caches();
+        }
+    }
+
+    protected function tearDown(): void {
+        if ( function_exists( 'visibloc_jlg_clear_caches' ) ) {
+            visibloc_jlg_clear_caches();
+        }
+
+        $GLOBALS['visibloc_posts']           = [];
+        $GLOBALS['visibloc_test_options']    = [];
+        $GLOBALS['visibloc_test_transients'] = [];
+
+        parent::tearDown();
+    }
+
+    public function test_generate_group_block_summary_from_content_counts_hidden_device_and_scheduled_blocks(): void {
+        $sample_content = <<<'HTML'
+<!-- wp:core/group {"isHidden":true} -->
+<div class="wp-block-group">Hidden group</div>
+<!-- /wp:core/group -->
+
+<!-- wp:core/group {"deviceVisibility":"mobile"} -->
+<div class="wp-block-group">Mobile only group</div>
+<!-- /wp:core/group -->
+
+<!-- wp:core/group {"isSchedulingEnabled":true,"publishStartDate":"2024-05-01T09:00:00","publishEndDate":"2024-05-10T17:00:00"} -->
+<div class="wp-block-group">
+    <!-- wp:core/group {"isHidden":true} -->
+    <div class="wp-block-group">Nested hidden group</div>
+    <!-- /wp:core/group -->
+</div>
+<!-- /wp:core/group -->
+
+<!-- wp:core/paragraph -->
+<p>Paragraph outside of target block.</p>
+<!-- /wp:core/paragraph -->
+HTML;
+
+        $summary = visibloc_jlg_generate_group_block_summary_from_content( 101, $sample_content );
+
+        $this->assertSame( 2, $summary['hidden'] );
+        $this->assertSame( 1, $summary['device'] );
+        $this->assertCount( 1, $summary['scheduled'] );
+        $this->assertSame(
+            [
+                'start' => '2024-05-01T09:00:00',
+                'end'   => '2024-05-10T17:00:00',
+            ],
+            $summary['scheduled'][0]
+        );
+    }
+
+    public function test_rebuild_and_collect_group_block_metadata_caches_results_for_admin_renderers(): void {
+        $primary_content = <<<'HTML'
+<!-- wp:core/group {"isHidden":true} -->
+<div class="wp-block-group">Hidden group</div>
+<!-- /wp:core/group -->
+
+<!-- wp:core/group {"deviceVisibility":"tablet"} -->
+<div class="wp-block-group">Tablet only group</div>
+<!-- /wp:core/group -->
+
+<!-- wp:core/group {"isSchedulingEnabled":true,"publishStartDate":"2024-05-01T09:00:00","publishEndDate":"2024-05-10T17:00:00"} -->
+<div class="wp-block-group">
+    <!-- wp:core/group {"isHidden":true} -->
+    <div class="wp-block-group">Nested hidden group</div>
+    <!-- /wp:core/group -->
+</div>
+<!-- /wp:core/group -->
+HTML;
+
+        $secondary_content = <<<'HTML'
+<!-- wp:core/group {"isSchedulingEnabled":true,"publishStartDate":"2024-06-15T12:00:00"} -->
+<div class="wp-block-group">Future launch</div>
+<!-- /wp:core/group -->
+
+<!-- wp:core/group {"deviceVisibility":"desktop"} -->
+<div class="wp-block-group">Desktop only group</div>
+<!-- /wp:core/group -->
+HTML;
+
+        $GLOBALS['visibloc_posts'] = [
+            101 => [
+                'post_content' => $primary_content,
+                'post_title'   => 'Landing Page',
+                'post_type'    => 'page',
+                'post_status'  => 'publish',
+            ],
+            102 => [
+                'post_content' => $secondary_content,
+                'post_title'   => 'Campaign Teaser',
+                'post_type'    => 'page',
+                'post_status'  => 'future',
+            ],
+        ];
+
+        $summaries = visibloc_jlg_rebuild_group_block_summary_index();
+
+        $this->assertArrayHasKey( 101, $summaries );
+        $this->assertArrayHasKey( 102, $summaries );
+        $this->assertSame( 2, $summaries[101]['hidden'] );
+        $this->assertSame( 1, $summaries[101]['device'] );
+        $this->assertCount( 1, $summaries[101]['scheduled'] );
+        $this->assertSame( 0, $summaries[102]['hidden'] );
+        $this->assertSame( 1, $summaries[102]['device'] );
+        $this->assertCount( 1, $summaries[102]['scheduled'] );
+
+        $metadata = visibloc_jlg_collect_group_block_metadata();
+
+        $this->assertSame( $metadata, get_transient( 'visibloc_group_block_metadata' ) );
+
+        $this->assertCount( 1, $metadata['hidden'] );
+        $this->assertSame( 101, $metadata['hidden'][0]['id'] );
+        $this->assertSame( 'Landing Page', $metadata['hidden'][0]['title'] );
+        $this->assertSame( 'https://example.com/wp-admin/post.php?post=101', $metadata['hidden'][0]['link'] );
+        $this->assertSame( 2, $metadata['hidden'][0]['block_count'] );
+
+        $this->assertCount( 2, $metadata['device'] );
+        $device_ids = array_column( $metadata['device'], 'id' );
+        sort( $device_ids );
+        $this->assertSame( [ 101, 102 ], $device_ids );
+
+        $this->assertCount( 2, $metadata['scheduled'] );
+        $scheduled_windows = array_map(
+            static function ( $item ) {
+                return [ $item['id'], $item['start'] ?? null, $item['end'] ?? null ];
+            },
+            $metadata['scheduled']
+        );
+
+        $this->assertContains( [ 101, '2024-05-01T09:00:00', '2024-05-10T17:00:00' ], $scheduled_windows );
+        $this->assertContains( [ 102, '2024-06-15T12:00:00', null ], $scheduled_windows );
+
+        $grouped_hidden = visibloc_jlg_group_posts_by_id( $metadata['hidden'] );
+        $this->assertCount( 1, $grouped_hidden );
+        $this->assertSame( 2, $grouped_hidden[0]['block_count'] );
+
+        $GLOBALS['visibloc_test_options']['visibloc_group_block_summary'] = [];
+
+        $cached_metadata = visibloc_jlg_collect_group_block_metadata();
+        $this->assertSame( $metadata, $cached_metadata );
+    }
+}
