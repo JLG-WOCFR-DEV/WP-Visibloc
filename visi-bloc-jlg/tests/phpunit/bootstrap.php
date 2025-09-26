@@ -132,17 +132,28 @@ function visibloc_jlg_get_allowed_preview_roles() {
 }
 
 function visibloc_jlg_get_preview_role_from_cookie() {
+    if ( isset( $_COOKIE['visibloc_preview_role'] ) ) {
+        $cookie_value = $_COOKIE['visibloc_preview_role'];
+
+        if ( ! is_string( $cookie_value ) ) {
+            return '';
+        }
+
+        return sanitize_key( $cookie_value );
+    }
+
     return $GLOBALS['visibloc_test_state']['preview_role'];
 }
 
-function visibloc_jlg_get_preview_runtime_context() {
+function visibloc_jlg_get_preview_runtime_context( $reset_cache = false ) {
     $state = $GLOBALS['visibloc_test_state'];
 
     $effective_user_id = absint( $state['effective_user_id'] );
     $can_impersonate   = ! empty( $state['can_impersonate_users'][ $effective_user_id ] );
     $can_preview       = ! empty( $state['can_preview_users'][ $effective_user_id ] );
     $allowed_roles     = (array) $state['allowed_preview_roles'];
-    $preview_role      = is_string( $state['preview_role'] ) ? $state['preview_role'] : '';
+    $raw_preview_role  = visibloc_jlg_get_preview_role_from_cookie();
+    $preview_role      = is_string( $raw_preview_role ) ? $raw_preview_role : '';
 
     $should_apply_preview_role = false;
 
