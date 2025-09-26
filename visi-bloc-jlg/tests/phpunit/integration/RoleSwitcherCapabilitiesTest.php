@@ -2,7 +2,7 @@
 
 use PHPUnit\Framework\TestCase;
 
-require_once __DIR__ . '/../../../includes/role-switcher.php';
+require_once __DIR__ . '/../role-switcher-test-loader.php';
 
 class RoleSwitcherCapabilitiesTest extends TestCase {
     protected function setUp(): void {
