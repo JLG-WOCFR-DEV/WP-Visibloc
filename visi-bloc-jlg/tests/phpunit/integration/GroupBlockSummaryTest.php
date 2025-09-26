@@ -67,6 +67,32 @@ HTML;
         );
     }
 
+    public function test_summary_ignores_false_like_strings_for_hidden_and_scheduled_flags(): void {
+        $sample_content = <<<'HTML'
+<!-- wp:core/group {"isHidden":"false"} -->
+<div class="wp-block-group">Should be visible</div>
+<!-- /wp:core/group -->
+
+<!-- wp:core/group {"isHidden":"0"} -->
+<div class="wp-block-group">Also visible</div>
+<!-- /wp:core/group -->
+
+<!-- wp:core/group {"isSchedulingEnabled":"false","publishStartDate":"2099-01-01T00:00:00","publishEndDate":"2099-01-02T00:00:00"} -->
+<div class="wp-block-group">Scheduling disabled via string</div>
+<!-- /wp:core/group -->
+
+<!-- wp:core/group {"isSchedulingEnabled":"0","publishStartDate":"2099-02-01T00:00:00"} -->
+<div class="wp-block-group">Scheduling disabled via zero</div>
+<!-- /wp:core/group -->
+HTML;
+
+        $summary = visibloc_jlg_generate_group_block_summary_from_content( 202, $sample_content );
+
+        $this->assertSame( 0, $summary['hidden'] );
+        $this->assertSame( 0, $summary['device'] );
+        $this->assertSame( [], $summary['scheduled'] );
+    }
+
     public function test_rebuild_and_collect_group_block_metadata_caches_results_for_admin_renderers(): void {
         $primary_content = <<<'HTML'
 <!-- wp:core/group {"isHidden":true} -->

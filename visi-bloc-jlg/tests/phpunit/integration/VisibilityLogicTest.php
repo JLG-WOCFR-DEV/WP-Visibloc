@@ -83,6 +83,44 @@ class VisibilityLogicTest extends TestCase {
         $this->assertStringContainsString( '<p>Hidden admin content</p>', $output );
     }
 
+    /**
+     * @dataProvider visibloc_false_string_provider
+     */
+    public function test_hidden_flag_falsey_strings_do_not_hide_block( $raw_value ): void {
+        $block = [
+            'blockName' => 'core/group',
+            'attrs'     => [
+                'isHidden' => $raw_value,
+            ],
+        ];
+
+        $this->assertSame(
+            '<p>Visible content</p>',
+            visibloc_jlg_render_block_filter( '<p>Visible content</p>', $block ),
+            'String representations of false should not hide the block.'
+        );
+    }
+
+    /**
+     * @dataProvider visibloc_false_string_provider
+     */
+    public function test_scheduling_flag_falsey_strings_do_not_enable_window( $raw_value ): void {
+        $block = [
+            'blockName' => 'core/group',
+            'attrs'     => [
+                'isSchedulingEnabled' => $raw_value,
+                'publishStartDate'    => '2099-01-01 00:00:00',
+                'publishEndDate'      => '2099-01-02 00:00:00',
+            ],
+        ];
+
+        $this->assertSame(
+            '<p>Future content</p>',
+            visibloc_jlg_render_block_filter( '<p>Future content</p>', $block ),
+            'Scheduling should be skipped when the flag is stored as a false-like string.'
+        );
+    }
+
     public function test_visibility_roles_accepts_string_role_values(): void {
         global $visibloc_test_state;
 
@@ -152,6 +190,13 @@ class VisibilityLogicTest extends TestCase {
             visibloc_jlg_render_block_filter( '<p>Guest view</p>', $logged_out_block ),
             'Previewing as a guest should expose content intended for visitors.'
         );
+    }
+
+    public function visibloc_false_string_provider(): array {
+        return [
+            'string-false' => [ 'false' ],
+            'string-zero'  => [ '0' ],
+        ];
     }
 
     public function test_scheduled_block_hidden_outside_window_without_preview_permission(): void {

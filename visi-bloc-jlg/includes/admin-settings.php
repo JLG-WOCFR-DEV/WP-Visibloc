@@ -436,7 +436,9 @@ function visibloc_jlg_generate_group_block_summary_from_content( $post_id, $post
     foreach ( $found as $block ) {
         $attrs = isset( $block['attrs'] ) && is_array( $block['attrs'] ) ? $block['attrs'] : [];
 
-        if ( ! empty( $attrs['isHidden'] ) ) {
+        $is_hidden = isset( $attrs['isHidden'] ) ? visibloc_jlg_normalize_boolean( $attrs['isHidden'] ) : false;
+
+        if ( $is_hidden ) {
             $hidden_count++;
         }
 
@@ -449,7 +451,11 @@ function visibloc_jlg_generate_group_block_summary_from_content( $post_id, $post
             || ! empty( $attrs['publishEndDate'] )
         );
 
-        if ( ! empty( $attrs['isSchedulingEnabled'] ) && $has_scheduling_window ) {
+        $has_scheduling_enabled = isset( $attrs['isSchedulingEnabled'] )
+            ? visibloc_jlg_normalize_boolean( $attrs['isSchedulingEnabled'] )
+            : false;
+
+        if ( $has_scheduling_enabled && $has_scheduling_window ) {
             $scheduled[] = [
                 'start' => isset( $attrs['publishStartDate'] ) ? (string) $attrs['publishStartDate'] : null,
                 'end'   => isset( $attrs['publishEndDate'] ) ? (string) $attrs['publishEndDate'] : null,
