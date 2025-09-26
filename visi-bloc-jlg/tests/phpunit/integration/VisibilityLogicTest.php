@@ -84,7 +84,7 @@ class VisibilityLogicTest extends TestCase {
     }
 
     /**
-     * @dataProvider visibloc_false_string_provider
+     * @dataProvider visibloc_falsey_attribute_provider
      */
     public function test_hidden_flag_falsey_strings_do_not_hide_block( $raw_value ): void {
         $block = [
@@ -97,12 +97,12 @@ class VisibilityLogicTest extends TestCase {
         $this->assertSame(
             '<p>Visible content</p>',
             visibloc_jlg_render_block_filter( '<p>Visible content</p>', $block ),
-            'String representations of false should not hide the block.'
+            'False-like attribute values should not hide the block.'
         );
     }
 
     /**
-     * @dataProvider visibloc_false_string_provider
+     * @dataProvider visibloc_falsey_attribute_provider
      */
     public function test_scheduling_flag_falsey_strings_do_not_enable_window( $raw_value ): void {
         $block = [
@@ -117,7 +117,7 @@ class VisibilityLogicTest extends TestCase {
         $this->assertSame(
             '<p>Future content</p>',
             visibloc_jlg_render_block_filter( '<p>Future content</p>', $block ),
-            'Scheduling should be skipped when the flag is stored as a false-like string.'
+            'Scheduling should be skipped when the flag is stored as a false-like value.'
         );
     }
 
@@ -192,10 +192,13 @@ class VisibilityLogicTest extends TestCase {
         );
     }
 
-    public function visibloc_false_string_provider(): array {
+    public function visibloc_falsey_attribute_provider(): array {
         return [
-            'string-false' => [ 'false' ],
-            'string-zero'  => [ '0' ],
+            'string-false'    => [ 'false' ],
+            'string-zero'     => [ '0' ],
+            'null-value'      => [ null ],
+            'empty-array'     => [ [] ],
+            'stdclass-object' => [ (object) [] ],
         ];
     }
 

@@ -77,12 +77,24 @@ HTML;
 <div class="wp-block-group">Also visible</div>
 <!-- /wp:core/group -->
 
+<!-- wp:core/group {"isHidden":[]} -->
+<div class="wp-block-group">Array flag should be ignored</div>
+<!-- /wp:core/group -->
+
+<!-- wp:core/group {"isHidden":{"unexpected":true}} -->
+<div class="wp-block-group">Object-like flag should be ignored</div>
+<!-- /wp:core/group -->
+
 <!-- wp:core/group {"isSchedulingEnabled":"false","publishStartDate":"2099-01-01T00:00:00","publishEndDate":"2099-01-02T00:00:00"} -->
 <div class="wp-block-group">Scheduling disabled via string</div>
 <!-- /wp:core/group -->
 
 <!-- wp:core/group {"isSchedulingEnabled":"0","publishStartDate":"2099-02-01T00:00:00"} -->
 <div class="wp-block-group">Scheduling disabled via zero</div>
+<!-- /wp:core/group -->
+
+<!-- wp:core/group {"isSchedulingEnabled":[],"publishStartDate":"2099-03-01T00:00:00"} -->
+<div class="wp-block-group">Scheduling disabled via array</div>
 <!-- /wp:core/group -->
 HTML;
 
