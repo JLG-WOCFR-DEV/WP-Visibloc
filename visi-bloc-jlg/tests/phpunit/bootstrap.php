@@ -549,6 +549,10 @@ if ( ! function_exists( 'visibloc_jlg_normalize_boolean' ) ) {
             return $value;
         }
 
+        if ( null === $value ) {
+            return false;
+        }
+
         if ( is_array( $value ) || is_object( $value ) ) {
             return false;
         }
