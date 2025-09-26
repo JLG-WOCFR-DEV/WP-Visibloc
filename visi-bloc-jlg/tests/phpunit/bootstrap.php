@@ -249,6 +249,16 @@ function wp_get_current_user() {
     return new Visibloc_Test_User();
 }
 
+function get_current_user_id() {
+    $user = wp_get_current_user();
+
+    if ( $user instanceof Visibloc_Test_User ) {
+        return (int) $user->ID;
+    }
+
+    return 0;
+}
+
 function get_role( $role ) {
     $roles = $GLOBALS['visibloc_test_state']['roles'];
 
