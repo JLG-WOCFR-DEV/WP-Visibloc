@@ -7,6 +7,14 @@ if ( ! defined( 'ABSPATH' ) ) {
     define( 'ABSPATH', __DIR__ . '/../../' );
 }
 
+$GLOBALS['visibloc_posts']            = [];
+$GLOBALS['visibloc_test_options']     = [];
+$GLOBALS['visibloc_test_transients']  = [];
+
+if ( ! defined( 'HOUR_IN_SECONDS' ) ) {
+    define( 'HOUR_IN_SECONDS', 3600 );
+}
+
 $GLOBALS['visibloc_test_state'] = [
     'effective_user_id'       => 0,
     'can_preview_users'       => [],
@@ -93,6 +101,10 @@ function wp_enqueue_style( $handle, $src = '', $deps = [], $ver = false, $media 
 
 function wp_add_inline_style( $handle, $data ) {
     // No-op for tests.
+}
+
+function apply_filters( $hook, $value ) {
+    return $value;
 }
 
 function visibloc_jlg_is_admin_or_technical_request() {
@@ -213,6 +225,200 @@ function wp_date( $format, $timestamp ) {
     return gmdate( $format, $timestamp );
 }
 
+function set_transient( $key, $value, $expiration ) {
+    $expires_at = ( is_numeric( $expiration ) && $expiration > 0 ) ? ( time() + (int) $expiration ) : 0;
+
+    $GLOBALS['visibloc_test_transients'][ $key ] = [
+        'value'   => $value,
+        'expires' => $expires_at,
+    ];
+
+    return true;
+}
+
+function get_transient( $key ) {
+    if ( empty( $GLOBALS['visibloc_test_transients'][ $key ] ) ) {
+        return false;
+    }
+
+    $transient = $GLOBALS['visibloc_test_transients'][ $key ];
+
+    if ( ! empty( $transient['expires'] ) && $transient['expires'] < time() ) {
+        unset( $GLOBALS['visibloc_test_transients'][ $key ] );
+
+        return false;
+    }
+
+    return $transient['value'];
+}
+
+function delete_transient( $key ) {
+    if ( isset( $GLOBALS['visibloc_test_transients'][ $key ] ) ) {
+        unset( $GLOBALS['visibloc_test_transients'][ $key ] );
+    }
+
+    return true;
+}
+
+function parse_blocks( $content ) {
+    if ( ! is_string( $content ) || '' === $content ) {
+        return [];
+    }
+
+    $pattern = '/<!--\s+(\/?)wp:([a-z0-9\/-_]+)(\s+(\{.*?\}))?\s*-->/i';
+
+    if ( ! preg_match_all( $pattern, $content, $matches, PREG_OFFSET_CAPTURE ) ) {
+        return [];
+    }
+
+    $stack       = [];
+    $root_blocks = [];
+    $total       = count( $matches[0] );
+
+    for ( $index = 0; $index < $total; $index++ ) {
+        $full_match = $matches[0][ $index ][0];
+        $position   = $matches[0][ $index ][1];
+        $length     = strlen( $full_match );
+        $is_closing = '' !== $matches[1][ $index ][0];
+        $block_name = $matches[2][ $index ][0];
+        $attr_json  = isset( $matches[4][ $index ][0] ) ? trim( $matches[4][ $index ][0] ) : '';
+
+        if ( $is_closing ) {
+            while ( ! empty( $stack ) ) {
+                $current = array_pop( $stack );
+
+                if ( $current['name'] !== $block_name ) {
+                    continue;
+                }
+
+                $block       = $current['block'];
+                $inner_start = $current['inner_start'];
+                $inner_html  = substr( $content, $inner_start, max( 0, $position - $inner_start ) );
+
+                $block['innerHTML']    = $inner_html;
+                $block['innerContent'] = [ $inner_html ];
+
+                if ( ! empty( $stack ) ) {
+                    $parent_index = count( $stack ) - 1;
+                    $stack[ $parent_index ]['block']['innerBlocks'][] = $block;
+                } else {
+                    $root_blocks[] = $block;
+                }
+
+                break;
+            }
+
+            continue;
+        }
+
+        $attrs = [];
+
+        if ( '' !== $attr_json ) {
+            $decoded = json_decode( $attr_json, true );
+
+            if ( is_array( $decoded ) ) {
+                $attrs = $decoded;
+            }
+        }
+
+        $block = [
+            'blockName'    => $block_name,
+            'attrs'        => $attrs,
+            'innerBlocks'  => [],
+            'innerHTML'    => '',
+            'innerContent' => [],
+        ];
+
+        $stack[] = [
+            'name'        => $block_name,
+            'block'       => $block,
+            'inner_start' => $position + $length,
+        ];
+    }
+
+    while ( ! empty( $stack ) ) {
+        $current = array_pop( $stack );
+        $block   = $current['block'];
+
+        $block['innerHTML']    = substr( $content, $current['inner_start'] );
+        $block['innerContent'] = [ $block['innerHTML'] ];
+
+        if ( ! empty( $stack ) ) {
+            $parent_index = count( $stack ) - 1;
+            $stack[ $parent_index ]['block']['innerBlocks'][] = $block;
+        } else {
+            $root_blocks[] = $block;
+        }
+    }
+
+    return $root_blocks;
+}
+
+function get_post_field( $field, $post_id ) {
+    $post_id = absint( $post_id );
+
+    if ( $post_id <= 0 ) {
+        return '';
+    }
+
+    $posts = $GLOBALS['visibloc_posts'] ?? [];
+
+    if ( ! isset( $posts[ $post_id ] ) ) {
+        return '';
+    }
+
+    $post = $posts[ $post_id ];
+
+    if ( 'post_content' === $field ) {
+        return $post['post_content'] ?? '';
+    }
+
+    if ( 'post_title' === $field ) {
+        return $post['post_title'] ?? '';
+    }
+
+    return $post[ $field ] ?? '';
+}
+
+function get_post( $post_id ) {
+    $post_id = absint( $post_id );
+
+    if ( $post_id <= 0 ) {
+        return null;
+    }
+
+    $posts = $GLOBALS['visibloc_posts'] ?? [];
+
+    if ( ! isset( $posts[ $post_id ] ) ) {
+        return null;
+    }
+
+    $post_data = $posts[ $post_id ];
+    $post_data['ID'] = $post_id;
+
+    return (object) $post_data;
+}
+
+function get_the_title( $post_id ) {
+    return get_post_field( 'post_title', $post_id );
+}
+
+function get_edit_post_link( $post_id ) {
+    $post_id = absint( $post_id );
+
+    if ( $post_id <= 0 ) {
+        return '';
+    }
+
+    return 'https://example.com/wp-admin/post.php?post=' . $post_id;
+}
+
+function update_option( $name, $value, $autoload = null ) {
+    $GLOBALS['visibloc_test_options'][ $name ] = $value;
+
+    return true;
+}
+
 function __( $text ) {
     return $text;
 }
@@ -270,7 +476,50 @@ function get_option( $name, $default = false ) {
         return $GLOBALS['visibloc_test_state']['allowed_preview_roles'];
     }
 
+    if ( isset( $GLOBALS['visibloc_test_options'][ $name ] ) ) {
+        return $GLOBALS['visibloc_test_options'][ $name ];
+    }
+
     return $default;
+}
+
+function wp_is_post_revision( $post_id ) {
+    return false;
+}
+
+if ( ! class_exists( 'WP_Query' ) ) {
+    class WP_Query {
+        public $posts = [];
+
+        public function __construct( $args = [] ) {
+            $posts        = $GLOBALS['visibloc_posts'] ?? [];
+            $post_types   = isset( $args['post_type'] ) ? (array) $args['post_type'] : null;
+            $post_status  = isset( $args['post_status'] ) ? (array) $args['post_status'] : null;
+            $per_page     = isset( $args['posts_per_page'] ) ? max( 1, (int) $args['posts_per_page'] ) : count( $posts );
+            $paged        = isset( $args['paged'] ) ? max( 1, (int) $args['paged'] ) : 1;
+            $matching_ids = [];
+
+            foreach ( $posts as $post_id => $post ) {
+                $post_type  = $post['post_type'] ?? 'post';
+                $post_state = $post['post_status'] ?? 'publish';
+
+                if ( null !== $post_types && ! in_array( $post_type, $post_types, true ) ) {
+                    continue;
+                }
+
+                if ( null !== $post_status && ! in_array( $post_state, $post_status, true ) ) {
+                    continue;
+                }
+
+                $matching_ids[] = absint( $post_id );
+            }
+
+            sort( $matching_ids );
+
+            $offset       = ( $paged - 1 ) * $per_page;
+            $this->posts  = array_slice( $matching_ids, $offset, $per_page );
+        }
+    }
 }
 
 if ( ! function_exists( 'absint' ) ) {
