@@ -310,6 +310,37 @@ class RoleSwitcherRequestTest extends TestCase {
      * @runInSeparateProcess
      * @preserveGlobalState disabled
      */
+    public function test_purge_preview_cookie_resets_cookie_and_runtime_context(): void {
+        global $visibloc_test_state;
+
+        $user_id = 29;
+
+        $visibloc_test_state['effective_user_id']             = $user_id;
+        $visibloc_test_state['current_user']                  = new Visibloc_Test_User( $user_id, [ 'administrator' ] );
+        $visibloc_test_state['can_preview_users'][ $user_id ] = true;
+
+        $_COOKIE['visibloc_preview_role'] = 'guest';
+
+        $initial_context = visibloc_jlg_get_preview_runtime_context( true );
+
+        $this->assertSame( 'guest', $initial_context['preview_role'], 'Guest preview should be recognized before purge.' );
+        $this->assertTrue( $initial_context['should_apply_preview_role'], 'Guest preview should apply before purge.' );
+
+        visibloc_jlg_purge_preview_cookie();
+
+        $this->assertArrayNotHasKey( 'visibloc_preview_role', $_COOKIE, 'Preview cookie should be removed from the request.' );
+        $this->assertSame( '', visibloc_jlg_get_preview_role_from_cookie(), 'Preview cookie helper should return an empty string after purge.' );
+
+        $refreshed_context = visibloc_jlg_get_preview_runtime_context( true );
+
+        $this->assertSame( '', $refreshed_context['preview_role'], 'Runtime context should no longer report an active preview role.' );
+        $this->assertFalse( $refreshed_context['should_apply_preview_role'], 'Runtime context should not apply any preview role after purge.' );
+    }
+
+    /**
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
     public function test_valid_preview_role_request_sets_cookie_and_updates_admin_bar(): void {
         global $visibloc_test_state, $visibloc_test_redirect_state;
 
