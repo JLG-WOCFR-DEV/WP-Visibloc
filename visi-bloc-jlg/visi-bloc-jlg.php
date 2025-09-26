@@ -35,6 +35,32 @@ if ( ! function_exists( 'visibloc_jlg_get_sanitized_query_arg' ) ) {
     }
 }
 
+if ( ! function_exists( 'visibloc_jlg_normalize_boolean' ) ) {
+    /**
+     * Convert a block attribute value to a strict boolean.
+     *
+     * Arrays and objects are treated as false to avoid PHP warnings triggered
+     * by filter_var() while scalar/string values are normalized using
+     * FILTER_VALIDATE_BOOLEAN. Invalid or empty values default to false.
+     *
+     * @param mixed $value Raw attribute value.
+     * @return bool Normalized boolean value.
+     */
+    function visibloc_jlg_normalize_boolean( $value ) {
+        if ( is_bool( $value ) ) {
+            return $value;
+        }
+
+        if ( is_array( $value ) || is_object( $value ) ) {
+            return false;
+        }
+
+        $filtered = filter_var( $value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE );
+
+        return true === $filtered;
+    }
+}
+
 // Charge les différents modules du plugin
 require_once __DIR__ . '/includes/datetime-utils.php';
 require_once __DIR__ . '/includes/admin-settings.php';

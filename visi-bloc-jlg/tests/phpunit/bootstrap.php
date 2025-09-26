@@ -7,6 +7,10 @@ if ( ! defined( 'ABSPATH' ) ) {
     define( 'ABSPATH', __DIR__ . '/../../' );
 }
 
+if ( ! defined( 'WPINC' ) ) {
+    define( 'WPINC', 'wp-includes' );
+}
+
 $GLOBALS['visibloc_posts']            = [];
 $GLOBALS['visibloc_test_options']     = [];
 $GLOBALS['visibloc_test_transients']  = [];
@@ -525,6 +529,22 @@ if ( ! class_exists( 'WP_Query' ) ) {
 if ( ! function_exists( 'absint' ) ) {
     function absint( $maybeint ) {
         return (int) abs( $maybeint );
+    }
+}
+
+if ( ! function_exists( 'visibloc_jlg_normalize_boolean' ) ) {
+    function visibloc_jlg_normalize_boolean( $value ) {
+        if ( is_bool( $value ) ) {
+            return $value;
+        }
+
+        if ( is_array( $value ) || is_object( $value ) ) {
+            return false;
+        }
+
+        $filtered = filter_var( $value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE );
+
+        return true === $filtered;
     }
 }
 
