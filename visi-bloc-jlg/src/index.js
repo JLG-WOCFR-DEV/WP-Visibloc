@@ -13,10 +13,40 @@ import {
     DateTimePicker,
 } from '@wordpress/components';
 import { __, sprintf } from '@wordpress/i18n';
-import { format } from '@wordpress/date';
+import { __experimentalGetSettings, dateI18n, format as formatDate } from '@wordpress/date';
 import { subscribe, select } from '@wordpress/data';
 
 import './editor-styles.css';
+
+const DATE_SETTINGS =
+    typeof __experimentalGetSettings === 'function' ? __experimentalGetSettings() : {};
+const { formats: DATE_FORMATS = {} } = DATE_SETTINGS || {};
+const DEFAULT_DATE_FORMAT = 'F j, Y';
+const DEFAULT_TIME_FORMAT = 'H:i';
+const WP_DATE_FORMAT =
+    typeof DATE_FORMATS.date === 'string' && DATE_FORMATS.date.trim()
+        ? DATE_FORMATS.date
+        : DEFAULT_DATE_FORMAT;
+const WP_TIME_FORMAT =
+    typeof DATE_FORMATS.time === 'string' && DATE_FORMATS.time.trim()
+        ? DATE_FORMATS.time
+        : DEFAULT_TIME_FORMAT;
+const WP_DATETIME_FORMAT =
+    typeof DATE_FORMATS.datetime === 'string' && DATE_FORMATS.datetime.trim()
+        ? DATE_FORMATS.datetime
+        : `${WP_DATE_FORMAT} ${WP_TIME_FORMAT}`.trim();
+
+const formatScheduleDate = (value) => {
+    if (!value) {
+        return null;
+    }
+
+    if (typeof dateI18n === 'function') {
+        return dateI18n(WP_DATETIME_FORMAT, value);
+    }
+
+    return formatDate(WP_DATETIME_FORMAT, value);
+};
 
 const DEVICE_VISIBILITY_OPTIONS = [
     {
@@ -122,12 +152,8 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
         let scheduleSummary = __('Aucune programmation.', 'visi-bloc-jlg');
 
         if (isSchedulingEnabled) {
-            const startDate = publishStartDate
-                ? format('d/m/Y H:i', publishStartDate)
-                : null;
-            const endDate = publishEndDate
-                ? format('d/m/Y H:i', publishEndDate)
-                : null;
+            const startDate = formatScheduleDate(publishStartDate);
+            const endDate = formatScheduleDate(publishEndDate);
 
             if (startDate && endDate) {
                 /* translators: 1: Start date, 2: end date. */

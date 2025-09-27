@@ -78,8 +78,9 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         $is_after_end = null !== $end_time && $current_time > $end_time;
         if ( $is_before_start || $is_after_end ) {
             if ( $can_preview_hidden_blocks ) {
-                $start_date_fr = $start_time ? wp_date( 'd/m/Y H:i', $start_time ) : __( 'N/A', 'visi-bloc-jlg' );
-                $end_date_fr = $end_time ? wp_date( 'd/m/Y H:i', $end_time ) : __( 'N/A', 'visi-bloc-jlg' );
+                $datetime_format = visibloc_jlg_get_wp_datetime_format();
+                $start_date_fr = $start_time ? wp_date( $datetime_format, $start_time ) : __( 'N/A', 'visi-bloc-jlg' );
+                $end_date_fr = $end_time ? wp_date( $datetime_format, $end_time ) : __( 'N/A', 'visi-bloc-jlg' );
                 $info = sprintf(
                     /* translators: 1: start date, 2: end date. */
                     __( 'Programmé (Début:%1$s | Fin:%2$s)', 'visi-bloc-jlg' ),

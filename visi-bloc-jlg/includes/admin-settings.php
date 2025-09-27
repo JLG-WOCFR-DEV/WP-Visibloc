@@ -256,6 +256,8 @@ function visibloc_jlg_render_device_visibility_section( $device_posts ) {
 }
 
 function visibloc_jlg_render_scheduled_blocks_section( $scheduled_posts ) {
+    $datetime_format = visibloc_jlg_get_wp_datetime_format();
+
     ?>
     <div class="postbox">
         <h2 class="hndle"><span><?php esc_html_e( 'Tableau de bord des blocs programmés', 'visi-bloc-jlg' ); ?></span></h2>
@@ -276,8 +278,8 @@ function visibloc_jlg_render_scheduled_blocks_section( $scheduled_posts ) {
                             $start_datetime = visibloc_jlg_create_schedule_datetime( $scheduled_block['start'] ?? null );
                             $end_datetime   = visibloc_jlg_create_schedule_datetime( $scheduled_block['end'] ?? null );
 
-                            $start_display = null !== $start_datetime ? wp_date( 'd/m/Y H:i', $start_datetime->getTimestamp() ) : '–';
-                            $end_display   = null !== $end_datetime ? wp_date( 'd/m/Y H:i', $end_datetime->getTimestamp() ) : '–';
+                            $start_display = null !== $start_datetime ? wp_date( $datetime_format, $start_datetime->getTimestamp() ) : '–';
+                            $end_display   = null !== $end_datetime ? wp_date( $datetime_format, $end_datetime->getTimestamp() ) : '–';
                             ?>
                             <tr>
                                 <td>
