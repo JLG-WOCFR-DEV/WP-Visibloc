@@ -69,7 +69,7 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
     }
 
     if ( $has_schedule_enabled ) {
-        $current_time = current_time( 'timestamp' );
+        $current_time = current_time( 'timestamp', true );
 
         $start_time = visibloc_jlg_parse_schedule_datetime( $attrs['publishStartDate'] ?? null );
         $end_time   = visibloc_jlg_parse_schedule_datetime( $attrs['publishEndDate'] ?? null );
