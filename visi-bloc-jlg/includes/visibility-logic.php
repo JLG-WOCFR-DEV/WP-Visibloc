@@ -20,7 +20,25 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
             $visibility_roles = [ $raw_visibility_roles ];
         }
 
-        $visibility_roles = array_filter( array_map( 'sanitize_key', $visibility_roles ) );
+        $visibility_roles = array_values(
+            array_filter(
+                array_map(
+                    static function ( $raw_role ) {
+                        if ( ! is_scalar( $raw_role ) ) {
+                            return null;
+                        }
+
+                        $sanitized_role = sanitize_key( (string) $raw_role );
+
+                        return '' === $sanitized_role ? null : $sanitized_role;
+                    },
+                    $visibility_roles
+                ),
+                static function ( $role ) {
+                    return null !== $role;
+                }
+            )
+        );
     }
 
     $has_hidden_flag      = isset( $attrs['isHidden'] ) ? visibloc_jlg_normalize_boolean( $attrs['isHidden'] ) : false;

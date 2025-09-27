@@ -140,6 +140,24 @@ class VisibilityLogicTest extends TestCase {
         );
     }
 
+    public function test_visibility_roles_ignore_nested_values(): void {
+        $block = [
+            'blockName' => 'core/group',
+            'attrs'     => [
+                'visibilityRoles' => [
+                    [ 'nested' => [ 'array' ] ],
+                    (object) [ 'role' => 'editor' ],
+                ],
+            ],
+        ];
+
+        $this->assertSame(
+            '<p>Visible content</p>',
+            visibloc_jlg_render_block_filter( '<p>Visible content</p>', $block ),
+            'Non-scalar visibility role values should be ignored without affecting rendering.'
+        );
+    }
+
     public function test_visibility_roles_accepts_logged_out_string_marker(): void {
         $block = [
             'blockName' => 'core/group',
