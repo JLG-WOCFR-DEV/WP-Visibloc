@@ -584,6 +584,29 @@ if ( ! function_exists( 'visibloc_jlg_get_preview_runtime_context' ) ) {
     }
 }
 
+add_action( 'init', 'visibloc_jlg_disable_caching_during_preview', 0 );
+function visibloc_jlg_disable_caching_during_preview() {
+    static $headers_sent = false;
+
+    if ( $headers_sent ) {
+        return;
+    }
+
+    $context = visibloc_jlg_get_preview_runtime_context();
+
+    if ( empty( $context['should_apply_preview_role'] ) || empty( $context['preview_role'] ) ) {
+        return;
+    }
+
+    $headers_sent = true;
+
+    if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+        define( 'DONOTCACHEPAGE', true );
+    }
+
+    nocache_headers();
+}
+
 add_action( 'init', 'visibloc_jlg_handle_role_switching' );
 function visibloc_jlg_handle_role_switching() {
     $context = visibloc_jlg_get_user_preview_context( visibloc_jlg_get_effective_user_id() );
