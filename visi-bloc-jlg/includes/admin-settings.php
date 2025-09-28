@@ -697,6 +697,9 @@ function visibloc_jlg_clear_caches( $unused_post_id = null ) {
     delete_transient( 'visibloc_device_posts' );
     delete_transient( 'visibloc_scheduled_posts' );
     delete_transient( 'visibloc_group_block_metadata' );
+    if ( function_exists( 'wp_cache_delete' ) ) {
+        wp_cache_delete( 'visibloc_device_css_cache', 'visibloc_jlg' );
+    }
 }
 
 add_action( 'save_post', 'visibloc_jlg_refresh_group_block_summary_on_save', 20, 3 );
