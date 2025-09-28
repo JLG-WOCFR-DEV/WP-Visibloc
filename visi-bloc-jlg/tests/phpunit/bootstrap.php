@@ -240,6 +240,72 @@ function wp_date( $format, $timestamp ) {
     return gmdate( $format, $timestamp );
 }
 
+if ( ! function_exists( 'visibloc_jlg_get_wp_datetime_format' ) ) {
+    function visibloc_jlg_get_wp_datetime_format() {
+        return 'Y-m-d H:i:s';
+    }
+}
+
+$GLOBALS['visibloc_test_object_cache'] = [];
+
+function visibloc_test_cache_normalize_group( $group ) {
+    return ( '' === $group ) ? 'default' : $group;
+}
+
+function wp_cache_get( $key, $group = '', $force = false, &$found = null ) {
+    $group = visibloc_test_cache_normalize_group( $group );
+
+    if ( isset( $GLOBALS['visibloc_test_object_cache'][ $group ][ $key ] ) ) {
+        $entry = $GLOBALS['visibloc_test_object_cache'][ $group ][ $key ];
+
+        if ( isset( $entry['expires'] ) && $entry['expires'] > 0 && $entry['expires'] < time() ) {
+            unset( $GLOBALS['visibloc_test_object_cache'][ $group ][ $key ] );
+        } else {
+            if ( is_bool( $found ) || null === $found ) {
+                $found = true;
+            }
+
+            return $entry['value'];
+        }
+    }
+
+    if ( is_bool( $found ) || null === $found ) {
+        $found = false;
+    }
+
+    return false;
+}
+
+function wp_cache_set( $key, $value, $group = '', $expire = 0 ) {
+    $group   = visibloc_test_cache_normalize_group( $group );
+    $expires = ( is_numeric( $expire ) && $expire > 0 ) ? ( time() + (int) $expire ) : 0;
+
+    if ( ! isset( $GLOBALS['visibloc_test_object_cache'][ $group ] ) ) {
+        $GLOBALS['visibloc_test_object_cache'][ $group ] = [];
+    }
+
+    $GLOBALS['visibloc_test_object_cache'][ $group ][ $key ] = [
+        'value'   => $value,
+        'expires' => $expires,
+    ];
+
+    return true;
+}
+
+function wp_cache_delete( $key, $group = '', $force = false ) {
+    $group = visibloc_test_cache_normalize_group( $group );
+
+    if ( isset( $GLOBALS['visibloc_test_object_cache'][ $group ][ $key ] ) ) {
+        unset( $GLOBALS['visibloc_test_object_cache'][ $group ][ $key ] );
+
+        if ( empty( $GLOBALS['visibloc_test_object_cache'][ $group ] ) ) {
+            unset( $GLOBALS['visibloc_test_object_cache'][ $group ] );
+        }
+    }
+
+    return true;
+}
+
 function set_transient( $key, $value, $expiration ) {
     $expires_at = ( is_numeric( $expiration ) && $expiration > 0 ) ? ( time() + (int) $expiration ) : 0;
 
