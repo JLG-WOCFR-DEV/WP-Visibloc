@@ -391,27 +391,30 @@ function visibloc_jlg_get_current_request_url() {
         $request_uri = '/' . ltrim( $request_uri, '/' );
     }
 
-    $scheme = is_ssl() ? 'https' : 'http';
-
     $home_url   = home_url();
     $home_parts = wp_parse_url( $home_url );
 
-    if ( isset( $home_parts['scheme'] ) ) {
-        $scheme = $home_parts['scheme'];
+    if ( empty( $home_parts ) || ! isset( $home_parts['host'] ) ) {
+        return esc_url_raw( home_url( $request_uri ) );
     }
 
-    $host = isset( $_SERVER['HTTP_HOST'] ) ? wp_unslash( $_SERVER['HTTP_HOST'] ) : '';
+    $scheme = isset( $home_parts['scheme'] ) ? $home_parts['scheme'] : ( is_ssl() ? 'https' : 'http' );
 
-    if ( '' === $host && isset( $home_parts['host'] ) ) {
-        $host = $home_parts['host'];
+    $canonical_host = $home_parts['host'];
+    $canonical_port = isset( $home_parts['port'] ) ? (int) $home_parts['port'] : null;
 
-        if ( isset( $home_parts['port'] ) ) {
-            $host .= ':' . $home_parts['port'];
-        }
+    $canonical_authority = $canonical_host;
+
+    if ( null !== $canonical_port ) {
+        $canonical_authority .= ':' . $canonical_port;
     }
 
-    if ( '' === $host ) {
-        return esc_url_raw( $request_uri );
+    $host_header = isset( $_SERVER['HTTP_HOST'] ) ? wp_unslash( $_SERVER['HTTP_HOST'] ) : '';
+
+    $host = $canonical_authority;
+
+    if ( '' !== $host_header && strtolower( $host_header ) === strtolower( $canonical_authority ) ) {
+        $host = $host_header;
     }
 
     $url = $scheme . '://' . $host . $request_uri;
