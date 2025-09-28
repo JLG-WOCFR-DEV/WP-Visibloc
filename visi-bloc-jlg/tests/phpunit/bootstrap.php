@@ -236,6 +236,23 @@ function visibloc_jlg_parse_schedule_datetime( $value ) {
     return $datetime->getTimestamp();
 }
 
+if ( ! function_exists( 'visibloc_jlg_get_wp_datetime_format' ) ) {
+    function visibloc_jlg_get_wp_datetime_format() {
+        $date_format = get_option( 'date_format', 'F j, Y' );
+        $time_format = get_option( 'time_format', 'H:i' );
+
+        if ( ! is_string( $date_format ) || '' === trim( $date_format ) ) {
+            $date_format = 'F j, Y';
+        }
+
+        if ( ! is_string( $time_format ) || '' === trim( $time_format ) ) {
+            $time_format = 'H:i';
+        }
+
+        return trim( $date_format . ' ' . $time_format );
+    }
+}
+
 function wp_date( $format, $timestamp ) {
     return gmdate( $format, $timestamp );
 }

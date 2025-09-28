@@ -407,6 +407,40 @@ class RoleSwitcherRequestTest extends TestCase {
      * @runInSeparateProcess
      * @preserveGlobalState disabled
      */
+    public function test_preview_role_redirect_uses_site_host_when_host_header_differs(): void {
+        global $visibloc_test_state, $visibloc_test_redirect_state;
+
+        $user_id = 17;
+
+        $visibloc_test_state['effective_user_id']             = $user_id;
+        $visibloc_test_state['current_user']                  = new Visibloc_Test_User( $user_id, [ 'administrator' ] );
+        $visibloc_test_state['can_preview_users'][ $user_id ] = true;
+        $visibloc_test_state['can_impersonate_users'][ $user_id ] = true;
+        $visibloc_test_state['allowed_preview_roles']         = [ 'administrator', 'editor' ];
+        $visibloc_test_state['roles']['editor']               = (object) [ 'name' => 'Editor', 'capabilities' => [] ];
+
+        $_GET = [
+            'preview_role' => 'editor',
+            '_wpnonce'     => 'nonce-visibloc_switch_role_editor',
+        ];
+
+        $_SERVER['HTTP_HOST']   = 'malicious.test';
+        $_SERVER['REQUEST_URI'] = '/page/?preview_role=editor&_wpnonce=nonce-visibloc_switch_role_editor';
+
+        try {
+            visibloc_jlg_handle_role_switching();
+            $this->fail( 'Expected redirect exception was not thrown.' );
+        } catch ( Visibloc_Test_Redirect_Exception $exception ) {
+            // Expected path.
+        }
+
+        $this->assertSame( 'https://example.test/page/', $visibloc_test_redirect_state['location'], 'Redirect host should match the site host even when the request host differs.' );
+    }
+
+    /**
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
     public function test_invalid_role_request_purges_cookie_and_flags_error(): void {
         global $visibloc_test_state, $visibloc_test_redirect_state;
 
