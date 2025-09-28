@@ -293,13 +293,13 @@ class RoleSwitcherRequestTest extends TestCase {
         $visibloc_test_redirect_state = [];
         $GLOBALS['visibloc_test_cookie_log'] = [];
 
-        if ( function_exists( 'header_remove' ) ) {
+        if ( function_exists( 'header_remove' ) && ! headers_sent() ) {
             header_remove();
         }
     }
 
     protected function tearDown(): void {
-        if ( function_exists( 'header_remove' ) ) {
+        if ( function_exists( 'header_remove' ) && ! headers_sent() ) {
             header_remove();
         }
 
@@ -546,6 +546,14 @@ class RoleSwitcherRequestTest extends TestCase {
         visibloc_jlg_add_role_switcher_menu( $admin_bar_after );
 
         $this->assertArrayNotHasKey( 'visibloc-alert', $admin_bar_after->nodes, 'Toolbar alert should disappear once preview stops.' );
+    }
+
+    public function test_external_absolute_request_uri_is_neutralized(): void {
+        $_SERVER['REQUEST_URI'] = 'https://malicious.test/suspicious/?preview_role=guest&_wpnonce=fake';
+
+        $base_url = visibloc_jlg_get_preview_switch_base_url();
+
+        $this->assertSame( 'https://example.test/', $base_url );
     }
 
     private function getLatestCookieLog(): ?array {

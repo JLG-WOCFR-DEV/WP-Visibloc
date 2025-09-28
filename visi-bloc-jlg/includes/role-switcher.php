@@ -375,11 +375,61 @@ function visibloc_jlg_set_preview_cookie( $value, $expires ) {
 function visibloc_jlg_get_current_request_url() {
     $request_uri = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
 
+    $home_url   = home_url();
+    $home_parts = wp_parse_url( $home_url );
+
+    $fallback_url = esc_url_raw( home_url( '/' ) );
+
     if ( '' === $request_uri ) {
-        return esc_url_raw( home_url( '/' ) );
+        return $fallback_url;
     }
 
+    if ( empty( $home_parts ) || ! isset( $home_parts['host'] ) ) {
+        return esc_url_raw( home_url( $request_uri ) );
+    }
+
+    $scheme = isset( $home_parts['scheme'] ) ? $home_parts['scheme'] : ( is_ssl() ? 'https' : 'http' );
+
+    $canonical_host = $home_parts['host'];
+    $canonical_port = isset( $home_parts['port'] ) ? (int) $home_parts['port'] : null;
+
+    $normalize_port = static function ( $scheme_name, $port ) {
+        $scheme_name = is_string( $scheme_name ) ? strtolower( $scheme_name ) : '';
+
+        if ( null === $port ) {
+            if ( 'https' === $scheme_name ) {
+                return 443;
+            }
+
+            return 80;
+        }
+
+        return (int) $port;
+    };
+
+    $canonical_port = $normalize_port( $scheme, $canonical_port );
+
     if ( preg_match( '#^https?://#i', $request_uri ) ) {
+        $request_parts = wp_parse_url( $request_uri );
+
+        if ( empty( $request_parts ) || ! isset( $request_parts['host'] ) ) {
+            return $fallback_url;
+        }
+
+        $request_host = strtolower( $request_parts['host'] );
+
+        if ( strtolower( $canonical_host ) !== $request_host ) {
+            return $fallback_url;
+        }
+
+        $request_scheme = isset( $request_parts['scheme'] ) ? $request_parts['scheme'] : $scheme;
+        $request_port   = isset( $request_parts['port'] ) ? (int) $request_parts['port'] : null;
+        $request_port   = $normalize_port( $request_scheme, $request_port );
+
+        if ( $request_port !== $canonical_port ) {
+            return $fallback_url;
+        }
+
         return esc_url_raw( $request_uri );
     }
 
@@ -391,22 +441,10 @@ function visibloc_jlg_get_current_request_url() {
         $request_uri = '/' . ltrim( $request_uri, '/' );
     }
 
-    $home_url   = home_url();
-    $home_parts = wp_parse_url( $home_url );
-
-    if ( empty( $home_parts ) || ! isset( $home_parts['host'] ) ) {
-        return esc_url_raw( home_url( $request_uri ) );
-    }
-
-    $scheme = isset( $home_parts['scheme'] ) ? $home_parts['scheme'] : ( is_ssl() ? 'https' : 'http' );
-
-    $canonical_host = $home_parts['host'];
-    $canonical_port = isset( $home_parts['port'] ) ? (int) $home_parts['port'] : null;
-
     $canonical_authority = $canonical_host;
 
-    if ( null !== $canonical_port ) {
-        $canonical_authority .= ':' . $canonical_port;
+    if ( isset( $home_parts['port'] ) ) {
+        $canonical_authority .= ':' . (int) $home_parts['port'];
     }
 
     $host_header = isset( $_SERVER['HTTP_HOST'] ) ? wp_unslash( $_SERVER['HTTP_HOST'] ) : '';
