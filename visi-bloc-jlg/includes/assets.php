@@ -222,20 +222,69 @@ function visibloc_jlg_render_visibility_blocks( array $blocks, $declaration ) {
 
         $css_lines[] = $media_query;
 
-        $selector_count = count( $block['selectors'] );
-        foreach ( $block['selectors'] as $index => $selector ) {
-            $is_last = ( $index === $selector_count - 1 );
-            $css_lines[] = sprintf(
-                '    %s%s',
-                $selector,
-                $is_last ? ' { ' . $declaration . ' }' : ','
-            );
+        $declaration_lines = visibloc_jlg_prepare_declaration_lines( $block['selectors'], $declaration );
+        $single_line       = count( $declaration_lines ) === 1 && false === strpos( $declaration_lines[0], "\n" );
+
+        if ( $single_line ) {
+            $selector_count = count( $block['selectors'] );
+            foreach ( $block['selectors'] as $index => $selector ) {
+                $is_last = ( $index === $selector_count - 1 );
+                $css_lines[] = sprintf(
+                    '    %s%s',
+                    $selector,
+                    $is_last ? ' { ' . $declaration_lines[0] . ' }' : ','
+                );
+            }
+        } else {
+            $selector_count = count( $block['selectors'] );
+            foreach ( $block['selectors'] as $index => $selector ) {
+                $is_last = ( $index === $selector_count - 1 );
+                $css_lines[] = sprintf(
+                    '    %s%s',
+                    $selector,
+                    $is_last ? ' {' : ','
+                );
+            }
+
+            foreach ( $declaration_lines as $line ) {
+                $css_lines[] = sprintf( '        %s', $line );
+            }
+
+            $css_lines[] = '    }';
         }
 
         $css_lines[] = '}';
     }
 
     return $css_lines;
+}
+
+function visibloc_jlg_prepare_declaration_lines( array $selectors, $declaration ) {
+    if ( is_array( $declaration ) ) {
+        return $declaration;
+    }
+
+    if ( 'display: revert !important;' === $declaration ) {
+        $all_visibloc_selectors = ! empty( $selectors );
+
+        foreach ( $selectors as $selector ) {
+            $trimmed_selector = ltrim( $selector );
+
+            if ( 0 !== strpos( $trimmed_selector, '.vb-' ) ) {
+                $all_visibloc_selectors = false;
+                break;
+            }
+        }
+
+        if ( $all_visibloc_selectors ) {
+            return [
+                'display: block !important;',
+                'display: revert !important;',
+            ];
+        }
+    }
+
+    return [ $declaration ];
 }
 
 function visibloc_jlg_format_media_query( $min, $max ) {

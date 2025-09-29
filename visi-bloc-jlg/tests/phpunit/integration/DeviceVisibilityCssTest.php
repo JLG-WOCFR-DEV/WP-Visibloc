@@ -27,7 +27,9 @@ class DeviceVisibilityCssTest extends TestCase {
 
         $this->assertNotNull( $block );
         $this->assertStringContainsString('.vb-hide-on-mobile,', $block);
-        $this->assertStringContainsString('.vb-tablet-only { display: revert !important; }', $block);
+        $this->assertStringContainsString('.vb-tablet-only {', $block);
+        $this->assertStringContainsString('display: block !important;', $block);
+        $this->assertStringContainsString('display: revert !important;', $block);
     }
 
     public function test_mobile_breakpoint_lower_than_default_does_not_hide_classes_above_new_threshold(): void {
@@ -36,7 +38,9 @@ class DeviceVisibilityCssTest extends TestCase {
 
         $this->assertNotNull( $block );
         $this->assertStringContainsString('.vb-hide-on-mobile,', $block);
-        $this->assertStringContainsString('.vb-tablet-only { display: revert !important; }', $block);
+        $this->assertStringContainsString('.vb-tablet-only {', $block);
+        $this->assertStringContainsString('display: block !important;', $block);
+        $this->assertStringContainsString('display: revert !important;', $block);
         $this->assertStringNotContainsString('display: none !important;', $block);
     }
 
