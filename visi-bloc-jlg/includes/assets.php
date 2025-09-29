@@ -1,6 +1,21 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+if ( ! defined( 'VISIBLOC_JLG_VERSION' ) ) {
+    $visibloc_version = '0.0.0';
+    $plugin_main_file = __DIR__ . '/../visi-bloc-jlg.php';
+
+    if ( is_readable( $plugin_main_file ) ) {
+        $plugin_contents = file_get_contents( $plugin_main_file );
+
+        if ( false !== $plugin_contents && preg_match( '/^\s*\*\s*Version:\s*(.+)$/mi', $plugin_contents, $matches ) ) {
+            $visibloc_version = trim( $matches[1] );
+        }
+    }
+
+    define( 'VISIBLOC_JLG_VERSION', $visibloc_version );
+}
+
 add_action( 'wp_enqueue_scripts', 'visibloc_jlg_enqueue_public_styles' );
 function visibloc_jlg_enqueue_public_styles() {
     $plugin_main_file = __DIR__ . '/../visi-bloc-jlg.php';
@@ -69,7 +84,8 @@ function visibloc_jlg_generate_device_visibility_css( $can_preview, $mobile_bp =
     $cache_group = 'visibloc_jlg';
     $cache_key   = 'visibloc_device_css_cache';
     $bucket_key  = sprintf(
-        '%d:%d:%d',
+        '%s:%d:%d:%d',
+        VISIBLOC_JLG_VERSION,
         $can_preview ? 1 : 0,
         (int) $mobile_bp,
         (int) $tablet_bp

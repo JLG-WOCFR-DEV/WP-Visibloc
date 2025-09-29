@@ -10,6 +10,25 @@
 
 if ( ! defined( 'WPINC' ) ) { exit; }
 
+if ( ! defined( 'VISIBLOC_JLG_VERSION' ) ) {
+    $visibloc_version = '0.0.0';
+
+    if ( function_exists( 'get_file_data' ) ) {
+        $plugin_data      = get_file_data( __FILE__, [ 'Version' => 'Version' ] );
+        $visibloc_version = isset( $plugin_data['Version'] ) && '' !== $plugin_data['Version']
+            ? $plugin_data['Version']
+            : $visibloc_version;
+    } else {
+        $plugin_contents = @file_get_contents( __FILE__ );
+
+        if ( false !== $plugin_contents && preg_match( '/^\s*\*\s*Version:\s*(.+)$/mi', $plugin_contents, $matches ) ) {
+            $visibloc_version = trim( $matches[1] );
+        }
+    }
+
+    define( 'VISIBLOC_JLG_VERSION', $visibloc_version );
+}
+
 if ( ! function_exists( 'visibloc_jlg_get_sanitized_query_arg' ) ) {
     /**
      * Retrieve a sanitized value from the $_GET superglobal using sanitize_key.
