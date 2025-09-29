@@ -7,6 +7,7 @@ require_once __DIR__ . '/../../../includes/assets.php';
 class VisibilityLogicTest extends TestCase {
     protected function setUp(): void {
         visibloc_test_reset_state();
+        remove_all_filters( 'visibloc_supported_blocks' );
     }
 
     public function test_administrator_impersonating_editor_sees_editor_view_without_hidden_blocks(): void {
@@ -207,6 +208,43 @@ class VisibilityLogicTest extends TestCase {
             '<p>Guest view</p>',
             visibloc_jlg_render_block_filter( '<p>Guest view</p>', $logged_out_block ),
             'Previewing as a guest should expose content intended for visitors.'
+        );
+    }
+
+    public function test_render_block_filter_supports_additional_block_names(): void {
+        add_filter(
+            'visibloc_supported_blocks',
+            static function ( $blocks ) {
+                $blocks[] = 'core/columns';
+
+                return $blocks;
+            }
+        );
+
+        $hidden_columns_block = [
+            'blockName' => 'core/columns',
+            'attrs'     => [
+                'isHidden' => true,
+            ],
+        ];
+
+        $this->assertSame(
+            '',
+            apply_filters( 'render_block', '<p>Columns hidden</p>', $hidden_columns_block ),
+            'Hidden columns blocks should be filtered once registered as supported.',
+        );
+
+        $visible_columns_block = [
+            'blockName' => 'core/columns',
+            'attrs'     => [
+                'isHidden' => false,
+            ],
+        ];
+
+        $this->assertSame(
+            '<p>Columns visible</p>',
+            apply_filters( 'render_block', '<p>Columns visible</p>', $visible_columns_block ),
+            'Columns blocks should render when not hidden.',
         );
     }
 
