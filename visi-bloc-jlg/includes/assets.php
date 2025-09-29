@@ -30,14 +30,15 @@ function visibloc_jlg_enqueue_public_styles() {
     $device_style_src       = plugins_url( 'assets/device-visibility.css', $plugin_main_file );
     $default_handle         = 'visibloc-jlg-device-visibility';
     $dynamic_handle         = 'visibloc-jlg-device-visibility-dynamic';
+    $style_version          = defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : '1.1';
 
     if ( $has_custom_breakpoints ) {
         wp_dequeue_style( $default_handle );
         wp_deregister_style( $default_handle );
-        wp_register_style( $dynamic_handle, false, [], '1.1' );
+        wp_register_style( $dynamic_handle, false, [], $style_version );
         $device_handle = $dynamic_handle;
     } else {
-        wp_register_style( $default_handle, $device_style_src, [], '1.1' );
+        wp_register_style( $default_handle, $device_style_src, [], $style_version );
         $device_handle = $default_handle;
     }
 
@@ -50,7 +51,7 @@ function visibloc_jlg_enqueue_public_styles() {
     }
 
     if ( $can_preview ) {
-        wp_enqueue_style( 'visibloc-jlg-public-styles', plugins_url( 'admin-styles.css', $plugin_main_file ) );
+        wp_enqueue_style( 'visibloc-jlg-public-styles', plugins_url( 'admin-styles.css', $plugin_main_file ), [], $style_version );
     }
 }
 
