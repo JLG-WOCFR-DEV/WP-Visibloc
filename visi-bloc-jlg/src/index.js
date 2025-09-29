@@ -48,6 +48,8 @@ const formatScheduleDate = (value) => {
     return formatDate(WP_DATETIME_FORMAT, value);
 };
 
+const getCurrentSiteIsoDate = () => formatDate('Y-m-d\\TH:i:s', new Date());
+
 const DEVICE_VISIBILITY_OPTIONS = [
     {
         label: __('Visible sur tous les appareils', 'visi-bloc-jlg'),
@@ -244,7 +246,7 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                             onChange={(isChecked) => {
                                                 setAttributes({
                                                     publishStartDate: isChecked
-                                                        ? new Date().toISOString()
+                                                        ? getCurrentSiteIsoDate()
                                                         : undefined,
                                                 });
                                             }}
@@ -268,7 +270,7 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                             onChange={(isChecked) => {
                                                 setAttributes({
                                                     publishEndDate: isChecked
-                                                        ? new Date().toISOString()
+                                                        ? getCurrentSiteIsoDate()
                                                         : undefined,
                                                 });
                                             }}
