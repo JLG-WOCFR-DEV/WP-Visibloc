@@ -368,17 +368,23 @@ class VisibilityLogicTest extends TestCase {
 @media (max-width: 781px) {
     .vb-hide-on-mobile,
     .vb-tablet-only,
-    .vb-desktop-only { display: none !important; }
+    .vb-desktop-only {
+        display: none !important;
+    }
 }
 @media (min-width: 782px) and (max-width: 1024px) {
     .vb-hide-on-tablet,
     .vb-mobile-only,
-    .vb-desktop-only { display: none !important; }
+    .vb-desktop-only {
+        display: none !important;
+    }
 }
 @media (min-width: 1025px) {
     .vb-hide-on-desktop,
     .vb-mobile-only,
-    .vb-tablet-only { display: none !important; }
+    .vb-tablet-only {
+        display: none !important;
+    }
 }
 CSS;
         $this->assertSame( $expected_default_css, trim( $css_without_preview ) );

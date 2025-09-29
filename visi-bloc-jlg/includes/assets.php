@@ -223,19 +223,86 @@ function visibloc_jlg_render_visibility_blocks( array $blocks, $declaration ) {
         $css_lines[] = $media_query;
 
         $selector_count = count( $block['selectors'] );
+
         foreach ( $block['selectors'] as $index => $selector ) {
             $is_last = ( $index === $selector_count - 1 );
-            $css_lines[] = sprintf(
-                '    %s%s',
-                $selector,
-                $is_last ? ' { ' . $declaration . ' }' : ','
-            );
+
+            if ( ! $is_last ) {
+                $css_lines[] = sprintf( '    %s,', $selector );
+                continue;
+            }
+
+            $css_lines[] = sprintf( '    %s {', $selector );
+
+            $declarations = visibloc_jlg_normalize_block_declarations( $selector, $declaration );
+
+            foreach ( $declarations as $line ) {
+                $css_lines[] = sprintf( '        %s', $line );
+            }
+
+            $css_lines[] = '    }';
         }
 
         $css_lines[] = '}';
     }
 
     return $css_lines;
+}
+
+function visibloc_jlg_normalize_block_declarations( $selector, $declaration ) {
+    $declarations = is_array( $declaration ) ? $declaration : [ $declaration ];
+    $normalized   = [];
+
+    foreach ( $declarations as $value ) {
+        $trimmed = trim( (string) $value );
+
+        if ( '' === $trimmed ) {
+            continue;
+        }
+
+        if ( ';' !== substr( $trimmed, -1 ) ) {
+            $trimmed .= ';';
+        }
+
+        $normalized[] = $trimmed;
+    }
+
+    $requires_fallback = false;
+
+    foreach ( $normalized as $value ) {
+        if ( false !== stripos( $value, 'display: revert' ) ) {
+            $requires_fallback = true;
+            break;
+        }
+    }
+
+    if ( $requires_fallback ) {
+        $fallback = visibloc_jlg_get_display_fallback_for_selector( $selector );
+
+        if ( null !== $fallback ) {
+            $fallback = trim( $fallback );
+
+            if ( ';' !== substr( $fallback, -1 ) ) {
+                $fallback .= ';';
+            }
+
+            array_unshift( $normalized, $fallback );
+        }
+    }
+
+    return $normalized;
+}
+
+function visibloc_jlg_get_display_fallback_for_selector( $selector ) {
+    if ( 0 !== strpos( $selector, '.vb-' ) ) {
+        return null;
+    }
+
+    if ( false !== strpos( $selector, '-only' ) ) {
+        return 'display: block !important;';
+    }
+
+    return 'display: initial !important;';
 }
 
 function visibloc_jlg_format_media_query( $min, $max ) {
