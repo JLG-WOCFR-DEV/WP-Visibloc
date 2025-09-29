@@ -42,9 +42,11 @@ class DeviceVisibilityCssTest extends TestCase {
 
     public function test_cached_css_is_returned_when_available(): void {
         $expected = '/* cached css */';
+        $cache_key = sprintf( '%s:%d:%d:%d', VISIBLOC_JLG_VERSION, 0, 600, 1024 );
+
         wp_cache_set(
             'visibloc_device_css_cache',
-            [ '0:600:1024' => $expected ],
+            [ $cache_key => $expected ],
             'visibloc_jlg'
         );
 
@@ -58,8 +60,9 @@ class DeviceVisibilityCssTest extends TestCase {
 
         $cache = wp_cache_get( 'visibloc_device_css_cache', 'visibloc_jlg' );
         $this->assertIsArray( $cache );
-        $this->assertArrayHasKey( '0:600:1024', $cache );
-        $this->assertSame( $initial, $cache['0:600:1024'] );
+        $cache_key = sprintf( '%s:%d:%d:%d', VISIBLOC_JLG_VERSION, 0, 600, 1024 );
+        $this->assertArrayHasKey( $cache_key, $cache );
+        $this->assertSame( $initial, $cache[ $cache_key ] );
 
         visibloc_jlg_clear_caches();
 
