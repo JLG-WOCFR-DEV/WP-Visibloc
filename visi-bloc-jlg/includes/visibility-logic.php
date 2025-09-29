@@ -1,7 +1,59 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-add_filter( 'render_block_core/group', 'visibloc_jlg_render_block_filter', 10, 2 );
+function visibloc_jlg_get_supported_blocks() {
+    static $supported_blocks = null;
+
+    if ( null !== $supported_blocks ) {
+        return $supported_blocks;
+    }
+
+    $default_blocks = [ 'core/group', 'core/columns' ];
+    $filtered_blocks = apply_filters( 'visibloc_supported_blocks', $default_blocks );
+
+    if ( ! is_array( $filtered_blocks ) ) {
+        $supported_blocks = $default_blocks;
+
+        return $supported_blocks;
+    }
+
+    $normalized = array_values( array_unique( array_filter( array_map(
+        static function ( $block_name ) {
+            if ( ! is_string( $block_name ) ) {
+                return null;
+            }
+
+            $block_name = trim( $block_name );
+
+            return '' === $block_name ? null : $block_name;
+        },
+        $filtered_blocks
+    ) ) ) );
+
+    $supported_blocks = ! empty( $normalized ) ? $normalized : $default_blocks;
+
+    return $supported_blocks;
+}
+
+function visibloc_jlg_is_supported_block( $block_name ) {
+    if ( ! is_string( $block_name ) || '' === $block_name ) {
+        return false;
+    }
+
+    return in_array( $block_name, visibloc_jlg_get_supported_blocks(), true );
+}
+
+function visibloc_jlg_maybe_filter_rendered_block( $block_content, $block ) {
+    $block_name = isset( $block['blockName'] ) ? $block['blockName'] : '';
+
+    if ( ! visibloc_jlg_is_supported_block( $block_name ) ) {
+        return $block_content;
+    }
+
+    return visibloc_jlg_render_block_filter( $block_content, $block );
+}
+
+add_filter( 'render_block', 'visibloc_jlg_maybe_filter_rendered_block', 10, 2 );
 function visibloc_jlg_render_block_filter( $block_content, $block ) {
     if ( empty( $block['attrs'] ) ) { return $block_content; }
 

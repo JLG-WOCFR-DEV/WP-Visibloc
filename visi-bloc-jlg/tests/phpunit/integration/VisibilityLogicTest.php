@@ -173,6 +173,36 @@ class VisibilityLogicTest extends TestCase {
         );
     }
 
+    public function test_supported_columns_block_respects_hidden_flag(): void {
+        $block = [
+            'blockName' => 'core/columns',
+            'attrs'     => [
+                'isHidden' => true,
+            ],
+        ];
+
+        $this->assertSame(
+            '',
+            visibloc_jlg_render_block_filter( '<p>Columns content</p>', $block ),
+            'Supported non-group blocks should be filtered using the same visibility logic.'
+        );
+    }
+
+    public function test_router_skips_unsupported_blocks(): void {
+        $block = [
+            'blockName' => 'core/paragraph',
+            'attrs'     => [
+                'isHidden' => true,
+            ],
+        ];
+
+        $this->assertSame(
+            '<p>Paragraph</p>',
+            visibloc_jlg_maybe_filter_rendered_block( '<p>Paragraph</p>', $block ),
+            'Unsupported blocks should not be altered by the render router.'
+        );
+    }
+
     public function test_guest_preview_forces_logged_out_state_without_impersonation(): void {
         global $visibloc_test_state;
 

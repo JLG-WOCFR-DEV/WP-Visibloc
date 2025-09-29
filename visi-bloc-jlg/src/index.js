@@ -1,6 +1,6 @@
 /* global VisiBlocData */
 import { Fragment } from '@wordpress/element';
-import { addFilter } from '@wordpress/hooks';
+import { addFilter, applyFilters } from '@wordpress/hooks';
 import { createHigherOrderComponent } from '@wordpress/compose';
 import { BlockControls, InspectorControls } from '@wordpress/block-editor';
 import {
@@ -50,6 +50,33 @@ const formatScheduleDate = (value) => {
 
 const getCurrentSiteIsoDate = () => formatDate('Y-m-d\\TH:i:s', new Date());
 
+const DEFAULT_SUPPORTED_BLOCKS = ['core/group', 'core/columns'];
+
+const normalizeSupportedBlocks = (blockList) => {
+    if (!Array.isArray(blockList)) {
+        return DEFAULT_SUPPORTED_BLOCKS;
+    }
+
+    const normalized = Array.from(
+        new Set(
+            blockList
+                .filter((blockName) => typeof blockName === 'string')
+                .map((blockName) => blockName.trim())
+                .filter(Boolean),
+        ),
+    );
+
+    return normalized.length ? normalized : DEFAULT_SUPPORTED_BLOCKS;
+};
+
+const supportedBlocks = normalizeSupportedBlocks(
+    applyFilters('visiblocSupportedBlocks', DEFAULT_SUPPORTED_BLOCKS),
+);
+
+const supportedBlockSet = new Set(supportedBlocks);
+
+const isSupportedBlock = (blockName) => supportedBlockSet.has(blockName);
+
 const DEVICE_VISIBILITY_OPTIONS = [
     {
         label: __('Visible sur tous les appareils', 'visi-bloc-jlg'),
@@ -92,7 +119,7 @@ const DEVICE_VISIBILITY_OPTIONS = [
 ];
 
 function addVisibilityAttributesToGroup(settings, name) {
-    if (name !== 'core/group') {
+    if (!isSupportedBlock(name)) {
         return settings;
     }
 
@@ -127,7 +154,7 @@ function addVisibilityAttributesToGroup(settings, name) {
 
 const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
     return (props) => {
-        if (props.name !== 'core/group') {
+        if (!isSupportedBlock(props.name)) {
             return <BlockEdit {...props} />;
         }
 
@@ -336,7 +363,7 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
 }, 'withVisibilityControls');
 
 function addEditorCanvasClasses(props, block) {
-    if (block.name !== 'core/group' || !block.attributes) {
+    if (!isSupportedBlock(block.name) || !block.attributes) {
         return props;
     }
 
@@ -352,7 +379,7 @@ function addEditorCanvasClasses(props, block) {
 }
 
 function addSaveClasses(extraProps, blockType, attributes) {
-    if (blockType.name !== 'core/group' || !attributes) {
+    if (!isSupportedBlock(blockType.name) || !attributes) {
         return extraProps;
     }
 
@@ -489,7 +516,7 @@ function syncListView() {
     }
 
     const stack = [...rootClientIds];
-    const seenGroups = new Set();
+    const seenSupportedBlocks = new Set();
 
     while (stack.length) {
         const clientId = stack.pop();
@@ -499,7 +526,7 @@ function syncListView() {
             continue;
         }
 
-        if (block.name === 'core/group') {
+        if (isSupportedBlock(block.name)) {
             const isHidden = Boolean(block.attributes.isHidden);
             const previousState = blockVisibilityState.get(clientId);
 
@@ -508,7 +535,7 @@ function syncListView() {
             }
 
             blockVisibilityState.set(clientId, isHidden);
-            seenGroups.add(clientId);
+            seenSupportedBlocks.add(clientId);
         }
 
         if (block.innerBlocks && block.innerBlocks.length) {
@@ -520,9 +547,9 @@ function syncListView() {
         }
     }
 
-    if (seenGroups.size !== blockVisibilityState.size) {
+    if (seenSupportedBlocks.size !== blockVisibilityState.size) {
         Array.from(blockVisibilityState.keys()).forEach((clientId) => {
-            if (!seenGroups.has(clientId)) {
+            if (!seenSupportedBlocks.has(clientId)) {
                 blockVisibilityState.delete(clientId);
                 pendingListViewUpdates.delete(clientId);
             }
