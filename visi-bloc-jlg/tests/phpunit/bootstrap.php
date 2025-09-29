@@ -168,8 +168,33 @@ function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
     // No-op for tests.
 }
 
+$GLOBALS['visibloc_test_filters'] = [];
+
 function add_filter( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
-    // No-op for tests.
+    if ( ! is_string( $hook ) || '' === $hook ) {
+        return;
+    }
+
+    if ( ! is_callable( $callback ) ) {
+        return;
+    }
+
+    $priority      = is_numeric( $priority ) ? (int) $priority : 10;
+    $accepted_args = is_numeric( $accepted_args ) ? (int) $accepted_args : 1;
+    $accepted_args = max( 1, $accepted_args );
+
+    if ( ! isset( $GLOBALS['visibloc_test_filters'][ $hook ] ) ) {
+        $GLOBALS['visibloc_test_filters'][ $hook ] = [];
+    }
+
+    if ( ! isset( $GLOBALS['visibloc_test_filters'][ $hook ][ $priority ] ) ) {
+        $GLOBALS['visibloc_test_filters'][ $hook ][ $priority ] = [];
+    }
+
+    $GLOBALS['visibloc_test_filters'][ $hook ][ $priority ][] = [
+        'callback'      => $callback,
+        'accepted_args' => $accepted_args,
+    ];
 }
 
 function wp_register_style( $handle, $src = '', $deps = [], $ver = false, $media = 'all' ) {
@@ -185,7 +210,55 @@ function wp_add_inline_style( $handle, $data ) {
 }
 
 function apply_filters( $hook, $value ) {
-    return $value;
+    $args = func_get_args();
+
+    if ( ! isset( $GLOBALS['visibloc_test_filters'][ $hook ] ) ) {
+        return $value;
+    }
+
+    ksort( $GLOBALS['visibloc_test_filters'][ $hook ] );
+
+    $filtered_value = $value;
+    $args[1]        = $filtered_value;
+
+    foreach ( $GLOBALS['visibloc_test_filters'][ $hook ] as $callbacks ) {
+        foreach ( $callbacks as $callback_details ) {
+            $callback_args = array_slice( $args, 1, $callback_details['accepted_args'] );
+
+            if ( empty( $callback_args ) ) {
+                $callback_args = [ $filtered_value ];
+            } else {
+                $callback_args[0] = $filtered_value;
+            }
+
+            $filtered_value = call_user_func_array( $callback_details['callback'], $callback_args );
+            $args[1]        = $filtered_value;
+        }
+    }
+
+    return $filtered_value;
+}
+
+function remove_all_filters( $hook, $priority = false ) {
+    if ( ! isset( $GLOBALS['visibloc_test_filters'][ $hook ] ) ) {
+        return;
+    }
+
+    if ( false === $priority ) {
+        unset( $GLOBALS['visibloc_test_filters'][ $hook ] );
+
+        return;
+    }
+
+    $priority = (int) $priority;
+
+    if ( isset( $GLOBALS['visibloc_test_filters'][ $hook ][ $priority ] ) ) {
+        unset( $GLOBALS['visibloc_test_filters'][ $hook ][ $priority ] );
+    }
+
+    if ( empty( $GLOBALS['visibloc_test_filters'][ $hook ] ) ) {
+        unset( $GLOBALS['visibloc_test_filters'][ $hook ] );
+    }
 }
 
 if ( ! function_exists( 'visibloc_jlg_get_sanitized_query_arg' ) ) {
