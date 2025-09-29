@@ -15,6 +15,81 @@ $GLOBALS['visibloc_posts']            = [];
 $GLOBALS['visibloc_test_options']     = [];
 $GLOBALS['visibloc_test_transients']  = [];
 
+$GLOBALS['visibloc_test_request_environment'] = [
+    'is_admin'    => false,
+    'doing_ajax'  => false,
+    'doing_cron'  => false,
+    'referer'     => '',
+    'request_uri' => '',
+];
+
+function visibloc_test_reset_request_environment() {
+    $GLOBALS['visibloc_test_request_environment'] = [
+        'is_admin'    => false,
+        'doing_ajax'  => false,
+        'doing_cron'  => false,
+        'referer'     => '',
+        'request_uri' => '',
+    ];
+
+    $_GET  = [];
+    $_POST = [];
+
+    if ( isset( $_SERVER['REQUEST_URI'] ) ) {
+        unset( $_SERVER['REQUEST_URI'] );
+    }
+}
+
+function visibloc_test_set_request_environment( array $overrides ) {
+    $state = array_merge( $GLOBALS['visibloc_test_request_environment'], $overrides );
+
+    $GLOBALS['visibloc_test_request_environment'] = $state;
+
+    if ( array_key_exists( 'request_uri', $overrides ) ) {
+        if ( '' === $state['request_uri'] ) {
+            if ( isset( $_SERVER['REQUEST_URI'] ) ) {
+                unset( $_SERVER['REQUEST_URI'] );
+            }
+        } else {
+            $_SERVER['REQUEST_URI'] = $state['request_uri'];
+        }
+    }
+}
+
+if ( ! function_exists( 'is_admin' ) ) {
+    function is_admin() {
+        return ! empty( $GLOBALS['visibloc_test_request_environment']['is_admin'] );
+    }
+}
+
+if ( ! function_exists( 'wp_doing_ajax' ) ) {
+    function wp_doing_ajax() {
+        return ! empty( $GLOBALS['visibloc_test_request_environment']['doing_ajax'] );
+    }
+}
+
+if ( ! function_exists( 'wp_doing_cron' ) ) {
+    function wp_doing_cron() {
+        return ! empty( $GLOBALS['visibloc_test_request_environment']['doing_cron'] );
+    }
+}
+
+if ( ! function_exists( 'wp_get_referer' ) ) {
+    function wp_get_referer() {
+        return $GLOBALS['visibloc_test_request_environment']['referer'] ?? '';
+    }
+}
+
+if ( ! function_exists( 'admin_url' ) ) {
+    function admin_url( $path = '' ) {
+        $path = ltrim( (string) $path, '/' );
+
+        return 'https://example.test/wp-admin/' . ( '' === $path ? '' : $path );
+    }
+}
+
+visibloc_test_reset_request_environment();
+
 if ( ! defined( 'HOUR_IN_SECONDS' ) ) {
     define( 'HOUR_IN_SECONDS', 3600 );
 }
@@ -51,6 +126,8 @@ function visibloc_test_reset_state() {
         'timezone'                => 'UTC',
         'current_time'            => null,
     ];
+
+    visibloc_test_reset_request_environment();
 }
 
 function visibloc_test_set_timezone( $timezone_string ) {
@@ -111,8 +188,20 @@ function apply_filters( $hook, $value ) {
     return $value;
 }
 
-function visibloc_jlg_is_admin_or_technical_request() {
-    return false;
+if ( ! function_exists( 'visibloc_jlg_get_sanitized_query_arg' ) ) {
+    function visibloc_jlg_get_sanitized_query_arg( $key ) {
+        if ( ! isset( $_GET[ $key ] ) ) {
+            return '';
+        }
+
+        $value = $_GET[ $key ];
+
+        if ( ! is_string( $value ) ) {
+            return '';
+        }
+
+        return sanitize_key( wp_unslash( $value ) );
+    }
 }
 
 function visibloc_jlg_get_effective_user_id() {
