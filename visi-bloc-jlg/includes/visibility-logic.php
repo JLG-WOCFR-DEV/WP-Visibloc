@@ -2,8 +2,11 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 function visibloc_jlg_get_supported_blocks() {
-    $default_blocks = [ 'core/group' ];
-    $filtered_blocks = apply_filters( 'visibloc_supported_blocks', $default_blocks );
+    $default_blocks   = (array) VISIBLOC_JLG_DEFAULT_SUPPORTED_BLOCKS;
+    $option_value     = get_option( 'visibloc_supported_blocks', [] );
+    $configured_blocks = visibloc_jlg_normalize_block_names( $option_value );
+    $merged_blocks     = array_merge( $default_blocks, $configured_blocks );
+    $filtered_blocks   = apply_filters( 'visibloc_supported_blocks', $merged_blocks );
 
     if ( ! is_array( $filtered_blocks ) ) {
         return $default_blocks;
@@ -11,18 +14,8 @@ function visibloc_jlg_get_supported_blocks() {
 
     $sanitized = [];
 
-    foreach ( $filtered_blocks as $block_name ) {
-        if ( ! is_string( $block_name ) ) {
-            continue;
-        }
-
-        $trimmed = trim( $block_name );
-
-        if ( '' === $trimmed ) {
-            continue;
-        }
-
-        $sanitized[ $trimmed ] = true;
+    foreach ( visibloc_jlg_normalize_block_names( $filtered_blocks ) as $block_name ) {
+        $sanitized[ $block_name ] = true;
     }
 
     if ( empty( $sanitized ) ) {

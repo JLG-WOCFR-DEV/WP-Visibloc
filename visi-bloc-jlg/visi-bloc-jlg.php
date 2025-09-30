@@ -29,6 +29,12 @@ if ( ! defined( 'VISIBLOC_JLG_VERSION' ) ) {
     define( 'VISIBLOC_JLG_VERSION', $visibloc_version );
 }
 
+if ( ! defined( 'VISIBLOC_JLG_DEFAULT_SUPPORTED_BLOCKS' ) ) {
+    define( 'VISIBLOC_JLG_DEFAULT_SUPPORTED_BLOCKS', [ 'core/group' ] );
+}
+
+require_once __DIR__ . '/includes/block-utils.php';
+
 if ( ! function_exists( 'visibloc_jlg_get_sanitized_query_arg' ) ) {
     /**
      * Retrieve a sanitized value from the $_GET superglobal using sanitize_key.
@@ -52,6 +58,34 @@ if ( ! function_exists( 'visibloc_jlg_get_sanitized_query_arg' ) ) {
 
         return sanitize_key( wp_unslash( $value ) );
     }
+}
+
+if ( ! function_exists( 'visibloc_jlg_register_supported_blocks_setting' ) ) {
+    function visibloc_jlg_register_supported_blocks_setting() {
+        if ( ! function_exists( 'register_setting' ) ) {
+            return;
+        }
+
+        register_setting(
+            'visibloc',
+            'visibloc_supported_blocks',
+            [
+                'type'              => 'array',
+                'sanitize_callback' => 'visibloc_jlg_normalize_block_names',
+                'default'           => [],
+                'show_in_rest'      => [
+                    'schema' => [
+                        'type'  => 'array',
+                        'items' => [
+                            'type' => 'string',
+                        ],
+                    ],
+                ],
+            ]
+        );
+    }
+
+    add_action( 'init', 'visibloc_jlg_register_supported_blocks_setting' );
 }
 
 if ( ! function_exists( 'visibloc_jlg_normalize_boolean' ) ) {

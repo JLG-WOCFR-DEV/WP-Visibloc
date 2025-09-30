@@ -74,7 +74,14 @@ function visibloc_jlg_enqueue_editor_assets() {
     wp_enqueue_script( 'visibloc-jlg-editor-script', plugins_url( 'build/index.js', $plugin_main_file ), $asset_file['dependencies'], $asset_file['version'], true );
     wp_set_script_translations( 'visibloc-jlg-editor-script', 'visi-bloc-jlg', plugin_dir_path( __DIR__ ) . 'languages' );
     wp_enqueue_style( 'visibloc-jlg-editor-style', plugins_url( 'build/index.css', $plugin_main_file ), [], $asset_file['version'] );
-    wp_localize_script('visibloc-jlg-editor-script', 'VisiBlocData', ['roles' => wp_roles()->get_names()]);
+    wp_localize_script(
+        'visibloc-jlg-editor-script',
+        'VisiBlocData',
+        [
+            'roles'            => wp_roles()->get_names(),
+            'supportedBlocks'  => visibloc_jlg_get_supported_blocks(),
+        ]
+    );
 }
 
 function visibloc_jlg_flag_missing_editor_assets() {

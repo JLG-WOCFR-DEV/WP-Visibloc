@@ -8,6 +8,9 @@ class VisibilityLogicTest extends TestCase {
     protected function setUp(): void {
         visibloc_test_reset_state();
         remove_all_filters( 'visibloc_supported_blocks' );
+        if ( isset( $GLOBALS['visibloc_test_options']['visibloc_supported_blocks'] ) ) {
+            unset( $GLOBALS['visibloc_test_options']['visibloc_supported_blocks'] );
+        }
     }
 
     public function test_administrator_impersonating_editor_sees_editor_view_without_hidden_blocks(): void {
@@ -246,6 +249,24 @@ class VisibilityLogicTest extends TestCase {
             apply_filters( 'render_block', '<p>Columns visible</p>', $visible_columns_block ),
             'Columns blocks should render when not hidden.',
         );
+    }
+
+    public function test_supported_blocks_merge_option_with_defaults(): void {
+        update_option(
+            'visibloc_supported_blocks',
+            [
+                'core/columns',
+                'custom/accordion',
+                'invalid-block',
+            ]
+        );
+
+        $supported = visibloc_jlg_get_supported_blocks();
+
+        $this->assertContains( 'core/group', $supported );
+        $this->assertContains( 'core/columns', $supported );
+        $this->assertContains( 'custom/accordion', $supported );
+        $this->assertNotContains( 'invalid-block', $supported );
     }
 
     public function visibloc_falsey_attribute_provider(): array {
