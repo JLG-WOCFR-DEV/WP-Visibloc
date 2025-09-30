@@ -350,6 +350,35 @@ class VisibilityLogicTest extends TestCase {
         );
     }
 
+    public function test_scheduled_block_handles_timezone_behind_utc(): void {
+        visibloc_test_set_timezone( 'America/New_York' );
+
+        $block = [
+            'blockName' => 'core/group',
+            'attrs'     => [
+                'isSchedulingEnabled' => true,
+                'publishStartDate'    => '2024-07-10 08:00:00',
+                'publishEndDate'      => '2024-07-10 17:00:00',
+            ],
+        ];
+
+        $this->setCurrentTimeForSiteTimezone( '2024-07-10 07:30:00' );
+
+        $this->assertSame(
+            '',
+            visibloc_jlg_render_block_filter( '<p>Scheduled content</p>', $block ),
+            'Blocks should remain hidden before the start window in a timezone west of UTC.'
+        );
+
+        $this->setCurrentTimeForSiteTimezone( '2024-07-10 09:30:00' );
+
+        $this->assertSame(
+            '<p>Scheduled content</p>',
+            visibloc_jlg_render_block_filter( '<p>Scheduled content</p>', $block ),
+            'Blocks should become visible once the local start time has passed in a timezone west of UTC.'
+        );
+    }
+
     private function setCurrentTimeForSiteTimezone( string $datetime ): void {
         $timestamp = visibloc_jlg_parse_schedule_datetime( $datetime );
 
@@ -357,9 +386,7 @@ class VisibilityLogicTest extends TestCase {
             $this->fail( sprintf( 'Failed to parse datetime string "%s" for test setup.', $datetime ) );
         }
 
-        $offset = visibloc_test_get_timezone_offset( $timestamp );
-
-        visibloc_test_set_current_time( $timestamp + $offset );
+        visibloc_test_set_current_time( $timestamp );
     }
 
     public function test_generate_device_visibility_css_respects_preview_context(): void {
