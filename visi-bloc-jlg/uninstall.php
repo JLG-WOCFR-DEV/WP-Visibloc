@@ -14,3 +14,6 @@ delete_transient( 'visibloc_hidden_posts' );
 delete_transient( 'visibloc_device_posts' );
 delete_transient( 'visibloc_scheduled_posts' );
 delete_transient( 'visibloc_group_block_metadata' );
+delete_transient( 'visibloc_jlg_missing_editor_assets' );
+
+wp_cache_delete( 'visibloc_device_css_cache', 'visibloc_jlg' );
