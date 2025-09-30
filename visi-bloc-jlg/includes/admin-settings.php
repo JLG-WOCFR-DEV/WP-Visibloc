@@ -402,7 +402,7 @@ function visibloc_jlg_find_blocks_recursive( $blocks, $callback, &$found_blocks 
     return $found_blocks;
 }
 
-function visibloc_jlg_generate_group_block_summary_from_content( $post_id, $post_content = null ) {
+function visibloc_jlg_generate_group_block_summary_from_content( $post_id, $post_content = null, $block_matcher = null ) {
     if ( null === $post_content ) {
         $post_content = get_post_field( 'post_content', $post_id );
     }
@@ -416,12 +416,59 @@ function visibloc_jlg_generate_group_block_summary_from_content( $post_id, $post
     }
 
     $blocks = parse_blocks( $post_content );
-    $found  = visibloc_jlg_find_blocks_recursive(
-        $blocks,
-        function( $block ) {
-            return ( isset( $block['blockName'] ) && 'core/group' === $block['blockName'] );
+
+    if ( ! is_callable( $block_matcher ) ) {
+        $default_supported_blocks = [ 'core/group' ];
+        $supported_blocks         = $default_supported_blocks;
+
+        if ( function_exists( 'visibloc_jlg_get_supported_blocks' ) ) {
+            $maybe_supported_blocks = visibloc_jlg_get_supported_blocks();
+
+            if ( is_array( $maybe_supported_blocks ) && ! empty( $maybe_supported_blocks ) ) {
+                $normalized = [];
+
+                foreach ( $maybe_supported_blocks as $block_name ) {
+                    if ( ! is_string( $block_name ) ) {
+                        continue;
+                    }
+
+                    $trimmed = trim( $block_name );
+
+                    if ( '' === $trimmed ) {
+                        continue;
+                    }
+
+                    $normalized[ $trimmed ] = true;
+                }
+
+                if ( ! empty( $normalized ) ) {
+                    $supported_blocks = array_keys( $normalized );
+                }
+            }
         }
-    );
+
+        $supported_lookup = array_fill_keys( $supported_blocks, true );
+
+        $block_matcher = static function( $block ) use ( $supported_lookup ) {
+            if ( ! is_array( $block ) ) {
+                return false;
+            }
+
+            if ( ! isset( $block['blockName'] ) ) {
+                return false;
+            }
+
+            $block_name = $block['blockName'];
+
+            if ( ! is_string( $block_name ) || '' === $block_name ) {
+                return false;
+            }
+
+            return isset( $supported_lookup[ $block_name ] );
+        };
+    }
+
+    $found = visibloc_jlg_find_blocks_recursive( $blocks, $block_matcher );
 
     if ( empty( $found ) ) {
         return [
