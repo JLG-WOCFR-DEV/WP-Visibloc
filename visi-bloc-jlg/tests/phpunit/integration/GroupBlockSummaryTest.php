@@ -3,6 +3,7 @@
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/../../../includes/admin-settings.php';
+require_once __DIR__ . '/../../../includes/visibility-logic.php';
 
 class GroupBlockSummaryTest extends TestCase {
     protected function setUp(): void {
@@ -103,6 +104,56 @@ HTML;
         $this->assertSame( 0, $summary['hidden'] );
         $this->assertSame( 0, $summary['device'] );
         $this->assertSame( [], $summary['scheduled'] );
+    }
+
+    public function test_generate_group_block_summary_honors_supported_blocks_filter(): void {
+        add_filter(
+            'visibloc_supported_blocks',
+            static function( $blocks ) {
+                if ( ! is_array( $blocks ) ) {
+                    $blocks = [];
+                }
+
+                $blocks[] = 'myplugin/customblock';
+
+                return $blocks;
+            }
+        );
+
+        try {
+            $sample_content = <<<'HTML'
+<!-- wp:core/group {"isHidden":true} -->
+<div class="wp-block-group">Hidden group</div>
+<!-- /wp:core/group -->
+
+<!-- wp:myplugin/customblock {"isHidden":true} -->
+<div class="wp-block-myplugin-customblock">Hidden custom block</div>
+<!-- /wp:myplugin/customblock -->
+
+<!-- wp:myplugin/customblock {"deviceVisibility":"desktop"} -->
+<div class="wp-block-myplugin-customblock">Desktop custom block</div>
+<!-- /wp:myplugin/customblock -->
+
+<!-- wp:myplugin/customblock {"isSchedulingEnabled":true,"publishStartDate":"2025-01-01T10:00:00","publishEndDate":"2025-01-02T10:00:00"} -->
+<div class="wp-block-myplugin-customblock">Scheduled custom block</div>
+<!-- /wp:myplugin/customblock -->
+HTML;
+
+            $summary = visibloc_jlg_generate_group_block_summary_from_content( 303, $sample_content );
+
+            $this->assertSame( 2, $summary['hidden'] );
+            $this->assertSame( 1, $summary['device'] );
+            $this->assertCount( 1, $summary['scheduled'] );
+            $this->assertSame(
+                [
+                    'start' => '2025-01-01T10:00:00',
+                    'end'   => '2025-01-02T10:00:00',
+                ],
+                $summary['scheduled'][0]
+            );
+        } finally {
+            remove_all_filters( 'visibloc_supported_blocks' );
+        }
     }
 
     public function test_rebuild_and_collect_group_block_metadata_caches_results_for_admin_renderers(): void {
