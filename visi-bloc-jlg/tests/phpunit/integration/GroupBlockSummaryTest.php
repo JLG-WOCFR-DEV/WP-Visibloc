@@ -156,6 +156,42 @@ HTML;
         }
     }
 
+    public function test_generate_group_block_summary_counts_custom_block_when_filter_overrides_defaults(): void {
+        add_filter(
+            'visibloc_supported_blocks',
+            static function() {
+                return [ 'myplugin/customblock' ];
+            }
+        );
+
+        try {
+            $sample_content = <<<'HTML'
+<!-- wp:core/group {"isHidden":true} -->
+<div class="wp-block-group">Hidden group</div>
+<!-- /wp:core/group -->
+
+<!-- wp:myplugin/customblock {"isHidden":true,"deviceVisibility":"tablet","isSchedulingEnabled":true,"publishStartDate":"2025-03-01T12:00:00"} -->
+<div class="wp-block-myplugin-customblock">Custom block</div>
+<!-- /wp:myplugin/customblock -->
+HTML;
+
+            $summary = visibloc_jlg_generate_group_block_summary_from_content( 404, $sample_content );
+
+            $this->assertSame( 1, $summary['hidden'] );
+            $this->assertSame( 1, $summary['device'] );
+            $this->assertCount( 1, $summary['scheduled'] );
+            $this->assertSame(
+                [
+                    'start' => '2025-03-01T12:00:00',
+                    'end'   => null,
+                ],
+                $summary['scheduled'][0]
+            );
+        } finally {
+            remove_all_filters( 'visibloc_supported_blocks' );
+        }
+    }
+
     public function test_rebuild_and_collect_group_block_metadata_caches_results_for_admin_renderers(): void {
         $primary_content = <<<'HTML'
 <!-- wp:core/group {"isHidden":true} -->
