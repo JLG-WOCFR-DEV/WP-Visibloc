@@ -90,6 +90,9 @@ require_once __DIR__ . '/includes/admin-settings.php';
 require_once __DIR__ . '/includes/assets.php';
 require_once __DIR__ . '/includes/visibility-logic.php';
 require_once __DIR__ . '/includes/role-switcher.php';
+if ( defined( 'WP_CLI' ) && WP_CLI ) {
+    require_once __DIR__ . '/includes/cli.php';
+}
 
 /**
  * Initialise la localisation du plugin.
