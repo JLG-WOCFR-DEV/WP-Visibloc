@@ -737,6 +737,60 @@ function get_role( $role ) {
     return $roles[ $role ] ?? null;
 }
 
+if ( ! function_exists( 'wp_roles' ) ) {
+    if ( ! class_exists( 'Visibloc_Test_Roles_Registry' ) ) {
+        class Visibloc_Test_Roles_Registry {
+            public function get_names() {
+                $names = [];
+
+                foreach ( $GLOBALS['visibloc_test_state']['roles'] as $slug => $details ) {
+                    $names[ $slug ] = $details->name ?? ucfirst( $slug );
+                }
+
+                return $names;
+            }
+        }
+    }
+
+    function wp_roles() {
+        static $registry = null;
+
+        if ( null === $registry ) {
+            $registry = new Visibloc_Test_Roles_Registry();
+        }
+
+        return $registry;
+    }
+}
+
+if ( ! function_exists( 'current_user_can' ) ) {
+    function current_user_can( $capability ) {
+        $user = wp_get_current_user();
+
+        if ( ! ( $user instanceof Visibloc_Test_User ) || ! $user->exists() ) {
+            return false;
+        }
+
+        $roles = (array) $user->roles;
+
+        foreach ( $roles as $role ) {
+            $role_object = get_role( $role );
+
+            if ( null === $role_object ) {
+                continue;
+            }
+
+            $capabilities = (array) ( $role_object->capabilities ?? [] );
+
+            if ( ! empty( $capabilities[ $capability ] ) ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
 function get_option( $name, $default = false ) {
     if ( 'visibloc_preview_roles' === $name ) {
         return $GLOBALS['visibloc_test_state']['allowed_preview_roles'];
@@ -815,3 +869,21 @@ if ( ! function_exists( 'visibloc_jlg_normalize_boolean' ) ) {
 }
 
 require_once __DIR__ . '/../../includes/visibility-logic.php';
+
+if ( ! function_exists( 'trailingslashit' ) ) {
+    function trailingslashit( $value ) {
+        $value = (string) $value;
+
+        if ( '' === $value ) {
+            return '/';
+        }
+
+        return rtrim( $value, '/\\' ) . '/';
+    }
+}
+
+if ( ! function_exists( 'plugin_dir_path' ) ) {
+    function plugin_dir_path( $file ) {
+        return trailingslashit( dirname( (string) $file ) );
+    }
+}

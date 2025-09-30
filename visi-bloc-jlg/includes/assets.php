@@ -16,6 +16,10 @@ if ( ! defined( 'VISIBLOC_JLG_VERSION' ) ) {
     define( 'VISIBLOC_JLG_VERSION', $visibloc_version );
 }
 
+if ( ! defined( 'VISIBLOC_JLG_MISSING_EDITOR_ASSETS_TRANSIENT' ) ) {
+    define( 'VISIBLOC_JLG_MISSING_EDITOR_ASSETS_TRANSIENT', 'visibloc_jlg_missing_editor_assets' );
+}
+
 add_action( 'wp_enqueue_scripts', 'visibloc_jlg_enqueue_public_styles' );
 function visibloc_jlg_enqueue_public_styles() {
     $plugin_main_file = __DIR__ . '/../visi-bloc-jlg.php';
@@ -59,13 +63,82 @@ add_action( 'enqueue_block_editor_assets', 'visibloc_jlg_enqueue_editor_assets' 
 function visibloc_jlg_enqueue_editor_assets() {
     $plugin_main_file = __DIR__ . '/../visi-bloc-jlg.php';
     $asset_file_path = plugin_dir_path( __DIR__ ) . 'build/index.asset.php';
-    if ( ! file_exists( $asset_file_path ) ) { return; }
+    if ( ! file_exists( $asset_file_path ) ) {
+        visibloc_jlg_flag_missing_editor_assets();
+
+        return;
+    }
+
+    visibloc_jlg_clear_missing_editor_assets_flag();
     $asset_file = include( $asset_file_path );
     wp_enqueue_script( 'visibloc-jlg-editor-script', plugins_url( 'build/index.js', $plugin_main_file ), $asset_file['dependencies'], $asset_file['version'], true );
     wp_set_script_translations( 'visibloc-jlg-editor-script', 'visi-bloc-jlg', plugin_dir_path( __DIR__ ) . 'languages' );
     wp_enqueue_style( 'visibloc-jlg-editor-style', plugins_url( 'build/index.css', $plugin_main_file ), [], $asset_file['version'] );
     wp_localize_script('visibloc-jlg-editor-script', 'VisiBlocData', ['roles' => wp_roles()->get_names()]);
 }
+
+function visibloc_jlg_flag_missing_editor_assets() {
+    $transient_key = VISIBLOC_JLG_MISSING_EDITOR_ASSETS_TRANSIENT;
+
+    if ( ! function_exists( 'get_transient' ) || ! function_exists( 'set_transient' ) ) {
+        return;
+    }
+
+    if ( false !== get_transient( $transient_key ) ) {
+        return;
+    }
+
+    set_transient( $transient_key, [
+        'timestamp' => time(),
+    ], 0 );
+
+    if ( function_exists( 'error_log' ) ) {
+        error_log( '[Visi-Bloc JLG] Les assets de l\'éditeur sont introuvables. Exécutez « npm install && npm run build ».' );
+    }
+}
+
+function visibloc_jlg_clear_missing_editor_assets_flag() {
+    if ( ! function_exists( 'delete_transient' ) ) {
+        return;
+    }
+
+    delete_transient( VISIBLOC_JLG_MISSING_EDITOR_ASSETS_TRANSIENT );
+}
+
+function visibloc_jlg_render_missing_editor_assets_notice() {
+    if ( ! function_exists( 'get_transient' ) ) {
+        return;
+    }
+
+    $flag = get_transient( VISIBLOC_JLG_MISSING_EDITOR_ASSETS_TRANSIENT );
+
+    if ( false === $flag ) {
+        return;
+    }
+
+    if ( ! function_exists( 'current_user_can' ) || ! current_user_can( 'manage_options' ) ) {
+        return;
+    }
+
+    $message = __( 'Les assets de l\'éditeur Visi-Bloc sont introuvables. Exécutez la commande suivante puis rechargez cette page :', 'visi-bloc-jlg' );
+    $command = 'npm install && npm run build';
+
+    echo '<div class="notice notice-error"><p>'
+        . visibloc_jlg_escape_admin_notice_text( $message )
+        . ' <code>'
+        . visibloc_jlg_escape_admin_notice_text( $command )
+        . '</code></p></div>';
+}
+
+function visibloc_jlg_escape_admin_notice_text( $text ) {
+    if ( function_exists( 'esc_html' ) ) {
+        return esc_html( $text );
+    }
+
+    return htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8' );
+}
+
+add_action( 'admin_notices', 'visibloc_jlg_render_missing_editor_assets_notice' );
 
 function visibloc_jlg_generate_device_visibility_css( $can_preview, $mobile_bp = null, $tablet_bp = null ) {
     $default_mobile_bp = 781;
