@@ -418,47 +418,46 @@ function visibloc_jlg_generate_group_block_summary_from_content( $post_id, $post
     $blocks = parse_blocks( $post_content );
 
     if ( ! is_callable( $block_matcher ) ) {
-        $default_supported_blocks = [ 'core/group' ];
-        $supported_blocks         = $default_supported_blocks;
+        $supported_blocks = [];
 
         if ( function_exists( 'visibloc_jlg_get_supported_blocks' ) ) {
             $maybe_supported_blocks = visibloc_jlg_get_supported_blocks();
 
-            if ( is_array( $maybe_supported_blocks ) && ! empty( $maybe_supported_blocks ) ) {
-                $normalized = [];
-
-                foreach ( $maybe_supported_blocks as $block_name ) {
-                    if ( ! is_string( $block_name ) ) {
-                        continue;
-                    }
-
-                    $trimmed = trim( $block_name );
-
-                    if ( '' === $trimmed ) {
-                        continue;
-                    }
-
-                    $normalized[ $trimmed ] = true;
-                }
-
-                if ( ! empty( $normalized ) ) {
-                    $supported_blocks = array_keys( $normalized );
-                }
+            if ( is_array( $maybe_supported_blocks ) ) {
+                $supported_blocks = $maybe_supported_blocks;
             }
         }
 
-        $supported_lookup = array_fill_keys( $supported_blocks, true );
+        $supported_lookup = [];
+
+        foreach ( $supported_blocks as $block_name ) {
+            if ( ! is_string( $block_name ) ) {
+                continue;
+            }
+
+            $normalized_name = trim( $block_name );
+
+            if ( '' === $normalized_name ) {
+                continue;
+            }
+
+            $supported_lookup[ $normalized_name ] = true;
+        }
+
+        if ( empty( $supported_lookup ) ) {
+            return [
+                'hidden'    => 0,
+                'device'    => 0,
+                'scheduled' => [],
+            ];
+        }
 
         $block_matcher = static function( $block ) use ( $supported_lookup ) {
             if ( ! is_array( $block ) ) {
                 return false;
             }
 
-            if ( ! isset( $block['blockName'] ) ) {
-                return false;
-            }
-
-            $block_name = $block['blockName'];
+            $block_name = $block['blockName'] ?? '';
 
             if ( ! is_string( $block_name ) || '' === $block_name ) {
                 return false;
@@ -485,20 +484,36 @@ function visibloc_jlg_generate_group_block_summary_from_content( $post_id, $post
     foreach ( $found as $block ) {
         $attrs = isset( $block['attrs'] ) && is_array( $block['attrs'] ) ? $block['attrs'] : [];
 
-        $is_hidden = isset( $attrs['isHidden'] ) ? visibloc_jlg_normalize_boolean( $attrs['isHidden'] ) : false;
+        $is_hidden = isset( $attrs['isHidden'] )
+            ? visibloc_jlg_normalize_boolean( $attrs['isHidden'] )
+            : false;
 
         if ( $is_hidden ) {
             $hidden_count++;
         }
 
-        if ( ! empty( $attrs['deviceVisibility'] ) && 'all' !== $attrs['deviceVisibility'] ) {
+        $device_visibility = '';
+
+        if ( array_key_exists( 'deviceVisibility', $attrs ) && is_scalar( $attrs['deviceVisibility'] ) ) {
+            $device_visibility = trim( (string) $attrs['deviceVisibility'] );
+        }
+
+        if ( '' !== $device_visibility && 'all' !== $device_visibility ) {
             $device_count++;
         }
 
-        $has_scheduling_window = (
-            ! empty( $attrs['publishStartDate'] )
-            || ! empty( $attrs['publishEndDate'] )
-        );
+        $schedule_start = null;
+        $schedule_end   = null;
+
+        if ( array_key_exists( 'publishStartDate', $attrs ) && is_scalar( $attrs['publishStartDate'] ) ) {
+            $schedule_start = (string) $attrs['publishStartDate'];
+        }
+
+        if ( array_key_exists( 'publishEndDate', $attrs ) && is_scalar( $attrs['publishEndDate'] ) ) {
+            $schedule_end = (string) $attrs['publishEndDate'];
+        }
+
+        $has_scheduling_window = ( null !== $schedule_start || null !== $schedule_end );
 
         $has_scheduling_enabled = isset( $attrs['isSchedulingEnabled'] )
             ? visibloc_jlg_normalize_boolean( $attrs['isSchedulingEnabled'] )
@@ -506,8 +521,8 @@ function visibloc_jlg_generate_group_block_summary_from_content( $post_id, $post
 
         if ( $has_scheduling_enabled && $has_scheduling_window ) {
             $scheduled[] = [
-                'start' => isset( $attrs['publishStartDate'] ) ? (string) $attrs['publishStartDate'] : null,
-                'end'   => isset( $attrs['publishEndDate'] ) ? (string) $attrs['publishEndDate'] : null,
+                'start' => $schedule_start,
+                'end'   => $schedule_end,
             ];
         }
     }
