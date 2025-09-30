@@ -1,7 +1,13 @@
 <?php
-if ( ! defined( 'ABSPATH' ) ) exit;
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
 
 if ( ! defined( 'WP_CLI' ) || ! WP_CLI ) {
+    return;
+}
+
+if ( ! class_exists( 'WP_CLI' ) ) {
     return;
 }
 
@@ -49,7 +55,7 @@ if ( ! function_exists( 'visibloc_jlg_cli_rebuild_index_command' ) ) {
     function visibloc_jlg_cli_rebuild_index_command() {
         $scanned_posts = visibloc_jlg_cli_count_posts_to_scan();
         $summaries     = visibloc_jlg_rebuild_group_block_summary_index();
-        $entries_count = is_array( $summaries ) ? count( $summaries ) : 0;
+        $entries_count = is_countable( $summaries ) ? count( $summaries ) : 0;
 
         WP_CLI::log( sprintf( 'Scanned %d posts.', $scanned_posts ) );
         WP_CLI::log( sprintf( 'Created %d index entries.', $entries_count ) );
