@@ -302,7 +302,7 @@ function visibloc_jlg_get_display_fallback_for_selector( $selector ) {
         return 'display: block !important;';
     }
 
-    return 'display: initial !important;';
+    return 'display: block !important;';
 }
 
 function visibloc_jlg_format_media_query( $min, $max ) {

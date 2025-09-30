@@ -44,6 +44,48 @@ class DeviceVisibilityCssTest extends TestCase {
         $this->assertStringNotContainsString('display: none !important;', $block);
     }
 
+    public function test_hide_on_selectors_use_block_fallback(): void {
+        $this->assertSame(
+            'display: block !important;',
+            visibloc_jlg_get_display_fallback_for_selector( '.vb-hide-on-desktop' )
+        );
+    }
+
+    public function test_only_selectors_keep_block_fallback(): void {
+        $this->assertSame(
+            'display: block !important;',
+            visibloc_jlg_get_display_fallback_for_selector( '.vb-tablet-only' )
+        );
+    }
+
+    public function test_default_breakpoints_generate_expected_media_queries(): void {
+        $css = visibloc_jlg_generate_device_visibility_css( false, 781, 1024 );
+
+        $this->assertStringContainsString('@media (max-width: 781px)', $css);
+        $this->assertStringContainsString('@media (min-width: 782px) and (max-width: 1024px)', $css);
+        $this->assertStringContainsString('@media (min-width: 1025px)', $css);
+    }
+
+    public function test_custom_breakpoints_generate_expected_media_queries(): void {
+        $css = visibloc_jlg_generate_device_visibility_css( false, 900, 1200 );
+
+        $this->assertStringContainsString('@media (max-width: 900px)', $css);
+        $this->assertStringContainsString('@media (min-width: 901px) and (max-width: 1200px)', $css);
+        $this->assertStringContainsString('@media (min-width: 1201px)', $css);
+        $this->assertStringContainsString('@media (min-width: 782px) and (max-width: 900px)', $css);
+        $this->assertStringContainsString('@media (min-width: 1025px) and (max-width: 1200px)', $css);
+    }
+
+    public function test_custom_breakpoints_use_block_fallback_for_hide_on_selectors(): void {
+        $css   = visibloc_jlg_generate_device_visibility_css( false, 900, 1200 );
+        $block = $this->extractMediaQueryBlock( $css, '@media (min-width: 1025px) and (max-width: 1200px)' );
+
+        $this->assertNotNull( $block );
+        $this->assertStringContainsString('display: block !important;', $block);
+        $this->assertStringContainsString('display: revert !important;', $block);
+        $this->assertStringNotContainsString('display: initial', $block);
+    }
+
     public function test_cached_css_is_returned_when_available(): void {
         $expected = '/* cached css */';
         $cache_key = sprintf( '%s:%d:%d:%d', VISIBLOC_JLG_VERSION, 0, 600, 1024 );
