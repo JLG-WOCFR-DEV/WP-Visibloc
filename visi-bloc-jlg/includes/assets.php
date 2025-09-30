@@ -302,7 +302,11 @@ function visibloc_jlg_get_display_fallback_for_selector( $selector ) {
         return 'display: block !important;';
     }
 
-    return 'display: block !important;';
+    if ( preg_match( '/^\\.vb-hide-on-(mobile|tablet|desktop)$/', $selector ) ) {
+        return 'display: block !important;';
+    }
+
+    return null;
 }
 
 function visibloc_jlg_format_media_query( $min, $max ) {
