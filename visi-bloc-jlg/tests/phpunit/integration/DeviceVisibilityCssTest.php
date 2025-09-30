@@ -28,7 +28,7 @@ class DeviceVisibilityCssTest extends TestCase {
         $this->assertNotNull( $block );
         $this->assertStringContainsString('.vb-hide-on-mobile,', $block);
         $this->assertStringContainsString(
-            ".vb-tablet-only {\n        display: block !important;\n        display: revert !important;\n    }",
+            ".vb-tablet-only {\n        display: initial !important;\n        display: revert !important;\n    }",
             $block
         );
     }
@@ -39,21 +39,21 @@ class DeviceVisibilityCssTest extends TestCase {
 
         $this->assertNotNull( $block );
         $this->assertStringContainsString('.vb-hide-on-mobile,', $block);
-        $this->assertStringContainsString('display: block !important;', $block);
+        $this->assertStringContainsString('display: initial !important;', $block);
         $this->assertStringContainsString('display: revert !important;', $block);
         $this->assertStringNotContainsString('display: none !important;', $block);
     }
 
     public function test_hide_on_selectors_use_block_fallback(): void {
         $this->assertSame(
-            'display: block !important;',
+            'display: initial !important;',
             visibloc_jlg_get_display_fallback_for_selector( '.vb-hide-on-desktop' )
         );
     }
 
     public function test_only_selectors_keep_block_fallback(): void {
         $this->assertSame(
-            'display: block !important;',
+            'display: initial !important;',
             visibloc_jlg_get_display_fallback_for_selector( '.vb-tablet-only' )
         );
     }
@@ -81,9 +81,46 @@ class DeviceVisibilityCssTest extends TestCase {
         $block = $this->extractMediaQueryBlock( $css, '@media (min-width: 1025px) and (max-width: 1200px)' );
 
         $this->assertNotNull( $block );
-        $this->assertStringContainsString('display: block !important;', $block);
+        $this->assertStringContainsString('display: initial !important;', $block);
         $this->assertStringContainsString('display: revert !important;', $block);
-        $this->assertStringNotContainsString('display: initial', $block);
+        $this->assertStringNotContainsString('display: block !important;', $block);
+    }
+
+    public function test_normalize_block_declarations_adds_single_initial_fallback_inline(): void {
+        $declarations = visibloc_jlg_normalize_block_declarations(
+            '.vb-tablet-only',
+            [
+                'display: revert !important',
+                'color: red',
+            ]
+        );
+
+        $this->assertSame(
+            [
+                'display: initial !important;',
+                'display: revert !important;',
+                'color: red;',
+            ],
+            $declarations
+        );
+    }
+
+    public function test_normalize_block_declarations_keeps_existing_initial_fallback_only_once(): void {
+        $declarations = visibloc_jlg_normalize_block_declarations(
+            '.vb-tablet-only',
+            [
+                'display: initial !important;',
+                'display: revert !important;',
+            ]
+        );
+
+        $this->assertSame(
+            [
+                'display: initial !important;',
+                'display: revert !important;',
+            ],
+            $declarations
+        );
     }
 
     public function test_cached_css_is_returned_when_available(): void {
