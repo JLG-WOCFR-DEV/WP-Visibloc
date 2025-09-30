@@ -286,13 +286,14 @@ function visibloc_jlg_normalize_block_declarations( $selector, $declaration ) {
                 $fallback .= ';';
             }
 
-            foreach ( $normalized as $index => $value ) {
-                if ( 0 === strcasecmp( $value, $fallback ) ) {
-                    unset( $normalized[ $index ] );
-                }
-            }
-
-            $normalized = array_values( $normalized );
+            $normalized = array_values(
+                array_filter(
+                    $normalized,
+                    static function ( $value ) use ( $fallback ) {
+                        return 0 !== strcasecmp( trim( $value ), $fallback );
+                    }
+                )
+            );
 
             array_unshift( $normalized, $fallback );
         }
@@ -306,12 +307,14 @@ function visibloc_jlg_get_display_fallback_for_selector( $selector ) {
         return null;
     }
 
+    $fallback = 'display: initial !important;';
+
     if ( false !== strpos( $selector, '-only' ) ) {
-        return 'display: initial !important;';
+        return $fallback;
     }
 
     if ( preg_match( '/^\\.vb-hide-on-(mobile|tablet|desktop)$/', $selector ) ) {
-        return 'display: initial !important;';
+        return $fallback;
     }
 
     return null;

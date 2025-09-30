@@ -44,14 +44,14 @@ class DeviceVisibilityCssTest extends TestCase {
         $this->assertStringNotContainsString('display: none !important;', $block);
     }
 
-    public function test_hide_on_selectors_use_block_fallback(): void {
+    public function test_hide_on_selectors_use_initial_fallback(): void {
         $this->assertSame(
             'display: initial !important;',
             visibloc_jlg_get_display_fallback_for_selector( '.vb-hide-on-desktop' )
         );
     }
 
-    public function test_only_selectors_keep_block_fallback(): void {
+    public function test_only_selectors_keep_initial_fallback(): void {
         $this->assertSame(
             'display: initial !important;',
             visibloc_jlg_get_display_fallback_for_selector( '.vb-tablet-only' )
@@ -110,6 +110,24 @@ class DeviceVisibilityCssTest extends TestCase {
             '.vb-tablet-only',
             [
                 'display: initial !important;',
+                'display: revert !important;',
+            ]
+        );
+
+        $this->assertSame(
+            [
+                'display: initial !important;',
+                'display: revert !important;',
+            ],
+            $declarations
+        );
+    }
+
+    public function test_normalize_block_declarations_handles_initial_with_whitespace(): void {
+        $declarations = visibloc_jlg_normalize_block_declarations(
+            '.vb-tablet-only',
+            [
+                "  display: initial !important;   ",
                 'display: revert !important;',
             ]
         );
