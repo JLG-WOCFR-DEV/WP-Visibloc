@@ -1,6 +1,8 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+require_once __DIR__ . '/block-utils.php';
+
 add_action( 'admin_init', 'visibloc_jlg_handle_options_save' );
 function visibloc_jlg_handle_options_save() {
     if ( ! current_user_can( 'manage_options' ) ) return;
@@ -13,6 +15,11 @@ function visibloc_jlg_handle_options_save() {
     $nonce = isset( $_POST['visibloc_nonce'] ) ? wp_unslash( $_POST['visibloc_nonce'] ) : '';
 
     if ( ! is_string( $nonce ) || '' === $nonce ) return;
+
+    $submitted_supported_blocks = [];
+    if ( isset( $_POST['visibloc_supported_blocks'] ) ) {
+        $submitted_supported_blocks = (array) wp_unslash( $_POST['visibloc_supported_blocks'] );
+    }
 
     $mobile_breakpoint          = null;
     $mobile_breakpoint_invalid  = false;
@@ -43,6 +50,14 @@ function visibloc_jlg_handle_options_save() {
     $submitted_roles = [];
     if ( isset( $_POST['visibloc_preview_roles'] ) ) {
         $submitted_roles = array_map( 'sanitize_key', (array) wp_unslash( $_POST['visibloc_preview_roles'] ) );
+    }
+
+    if ( wp_verify_nonce( $nonce, 'visibloc_save_supported_blocks' ) ) {
+        $normalized_blocks = visibloc_jlg_normalize_block_names( $submitted_supported_blocks );
+        update_option( 'visibloc_supported_blocks', $normalized_blocks );
+        visibloc_jlg_clear_caches();
+        wp_safe_redirect( admin_url( 'admin.php?page=visi-bloc-jlg-help&status=updated' ) );
+        exit;
     }
 
     if ( wp_verify_nonce( $nonce, 'visibloc_toggle_debug' ) ) {
@@ -133,8 +148,44 @@ function visibloc_jlg_render_help_page_content() {
     $mobile_bp      = get_option( 'visibloc_breakpoint_mobile', 781 );
     $tablet_bp      = get_option( 'visibloc_breakpoint_tablet', 1024 );
 
-    $allowed_roles_option = get_option( 'visibloc_preview_roles', [ 'administrator' ] );
-    $allowed_roles        = array_filter( (array) $allowed_roles_option );
+    $allowed_roles_option   = get_option( 'visibloc_preview_roles', [ 'administrator' ] );
+    $allowed_roles          = array_filter( (array) $allowed_roles_option );
+    $configured_blocks_raw  = get_option( 'visibloc_supported_blocks', [] );
+    $configured_blocks      = visibloc_jlg_normalize_block_names( $configured_blocks_raw );
+    $registered_block_types = [];
+
+    if ( class_exists( 'WP_Block_Type_Registry' ) ) {
+        $registry = WP_Block_Type_Registry::get_instance();
+        $all_blocks = is_object( $registry ) && method_exists( $registry, 'get_all_registered' )
+            ? $registry->get_all_registered()
+            : [];
+
+        if ( is_array( $all_blocks ) ) {
+            foreach ( $all_blocks as $name => $block_type ) {
+                if ( ! is_string( $name ) ) {
+                    continue;
+                }
+
+                $label = $name;
+
+                if ( is_object( $block_type ) && isset( $block_type->title ) && is_string( $block_type->title ) && '' !== $block_type->title ) {
+                    $label = $block_type->title;
+                }
+
+                $registered_block_types[] = [
+                    'name'  => $name,
+                    'label' => $label,
+                ];
+            }
+
+            usort(
+                $registered_block_types,
+                static function ( $a, $b ) {
+                    return strcmp( strtolower( $a['label'] ), strtolower( $b['label'] ) );
+                }
+            );
+        }
+    }
 
     if ( empty( $allowed_roles ) ) {
         $allowed_roles = [ 'administrator' ];
@@ -154,6 +205,7 @@ function visibloc_jlg_render_help_page_content() {
         <?php endif; ?>
         <div id="poststuff">
             <?php
+            visibloc_jlg_render_supported_blocks_section( $registered_block_types, $configured_blocks );
             visibloc_jlg_render_permissions_section( $allowed_roles );
             visibloc_jlg_render_hidden_blocks_section( $hidden_posts );
             visibloc_jlg_render_device_visibility_section( $device_posts );
@@ -161,6 +213,56 @@ function visibloc_jlg_render_help_page_content() {
             visibloc_jlg_render_debug_mode_section( $debug_status );
             visibloc_jlg_render_breakpoints_section( $mobile_bp, $tablet_bp );
             ?>
+        </div>
+    </div>
+    <?php
+}
+
+function visibloc_jlg_render_supported_blocks_section( $registered_block_types, $configured_blocks ) {
+    $registered_block_types = is_array( $registered_block_types ) ? $registered_block_types : [];
+    $configured_blocks      = is_array( $configured_blocks ) ? $configured_blocks : [];
+    $default_blocks         = defined( 'VISIBLOC_JLG_DEFAULT_SUPPORTED_BLOCKS' )
+        ? (array) VISIBLOC_JLG_DEFAULT_SUPPORTED_BLOCKS
+        : [ 'core/group' ];
+
+    ?>
+    <div class="postbox">
+        <h2 class="hndle"><span><?php esc_html_e( 'Blocs compatibles', 'visi-bloc-jlg' ); ?></span></h2>
+        <div class="inside">
+            <form method="POST" action="">
+                <p><?php esc_html_e( 'Sélectionnez les blocs Gutenberg pouvant utiliser les contrôles de visibilité Visi-Bloc.', 'visi-bloc-jlg' ); ?></p>
+                <?php if ( empty( $registered_block_types ) ) : ?>
+                    <p><em><?php esc_html_e( 'Aucun bloc enregistré n’a été détecté.', 'visi-bloc-jlg' ); ?></em></p>
+                <?php else : ?>
+                    <fieldset>
+                        <?php foreach ( $registered_block_types as $block ) :
+                            $block_name  = isset( $block['name'] ) && is_string( $block['name'] ) ? $block['name'] : '';
+                            $block_label = isset( $block['label'] ) && is_string( $block['label'] ) ? $block['label'] : $block_name;
+
+                            if ( '' === $block_name ) {
+                                continue;
+                            }
+
+                            $is_default  = in_array( $block_name, $default_blocks, true );
+                            $is_checked  = $is_default || in_array( $block_name, $configured_blocks, true );
+                            $is_disabled = $is_default;
+                            ?>
+                            <label style="display: block; margin-bottom: 6px;">
+                                <input type="checkbox" name="visibloc_supported_blocks[]" value="<?php echo esc_attr( $block_name ); ?>" <?php checked( $is_checked ); ?> <?php disabled( $is_disabled ); ?> />
+                                <?php echo esc_html( $block_label ); ?>
+                                <span class="description" style="margin-left: 4px;">
+                                    (<?php echo esc_html( $block_name ); ?>)
+                                    <?php if ( $is_default ) : ?>
+                                        — <?php esc_html_e( 'Toujours actif', 'visi-bloc-jlg' ); ?>
+                                    <?php endif; ?>
+                                </span>
+                            </label>
+                        <?php endforeach; ?>
+                    </fieldset>
+                <?php endif; ?>
+                <?php wp_nonce_field( 'visibloc_save_supported_blocks', 'visibloc_nonce' ); ?>
+                <?php submit_button( __( 'Enregistrer les blocs compatibles', 'visi-bloc-jlg' ) ); ?>
+            </form>
         </div>
     </div>
     <?php

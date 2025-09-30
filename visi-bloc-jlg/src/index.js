@@ -19,23 +19,40 @@ import { subscribe, select } from '@wordpress/data';
 import './editor-styles.css';
 
 const DEFAULT_SUPPORTED_BLOCKS = ['core/group'];
+
+const normalizeSupportedBlocks = (blocks) => {
+    if (!Array.isArray(blocks)) {
+        return [];
+    }
+
+    return Array.from(
+        new Set(
+            blocks
+                .map((blockName) => (typeof blockName === 'string' ? blockName.trim() : ''))
+                .filter(Boolean),
+        ),
+    );
+};
+
+const rawLocalizedSupportedBlocks =
+    typeof VisiBlocData === 'object' &&
+    VisiBlocData !== null &&
+    Array.isArray(VisiBlocData.supportedBlocks)
+        ? VisiBlocData.supportedBlocks
+        : DEFAULT_SUPPORTED_BLOCKS;
+
+const localizedSupportedBlocks = normalizeSupportedBlocks(rawLocalizedSupportedBlocks);
+const baseSupportedBlocks =
+    localizedSupportedBlocks.length > 0
+        ? localizedSupportedBlocks
+        : DEFAULT_SUPPORTED_BLOCKS;
 const supportedBlocksFilterResult = applyFilters(
     'visiblocSupportedBlocks',
-    DEFAULT_SUPPORTED_BLOCKS,
+    baseSupportedBlocks,
 );
-const normalizedSupportedBlocks = Array.isArray(supportedBlocksFilterResult)
-    ? Array.from(
-          new Set(
-              supportedBlocksFilterResult
-                  .map((blockName) =>
-                      typeof blockName === 'string' ? blockName.trim() : '',
-                  )
-                  .filter(Boolean),
-          ),
-      )
-    : [];
+const normalizedSupportedBlocks = normalizeSupportedBlocks(supportedBlocksFilterResult);
 const supportedBlocks =
-    normalizedSupportedBlocks.length > 0 ? normalizedSupportedBlocks : DEFAULT_SUPPORTED_BLOCKS;
+    normalizedSupportedBlocks.length > 0 ? normalizedSupportedBlocks : baseSupportedBlocks;
 const isSupportedBlockName = (blockName) => supportedBlocks.includes(blockName);
 
 const DATE_SETTINGS =

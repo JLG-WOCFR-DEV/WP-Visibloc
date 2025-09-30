@@ -4,10 +4,6 @@
  */
 import { test, expect } from '@wordpress/e2e-test-utils-playwright';
 
-const SUPPORTED_BLOCKS_UNDER_TEST = [
-    { name: 'core/group', label: 'group block' },
-    { name: 'core/columns', label: 'columns block' },
-];
 const PLUGIN_SLUG = 'visi-bloc-jlg/visi-bloc-jlg.php';
 
 async function selectBlockInEditor( page, blockName ) {
@@ -66,93 +62,122 @@ async function selectBlockInEditor( page, blockName ) {
     return clientIdHandle.jsonValue();
 }
 
+async function exerciseVisibilityControls( { admin, editor, page }, blockName ) {
+    await admin.createNewPost();
+    await editor.insertBlock( { name: blockName } );
+
+    const clientId = await selectBlockInEditor( page, blockName );
+    expect( clientId ).toBeTruthy();
+
+    const blockLocator = page.locator( `.block-editor-block-list__block[data-block="${ clientId }"]` );
+
+    await expect( blockLocator ).not.toHaveClass( /bloc-editeur-cache/ );
+
+    const hideButton = page.getByRole( 'button', { name: 'Rendre caché' } );
+    const showButton = page.getByRole( 'button', { name: 'Rendre visible' } );
+
+    await hideButton.click();
+    await expect( blockLocator ).toHaveClass( /bloc-editeur-cache/ );
+
+    await page.getByRole( 'button', { name: 'List view' } ).click();
+    const listViewRow = page.locator( `.block-editor-list-view__block[data-block="${ clientId }"]` );
+    await expect( listViewRow ).toHaveClass( /bloc-editeur-cache/ );
+
+    await showButton.click();
+    await expect( blockLocator ).not.toHaveClass( /bloc-editeur-cache/ );
+    await expect( listViewRow ).not.toHaveClass( /bloc-editeur-cache/ );
+
+    await page.getByRole( 'button', { name: 'List view' } ).click();
+
+    await page.getByRole( 'button', { name: 'Settings' } ).click();
+
+    const deviceSelect = page.getByLabel( 'Visibilité par Appareil' );
+    await deviceSelect.selectOption( 'desktop-only' );
+
+    await page.getByRole( 'button', { name: 'Programmation' } ).click();
+
+    const schedulingToggle = page.getByRole( 'checkbox', { name: 'Activer la programmation' } );
+    await schedulingToggle.check();
+
+    const startToggle = page.getByRole( 'checkbox', { name: 'Définir une date de début' } );
+    await startToggle.check();
+
+    const startPicker = page.locator( '.visi-bloc-datepicker-wrapper' ).first();
+    await startPicker.getByLabel( 'Date' ).fill( '2030-06-15' );
+    await startPicker.getByLabel( 'Time' ).fill( '08:30' );
+
+    const endToggle = page.getByRole( 'checkbox', { name: 'Définir une date de fin' } );
+    await endToggle.check();
+
+    const endPicker = page.locator( '.visi-bloc-datepicker-wrapper' ).nth( 1 );
+    await endPicker.getByLabel( 'Date' ).fill( '2030-06-20' );
+    await endPicker.getByLabel( 'Time' ).fill( '17:45' );
+
+    await page.getByRole( 'button', { name: 'Visibilité par Rôle' } ).click();
+
+    const loggedInCheckbox = page.getByRole( 'checkbox', { name: 'Utilisateurs Connectés (tous)' } );
+    await loggedInCheckbox.check();
+
+    const administratorCheckbox = page.getByRole( 'checkbox', { name: 'Administrator' } );
+    await administratorCheckbox.check();
+
+    const attributes = await page.evaluate( ( id ) => {
+        const store = window.wp.data.select( 'core/block-editor' );
+        const block = store.getBlock( id );
+
+        return block ? block.attributes : {};
+    }, clientId );
+
+    expect( attributes.isHidden ).toBe( false );
+    expect( attributes.deviceVisibility ).toBe( 'desktop-only' );
+    expect( attributes.isSchedulingEnabled ).toBe( true );
+    expect( attributes.publishStartDate ).toContain( '2030-06-15T08:30' );
+    expect( attributes.publishEndDate ).toContain( '2030-06-20T17:45' );
+    expect( attributes.visibilityRoles ).toEqual( expect.arrayContaining( [ 'logged-in', 'administrator' ] ) );
+
+    const postContent = await editor.getEditedPostContent();
+    expect( postContent ).toContain( `<!-- wp:${ blockName }` );
+    expect( postContent ).toContain( 'vb-desktop-only' );
+    expect( postContent ).toContain( '"visibilityRoles":["logged-in","administrator"' );
+}
+
 test.describe( 'Visi-Bloc group visibility controls', () => {
     test.beforeEach( async ( { requestUtils } ) => {
         await requestUtils.activatePlugin( PLUGIN_SLUG );
+        await requestUtils.rest( {
+            method: 'POST',
+            path: '/wp/v2/settings',
+            data: {
+                visibloc_supported_blocks: [],
+            },
+        } );
     } );
 
-    for ( const { name: blockName, label } of SUPPORTED_BLOCKS_UNDER_TEST ) {
-        test( `toolbar, scheduling and inspector controls update ${ label } attributes`, async ( {
-            admin,
-            editor,
-            page,
-        } ) => {
-            await admin.createNewPost();
-            await editor.insertBlock( { name: blockName } );
+    test( 'toolbar, scheduling and inspector controls update group block attributes', async ( {
+        admin,
+        editor,
+        page,
+    } ) => {
+        await exerciseVisibilityControls( { admin, editor, page }, 'core/group' );
+    } );
 
-            const clientId = await selectBlockInEditor( page, blockName );
-            expect( clientId ).toBeTruthy();
+    test( 'newly enabled blocks expose visibility controls in the editor', async ( {
+        admin,
+        editor,
+        page,
+    } ) => {
+        await admin.visitAdminPage( 'admin.php', 'page=visi-bloc-jlg-help' );
 
-            const blockLocator = page.locator( `.block-editor-block-list__block[data-block="${ clientId }"]` );
+        const columnsCheckbox = page.getByLabel( /core\/columns/ );
+        await columnsCheckbox.check();
 
-            await expect( blockLocator ).not.toHaveClass( /bloc-editeur-cache/ );
+        await Promise.all( [
+            page.waitForNavigation( { waitUntil: 'networkidle' } ),
+            page.getByRole( 'button', { name: 'Enregistrer les blocs compatibles' } ).click(),
+        ] );
 
-            const hideButton = page.getByRole( 'button', { name: 'Rendre caché' } );
-            const showButton = page.getByRole( 'button', { name: 'Rendre visible' } );
+        await expect( page.getByText( 'Réglages mis à jour.' ) ).toBeVisible();
 
-            await hideButton.click();
-            await expect( blockLocator ).toHaveClass( /bloc-editeur-cache/ );
-
-            await page.getByRole( 'button', { name: 'List view' } ).click();
-            const listViewRow = page.locator( `.block-editor-list-view__block[data-block="${ clientId }"]` );
-            await expect( listViewRow ).toHaveClass( /bloc-editeur-cache/ );
-
-            await showButton.click();
-            await expect( blockLocator ).not.toHaveClass( /bloc-editeur-cache/ );
-            await expect( listViewRow ).not.toHaveClass( /bloc-editeur-cache/ );
-
-            await page.getByRole( 'button', { name: 'List view' } ).click();
-
-            await page.getByRole( 'button', { name: 'Settings' } ).click();
-
-            const deviceSelect = page.getByLabel( 'Visibilité par Appareil' );
-            await deviceSelect.selectOption( 'desktop-only' );
-
-            await page.getByRole( 'button', { name: 'Programmation' } ).click();
-
-            const schedulingToggle = page.getByRole( 'checkbox', { name: 'Activer la programmation' } );
-            await schedulingToggle.check();
-
-            const startToggle = page.getByRole( 'checkbox', { name: 'Définir une date de début' } );
-            await startToggle.check();
-
-            const startPicker = page.locator( '.visi-bloc-datepicker-wrapper' ).first();
-            await startPicker.getByLabel( 'Date' ).fill( '2030-06-15' );
-            await startPicker.getByLabel( 'Time' ).fill( '08:30' );
-
-            const endToggle = page.getByRole( 'checkbox', { name: 'Définir une date de fin' } );
-            await endToggle.check();
-
-            const endPicker = page.locator( '.visi-bloc-datepicker-wrapper' ).nth( 1 );
-            await endPicker.getByLabel( 'Date' ).fill( '2030-06-20' );
-            await endPicker.getByLabel( 'Time' ).fill( '17:45' );
-
-            await page.getByRole( 'button', { name: 'Visibilité par Rôle' } ).click();
-
-            const loggedInCheckbox = page.getByRole( 'checkbox', { name: 'Utilisateurs Connectés (tous)' } );
-            await loggedInCheckbox.check();
-
-            const administratorCheckbox = page.getByRole( 'checkbox', { name: 'Administrator' } );
-            await administratorCheckbox.check();
-
-            const attributes = await page.evaluate( ( id ) => {
-                const store = window.wp.data.select( 'core/block-editor' );
-                const block = store.getBlock( id );
-
-                return block ? block.attributes : {};
-            }, clientId );
-
-            expect( attributes.isHidden ).toBe( false );
-            expect( attributes.deviceVisibility ).toBe( 'desktop-only' );
-            expect( attributes.isSchedulingEnabled ).toBe( true );
-            expect( attributes.publishStartDate ).toContain( '2030-06-15T08:30' );
-            expect( attributes.publishEndDate ).toContain( '2030-06-20T17:45' );
-            expect( attributes.visibilityRoles ).toEqual( expect.arrayContaining( [ 'logged-in', 'administrator' ] ) );
-
-            const postContent = await editor.getEditedPostContent();
-            expect( postContent ).toContain( `<!-- wp:${ blockName }` );
-            expect( postContent ).toContain( 'vb-desktop-only' );
-            expect( postContent ).toContain( '"visibilityRoles":["logged-in","administrator"' );
-        } );
-    }
+        await exerciseVisibilityControls( { admin, editor, page }, 'core/columns' );
+    } );
 } );
