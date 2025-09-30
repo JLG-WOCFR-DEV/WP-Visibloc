@@ -378,6 +378,12 @@ function current_time( $type, $gmt = 0 ) {
     return ( new DateTimeImmutable( '@' . $timestamp ) )->setTimezone( $timezone )->format( 'Y-m-d H:i:s' );
 }
 
+function current_datetime() {
+    $timestamp = visibloc_test_get_current_time();
+
+    return ( new DateTimeImmutable( '@' . $timestamp ) )->setTimezone( wp_timezone() );
+}
+
 if ( ! function_exists( 'wp_json_encode' ) ) {
     function wp_json_encode( $data ) {
         return json_encode( $data );

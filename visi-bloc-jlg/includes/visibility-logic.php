@@ -119,7 +119,19 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
     }
 
     if ( $has_schedule_enabled ) {
-        $current_time = current_time( 'timestamp', true );
+        $current_time = null;
+
+        if ( function_exists( 'current_datetime' ) ) {
+            $current_datetime = current_datetime();
+
+            if ( $current_datetime instanceof DateTimeInterface ) {
+                $current_time = $current_datetime->getTimestamp();
+            }
+        }
+
+        if ( null === $current_time ) {
+            $current_time = (int) current_time( 'timestamp' );
+        }
 
         $start_time = visibloc_jlg_parse_schedule_datetime( $attrs['publishStartDate'] ?? null );
         $end_time   = visibloc_jlg_parse_schedule_datetime( $attrs['publishEndDate'] ?? null );
