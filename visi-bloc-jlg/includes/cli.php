@@ -48,17 +48,35 @@ if ( ! function_exists( 'visibloc_jlg_cli_count_posts_to_scan' ) ) {
     }
 }
 
+if ( ! function_exists( 'visibloc_jlg_cli_calculate_rebuild_stats' ) ) {
+    /**
+     * Execute the index rebuild and return statistics about the operation.
+     *
+     * @return array{
+     *     scanned_posts:int,
+     *     entries_count:int,
+     * }
+     */
+    function visibloc_jlg_cli_calculate_rebuild_stats() {
+        $summaries     = visibloc_jlg_rebuild_group_block_summary_index();
+        $entries_count = is_countable( $summaries ) ? count( $summaries ) : 0;
+        $scanned_posts = visibloc_jlg_cli_count_posts_to_scan();
+
+        return [
+            'scanned_posts' => $scanned_posts,
+            'entries_count' => $entries_count,
+        ];
+    }
+}
+
 if ( ! function_exists( 'visibloc_jlg_cli_rebuild_index_command' ) ) {
     /**
      * Handle the `wp visibloc rebuild-index` command.
      */
     function visibloc_jlg_cli_rebuild_index_command() {
-        $scanned_posts = visibloc_jlg_cli_count_posts_to_scan();
-        $summaries     = visibloc_jlg_rebuild_group_block_summary_index();
-        $entries_count = is_countable( $summaries ) ? count( $summaries ) : 0;
+        $stats = visibloc_jlg_cli_calculate_rebuild_stats();
 
-        WP_CLI::log( sprintf( 'Scanned %d posts.', $scanned_posts ) );
-        WP_CLI::log( sprintf( 'Created %d index entries.', $entries_count ) );
+        WP_CLI::log( sprintf( 'Scanned %d posts and created %d index entries.', $stats['scanned_posts'], $stats['entries_count'] ) );
 
         visibloc_jlg_clear_caches();
 

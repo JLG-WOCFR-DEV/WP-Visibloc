@@ -128,10 +128,7 @@ HTML;
         $this->assertArrayHasKey( 103, $summaries );
 
         $this->assertSame(
-            [
-                'Scanned 3 posts.',
-                'Created 2 index entries.',
-            ],
+            [ 'Scanned 3 posts and created 2 index entries.' ],
             WP_CLI::$log_messages
         );
 
