@@ -367,15 +367,21 @@ function current_time( $type, $gmt = 0 ) {
 
     if ( 'timestamp' === $type ) {
         if ( $gmt ) {
-            return $timestamp - visibloc_test_get_timezone_offset( $timestamp );
+            return $timestamp;
         }
 
-        return $timestamp;
+        return $timestamp + visibloc_test_get_timezone_offset( $timestamp );
     }
 
     $timezone = $gmt ? new DateTimeZone( 'UTC' ) : wp_timezone();
 
     return ( new DateTimeImmutable( '@' . $timestamp ) )->setTimezone( $timezone )->format( 'Y-m-d H:i:s' );
+}
+
+function current_datetime() {
+    $timestamp = visibloc_test_get_current_time();
+
+    return ( new DateTimeImmutable( '@' . $timestamp ) )->setTimezone( wp_timezone() );
 }
 
 if ( ! function_exists( 'wp_json_encode' ) ) {
