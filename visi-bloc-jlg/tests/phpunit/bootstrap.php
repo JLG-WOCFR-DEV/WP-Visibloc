@@ -685,6 +685,14 @@ function update_option( $name, $value, $autoload = null ) {
     return true;
 }
 
+function delete_option( $name ) {
+    if ( isset( $GLOBALS['visibloc_test_options'][ $name ] ) ) {
+        unset( $GLOBALS['visibloc_test_options'][ $name ] );
+    }
+
+    return true;
+}
+
 function __( $text ) {
     return $text;
 }
