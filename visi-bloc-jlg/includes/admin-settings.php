@@ -572,10 +572,11 @@ function visibloc_jlg_store_group_block_summary_index( $index ) {
     update_option( 'visibloc_group_block_summary', $index, false );
 }
 
-function visibloc_jlg_rebuild_group_block_summary_index() {
+function visibloc_jlg_rebuild_group_block_summary_index( &$scanned_posts = null ) {
     $post_types = apply_filters( 'visibloc_jlg_scanned_post_types', [ 'post', 'page', 'wp_template', 'wp_template_part' ] );
     $page       = 1;
     $summaries  = [];
+    $scanned    = 0;
 
     while ( true ) {
         $query = new WP_Query( [
@@ -594,6 +595,7 @@ function visibloc_jlg_rebuild_group_block_summary_index() {
         }
 
         foreach ( $query->posts as $post_id ) {
+            $scanned++;
             $summary = visibloc_jlg_generate_group_block_summary_from_content( $post_id );
 
             if ( visibloc_jlg_group_block_summary_has_data( $summary ) ) {
@@ -605,6 +607,10 @@ function visibloc_jlg_rebuild_group_block_summary_index() {
     }
 
     visibloc_jlg_store_group_block_summary_index( $summaries );
+
+    if ( func_num_args() > 0 ) {
+        $scanned_posts = $scanned;
+    }
 
     return $summaries;
 }
