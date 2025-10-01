@@ -10,6 +10,12 @@
         var panel = container.querySelector('.visibloc-mobile-role-switcher__panel');
         var closeButtons = container.querySelectorAll('[data-visibloc-role-switcher-close]');
         var openClass = 'visibloc-mobile-role-switcher--open';
+        var lockClass = 'visibloc-role-switcher--locked';
+        var scrollLockTarget = document.documentElement || document.body;
+        var bodyElement = document.body;
+        var scrollBarWidthProperty = '--visibloc-role-switcher-scrollbar-width';
+        var bodyPaddingProperty = '--visibloc-role-switcher-body-padding-right';
+        var containerRemovalObserver = null;
         var focusableSelectors = [
             'a[href]:not([tabindex="-1"])',
             'area[href]',
@@ -141,12 +147,66 @@
             }
         }
 
+        function applyScrollLock() {
+            if (!scrollLockTarget) {
+                return;
+            }
+
+            var measurementElement = document.documentElement || scrollLockTarget;
+            var scrollbarWidth = 0;
+
+            if (typeof window !== 'undefined' && window.innerWidth && measurementElement) {
+                scrollbarWidth = window.innerWidth - measurementElement.clientWidth;
+            }
+
+            if (scrollbarWidth > 0) {
+                scrollLockTarget.style.setProperty(scrollBarWidthProperty, scrollbarWidth + 'px');
+            } else {
+                scrollLockTarget.style.removeProperty(scrollBarWidthProperty);
+            }
+
+            if (bodyElement) {
+                var computedBodyPaddingRight = window.getComputedStyle
+                    ? window.getComputedStyle(bodyElement).paddingRight
+                    : '0px';
+
+                if (!computedBodyPaddingRight) {
+                    computedBodyPaddingRight = '0px';
+                }
+
+                bodyElement.style.setProperty(bodyPaddingProperty, computedBodyPaddingRight);
+            }
+
+            if (!scrollLockTarget.classList.contains(lockClass)) {
+                scrollLockTarget.classList.add(lockClass);
+            }
+        }
+
+        function removeScrollLock() {
+            if (!scrollLockTarget) {
+                return;
+            }
+
+            scrollLockTarget.classList.remove(lockClass);
+            scrollLockTarget.style.removeProperty(scrollBarWidthProperty);
+
+            if (bodyElement) {
+                bodyElement.style.removeProperty(bodyPaddingProperty);
+            }
+        }
+
+        function cleanupPanelState() {
+            toggleOutsideInert(false);
+            removeScrollLock();
+        }
+
         function openPanel() {
             container.classList.add(openClass);
             panel.removeAttribute('hidden');
             panel.setAttribute('aria-hidden', 'false');
             toggle.setAttribute('aria-expanded', 'true');
             toggleOutsideInert(true);
+            applyScrollLock();
 
             var focusTarget = panel.querySelector('.visibloc-mobile-role-switcher__link, .visibloc-mobile-role-switcher__reset');
 
@@ -158,6 +218,7 @@
         function closePanel() {
             container.classList.remove(openClass);
             toggleOutsideInert(false);
+            removeScrollLock();
 
             if (!panel.hasAttribute('hidden')) {
                 panel.setAttribute('hidden', '');
@@ -251,6 +312,28 @@
                 nextElement.focus();
             }
         });
+
+        if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+            window.addEventListener('beforeunload', cleanupPanelState);
+            window.addEventListener('pagehide', cleanupPanelState);
+        }
+
+        if (typeof window !== 'undefined' && 'MutationObserver' in window && document.body) {
+            containerRemovalObserver = new window.MutationObserver(function () {
+                if (document.body && document.body.contains(container)) {
+                    return;
+                }
+
+                cleanupPanelState();
+
+                if (containerRemovalObserver) {
+                    containerRemovalObserver.disconnect();
+                    containerRemovalObserver = null;
+                }
+            });
+
+            containerRemovalObserver.observe(document.body, { childList: true, subtree: true });
+        }
     }
 
     if (document.readyState === 'loading') {

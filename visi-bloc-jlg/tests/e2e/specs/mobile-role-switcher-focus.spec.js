@@ -26,6 +26,40 @@ async function getManagedInertCount( page ) {
     } );
 }
 
+async function getScrollLockState( page ) {
+    return page.evaluate( () => {
+        const html = document.documentElement;
+        const body = document.body;
+
+        if ( ! html || ! body ) {
+            return {
+                htmlLocked: false,
+                htmlOverflowX: '',
+                htmlOverflowY: '',
+                bodyOverflowX: '',
+                bodyOverflowY: '',
+                htmlTouchAction: '',
+                bodyTouchAction: '',
+            };
+        }
+
+        const htmlStyle = window.getComputedStyle( html );
+        const bodyStyle = window.getComputedStyle( body );
+        const htmlTouchAction = htmlStyle.touchAction || htmlStyle[ 'touch-action' ] || '';
+        const bodyTouchAction = bodyStyle.touchAction || bodyStyle[ 'touch-action' ] || '';
+
+        return {
+            htmlLocked: html.classList.contains( 'visibloc-role-switcher--locked' ),
+            htmlOverflowX: htmlStyle.overflowX,
+            htmlOverflowY: htmlStyle.overflowY,
+            bodyOverflowX: bodyStyle.overflowX,
+            bodyOverflowY: bodyStyle.overflowY,
+            htmlTouchAction,
+            bodyTouchAction,
+        };
+    } );
+}
+
 test.describe( 'Visi-Bloc mobile role switcher focus management', () => {
     test.beforeEach( async ( { requestUtils } ) => {
         await requestUtils.activatePlugin( PLUGIN_SLUG );
@@ -56,6 +90,13 @@ test.describe( 'Visi-Bloc mobile role switcher focus management', () => {
         const firstFocusable = focusable.first();
         const lastFocusable = focusable.last();
 
+        const scrollLockState = await getScrollLockState( page );
+        expect( scrollLockState.htmlLocked ).toBe( true );
+        expect( scrollLockState.htmlOverflowY ).toBe( 'hidden' );
+        expect( scrollLockState.bodyOverflowY ).toBe( 'hidden' );
+        expect( scrollLockState.htmlTouchAction ).toBe( 'none' );
+        expect( scrollLockState.bodyTouchAction ).toBe( 'none' );
+
         await firstFocusable.focus();
 
         await page.keyboard.press( 'Shift+Tab' );
@@ -75,5 +116,27 @@ test.describe( 'Visi-Bloc mobile role switcher focus management', () => {
 
         const inertCountAfterClose = await getManagedInertCount( page );
         expect( inertCountAfterClose ).toBe( 0 );
+
+        const scrollLockStateAfterClose = await getScrollLockState( page );
+        expect( scrollLockStateAfterClose.htmlLocked ).toBe( false );
+        expect( scrollLockStateAfterClose.htmlOverflowY ).not.toBe( 'hidden' );
+        expect( scrollLockStateAfterClose.bodyOverflowY ).not.toBe( 'hidden' );
+        expect( scrollLockStateAfterClose.htmlTouchAction ).not.toBe( 'none' );
+        expect( scrollLockStateAfterClose.bodyTouchAction ).not.toBe( 'none' );
+
+        await toggle.click();
+        await expect( panel ).toBeVisible();
+
+        const scrollLockStateAfterReopen = await getScrollLockState( page );
+        expect( scrollLockStateAfterReopen.htmlLocked ).toBe( true );
+
+        await page.evaluate( () => {
+            document.body.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
+        } );
+
+        await expect( panel ).toBeHidden();
+
+        const scrollLockStateAfterOutsideClick = await getScrollLockState( page );
+        expect( scrollLockStateAfterOutsideClick.htmlLocked ).toBe( false );
     } );
 } );
