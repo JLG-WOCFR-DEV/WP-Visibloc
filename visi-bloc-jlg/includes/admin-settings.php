@@ -848,6 +848,55 @@ function visibloc_jlg_collect_group_block_metadata() {
         }
     }
 
+    if ( ! empty( $collected['scheduled'] ) ) {
+        usort(
+            $collected['scheduled'],
+            static function ( $a, $b ) {
+                $normalize_timestamp = static function ( $value ) {
+                    if ( null === $value || '' === $value ) {
+                        return null;
+                    }
+
+                    if ( is_numeric( $value ) ) {
+                        return (int) $value;
+                    }
+
+                    $timestamp = strtotime( (string) $value );
+
+                    return false === $timestamp ? null : $timestamp;
+                };
+
+                $a_start = $normalize_timestamp( $a['start'] ?? null );
+                $b_start = $normalize_timestamp( $b['start'] ?? null );
+
+                if ( null !== $a_start && null === $b_start ) {
+                    return -1;
+                }
+
+                if ( null === $a_start && null !== $b_start ) {
+                    return 1;
+                }
+
+                if ( $a_start !== $b_start ) {
+                    return $a_start <=> $b_start;
+                }
+
+                $a_end = $normalize_timestamp( $a['end'] ?? null );
+                $b_end = $normalize_timestamp( $b['end'] ?? null );
+
+                if ( null !== $a_end && null === $b_end ) {
+                    return -1;
+                }
+
+                if ( null === $a_end && null !== $b_end ) {
+                    return 1;
+                }
+
+                return $a_end <=> $b_end;
+            }
+        );
+    }
+
     set_transient( $cache_key, $collected, HOUR_IN_SECONDS );
 
     return $collected;
