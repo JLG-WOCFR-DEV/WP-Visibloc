@@ -234,7 +234,10 @@ function visibloc_jlg_render_supported_blocks_section( $registered_block_types, 
                 <?php if ( empty( $registered_block_types ) ) : ?>
                     <p><em><?php esc_html_e( 'Aucun bloc enregistré n’a été détecté.', 'visi-bloc-jlg' ); ?></em></p>
                 <?php else : ?>
-                    <fieldset>
+                    <fieldset class="visibloc-supported-blocks-fieldset">
+                        <legend class="visibloc-supported-blocks-legend">
+                            <?php esc_html_e( 'Blocs compatibles', 'visi-bloc-jlg' ); ?>
+                        </legend>
                         <?php foreach ( $registered_block_types as $block ) :
                             $block_name  = isset( $block['name'] ) && is_string( $block['name'] ) ? $block['name'] : '';
                             $block_label = isset( $block['label'] ) && is_string( $block['label'] ) ? $block['label'] : $block_name;
