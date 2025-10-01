@@ -10,15 +10,143 @@
         var panel = container.querySelector('.visibloc-mobile-role-switcher__panel');
         var closeButtons = container.querySelectorAll('[data-visibloc-role-switcher-close]');
         var openClass = 'visibloc-mobile-role-switcher--open';
+        var focusableSelectors = [
+            'a[href]:not([tabindex="-1"])',
+            'area[href]',
+            'button:not([disabled]):not([tabindex="-1"])',
+            'input:not([type="hidden"]):not([disabled]):not([tabindex="-1"])',
+            'select:not([disabled]):not([tabindex="-1"])',
+            'textarea:not([disabled]):not([tabindex="-1"])',
+            'iframe',
+            'object',
+            'embed',
+            '[contenteditable="true"]',
+            '[tabindex]:not([tabindex="-1"])'
+        ].join(', ');
+        var inertRestoreQueue = [];
+        var managedInertAttribute = 'data-visibloc-role-switcher-inert';
 
         if (!toggle || !panel) {
             return;
         }
 
+        function isFocusableElement(element) {
+            if (!element || typeof element !== 'object') {
+                return false;
+            }
+
+            if (element.hasAttribute('disabled')) {
+                return false;
+            }
+
+            if ('true' === element.getAttribute('aria-hidden')) {
+                return false;
+            }
+
+            if (element.closest('[hidden]')) {
+                return false;
+            }
+
+            var computedStyle = window.getComputedStyle ? window.getComputedStyle(element) : null;
+
+            if (computedStyle && ('none' === computedStyle.display || 'hidden' === computedStyle.visibility)) {
+                return false;
+            }
+
+            if (element.offsetWidth <= 0 && element.offsetHeight <= 0 && element.getClientRects().length === 0) {
+                return false;
+            }
+
+            return true;
+        }
+
+        function getPanelFocusableElements() {
+            var elements = panel.querySelectorAll(focusableSelectors);
+
+            return Array.prototype.filter.call(elements, function (element) {
+                return panel.contains(element) && isFocusableElement(element);
+            });
+        }
+
+        function toggleOutsideInert(shouldDisable) {
+            if (!container.parentElement || !document || !document.body) {
+                return;
+            }
+
+            if (shouldDisable) {
+                var processed = [];
+                inertRestoreQueue = [];
+                var branch = container;
+                var parent = branch.parentElement;
+
+                while (parent) {
+                    Array.prototype.forEach.call(parent.children, function (sibling) {
+                        if (sibling === branch) {
+                            return;
+                        }
+
+                        if (processed.indexOf(sibling) !== -1) {
+                            return;
+                        }
+
+                        processed.push(sibling);
+
+                        inertRestoreQueue.push({
+                            element: sibling,
+                            ariaHidden: sibling.getAttribute('aria-hidden'),
+                            hadInert: sibling.hasAttribute('inert'),
+                            inertValue: sibling.getAttribute('inert')
+                        });
+
+                        sibling.setAttribute('aria-hidden', 'true');
+
+                        if (!sibling.hasAttribute('inert')) {
+                            sibling.setAttribute('inert', '');
+                        }
+
+                        sibling.setAttribute(managedInertAttribute, 'true');
+                    });
+
+                    branch = parent;
+                    parent = parent.parentElement;
+                }
+            } else if (inertRestoreQueue.length > 0) {
+                inertRestoreQueue.forEach(function (state) {
+                    var element = state.element;
+
+                    if (!element) {
+                        return;
+                    }
+
+                    element.removeAttribute(managedInertAttribute);
+
+                    if (null === state.ariaHidden) {
+                        element.removeAttribute('aria-hidden');
+                    } else {
+                        element.setAttribute('aria-hidden', state.ariaHidden);
+                    }
+
+                    if (state.hadInert) {
+                        if (null === state.inertValue) {
+                            element.setAttribute('inert', '');
+                        } else {
+                            element.setAttribute('inert', state.inertValue);
+                        }
+                    } else {
+                        element.removeAttribute('inert');
+                    }
+                });
+
+                inertRestoreQueue = [];
+            }
+        }
+
         function openPanel() {
             container.classList.add(openClass);
             panel.removeAttribute('hidden');
+            panel.setAttribute('aria-hidden', 'false');
             toggle.setAttribute('aria-expanded', 'true');
+            toggleOutsideInert(true);
 
             var focusTarget = panel.querySelector('.visibloc-mobile-role-switcher__link, .visibloc-mobile-role-switcher__reset');
 
@@ -29,11 +157,13 @@
 
         function closePanel() {
             container.classList.remove(openClass);
+            toggleOutsideInert(false);
 
             if (!panel.hasAttribute('hidden')) {
                 panel.setAttribute('hidden', '');
             }
 
+            panel.setAttribute('aria-hidden', 'true');
             toggle.setAttribute('aria-expanded', 'false');
         }
 
@@ -66,6 +196,59 @@
             if ('Escape' === event.key || 'Esc' === event.key) {
                 closePanel();
                 toggle.focus();
+
+                return;
+            }
+
+            if (!container.classList.contains(openClass)) {
+                return;
+            }
+
+            if ('Tab' !== event.key && 9 !== event.keyCode) {
+                return;
+            }
+
+            var focusableElements = getPanelFocusableElements();
+
+            if (0 === focusableElements.length) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                if (typeof event.stopImmediatePropagation === 'function') {
+                    event.stopImmediatePropagation();
+                }
+
+                return;
+            }
+
+            var firstElement = focusableElements[0];
+            var lastElement = focusableElements[focusableElements.length - 1];
+            var activeElement = document.activeElement;
+            var nextElement = null;
+
+            if (1 === focusableElements.length) {
+                nextElement = firstElement;
+            } else if (event.shiftKey) {
+                if (activeElement === firstElement || !panel.contains(activeElement)) {
+                    nextElement = lastElement;
+                }
+            } else if (activeElement === lastElement || !panel.contains(activeElement)) {
+                nextElement = firstElement;
+            }
+
+            if (!nextElement) {
+                return;
+            }
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (typeof event.stopImmediatePropagation === 'function') {
+                event.stopImmediatePropagation();
+            }
+
+            if (typeof nextElement.focus === 'function') {
+                nextElement.focus();
             }
         });
     }
