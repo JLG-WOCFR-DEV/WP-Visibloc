@@ -309,7 +309,7 @@ function visibloc_jlg_render_hidden_blocks_section( $hidden_posts ) {
             <?php if ( empty( $grouped_hidden_posts ) ) : ?>
                 <p><?php esc_html_e( "Aucun bloc masqué manuellement n'a été trouvé.", 'visi-bloc-jlg' ); ?></p>
             <?php else : ?>
-                <ul style="list-style: disc; padding-left: 20px;">
+                <ul class="visibloc-admin-post-list">
                     <?php foreach ( $grouped_hidden_posts as $post_data ) :
                         $block_count = isset( $post_data['block_count'] ) ? (int) $post_data['block_count'] : 0;
                         $label       = $post_data['title'] ?? '';
@@ -338,7 +338,7 @@ function visibloc_jlg_render_device_visibility_section( $device_posts ) {
             <?php if ( empty( $grouped_device_posts ) ) : ?>
                 <p><?php esc_html_e( "Aucun bloc avec une règle de visibilité par appareil n'a été trouvé.", 'visi-bloc-jlg' ); ?></p>
             <?php else : ?>
-                <ul style="list-style: disc; padding-left: 20px;">
+                <ul class="visibloc-admin-post-list">
                     <?php foreach ( $grouped_device_posts as $post_data ) :
                         $block_count = isset( $post_data['block_count'] ) ? (int) $post_data['block_count'] : 0;
                         $label       = $post_data['title'] ?? '';
@@ -360,6 +360,10 @@ function visibloc_jlg_render_device_visibility_section( $device_posts ) {
 function visibloc_jlg_render_scheduled_blocks_section( $scheduled_posts ) {
     $datetime_format = visibloc_jlg_get_wp_datetime_format();
 
+    $title_column_label = __( "Titre de l'article / Modèle", 'visi-bloc-jlg' );
+    $start_column_label = __( 'Date de début', 'visi-bloc-jlg' );
+    $end_column_label   = __( 'Date de fin', 'visi-bloc-jlg' );
+
     ?>
     <div class="postbox">
         <h2 class="hndle"><span><?php esc_html_e( 'Tableau de bord des blocs programmés', 'visi-bloc-jlg' ); ?></span></h2>
@@ -367,15 +371,16 @@ function visibloc_jlg_render_scheduled_blocks_section( $scheduled_posts ) {
             <?php if ( empty( $scheduled_posts ) ) : ?>
                 <p><?php esc_html_e( "Aucun bloc programmé n'a été trouvé sur votre site.", 'visi-bloc-jlg' ); ?></p>
             <?php else : ?>
-                <table class="wp-list-table widefat striped">
-                    <thead>
-                        <tr>
-                            <th><?php esc_html_e( "Titre de l'article / Modèle", 'visi-bloc-jlg' ); ?></th>
-                            <th><?php esc_html_e( 'Date de début', 'visi-bloc-jlg' ); ?></th>
-                            <th><?php esc_html_e( 'Date de fin', 'visi-bloc-jlg' ); ?></th>
-                        </tr>
-                    </thead>
-                    <tbody>
+                <div class="visibloc-admin-table-wrapper">
+                    <table class="wp-list-table widefat striped visibloc-admin-scheduled-table">
+                        <thead>
+                            <tr>
+                                <th scope="col"><?php echo esc_html( $title_column_label ); ?></th>
+                                <th scope="col"><?php echo esc_html( $start_column_label ); ?></th>
+                                <th scope="col"><?php echo esc_html( $end_column_label ); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
                         <?php foreach ( $scheduled_posts as $scheduled_block ) :
                             $start_datetime = visibloc_jlg_create_schedule_datetime( $scheduled_block['start'] ?? null );
                             $end_datetime   = visibloc_jlg_create_schedule_datetime( $scheduled_block['end'] ?? null );
@@ -384,15 +389,16 @@ function visibloc_jlg_render_scheduled_blocks_section( $scheduled_posts ) {
                             $end_display   = null !== $end_datetime ? wp_date( $datetime_format, $end_datetime->getTimestamp() ) : '–';
                             ?>
                             <tr>
-                                <td>
+                                <td data-label="<?php echo esc_attr( $title_column_label ); ?>">
                                     <a href="<?php echo esc_url( $scheduled_block['link'] ); ?>"><?php echo esc_html( $scheduled_block['title'] ); ?></a>
                                 </td>
-                                <td><?php echo esc_html( $start_display ); ?></td>
-                                <td><?php echo esc_html( $end_display ); ?></td>
+                                <td data-label="<?php echo esc_attr( $start_column_label ); ?>"><?php echo esc_html( $start_display ); ?></td>
+                                <td data-label="<?php echo esc_attr( $end_column_label ); ?>"><?php echo esc_html( $end_display ); ?></td>
                             </tr>
                         <?php endforeach; ?>
-                    </tbody>
-                </table>
+                        </tbody>
+                    </table>
+                </div>
             <?php endif; ?>
         </div>
     </div>

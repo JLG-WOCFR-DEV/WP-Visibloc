@@ -59,6 +59,23 @@ function visibloc_jlg_enqueue_public_styles() {
     }
 }
 
+add_action( 'admin_enqueue_scripts', 'visibloc_jlg_enqueue_admin_styles' );
+function visibloc_jlg_enqueue_admin_styles( $hook_suffix ) {
+    if ( 'toplevel_page_visi-bloc-jlg-help' !== $hook_suffix ) {
+        return;
+    }
+
+    $plugin_main_file = __DIR__ . '/../visi-bloc-jlg.php';
+    $style_version    = defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : '1.1';
+
+    wp_enqueue_style(
+        'visibloc-jlg-admin-responsive',
+        plugins_url( 'assets/admin-responsive.css', $plugin_main_file ),
+        [],
+        $style_version
+    );
+}
+
 add_action( 'enqueue_block_editor_assets', 'visibloc_jlg_enqueue_editor_assets' );
 function visibloc_jlg_enqueue_editor_assets() {
     $plugin_main_file = __DIR__ . '/../visi-bloc-jlg.php';

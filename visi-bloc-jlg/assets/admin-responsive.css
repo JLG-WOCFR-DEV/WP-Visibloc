@@ -1,0 +1,107 @@
+.visibloc-admin-post-list {
+    list-style: disc;
+    padding-left: 20px;
+    margin: 0 0 1em;
+}
+
+.visibloc-admin-post-list li {
+    margin-bottom: 0.5em;
+}
+
+.visibloc-admin-post-list li:last-child {
+    margin-bottom: 0;
+}
+
+.visibloc-admin-table-wrapper {
+    overflow-x: auto;
+}
+
+.visibloc-admin-scheduled-table a {
+    word-break: break-word;
+}
+
+@media (max-width: 782px) {
+    .visibloc-admin-post-list {
+        list-style: none;
+        padding-left: 0;
+        margin: 0;
+    }
+
+    .visibloc-admin-post-list li {
+        display: block;
+        margin-bottom: 12px;
+        padding: 12px 14px;
+        border: 1px solid #dcdcde;
+        border-radius: 4px;
+        background: #fff;
+    }
+
+    .visibloc-admin-post-list li:last-child {
+        margin-bottom: 0;
+    }
+
+    .visibloc-admin-post-list a {
+        display: block;
+        text-decoration: none;
+        color: inherit;
+        word-break: break-word;
+    }
+
+    .visibloc-admin-table-wrapper {
+        overflow: visible;
+    }
+
+    .visibloc-admin-scheduled-table,
+    .visibloc-admin-scheduled-table thead,
+    .visibloc-admin-scheduled-table tbody,
+    .visibloc-admin-scheduled-table tr,
+    .visibloc-admin-scheduled-table th,
+    .visibloc-admin-scheduled-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .visibloc-admin-scheduled-table {
+        border: 0;
+        box-shadow: none;
+    }
+
+    .visibloc-admin-scheduled-table thead {
+        display: none;
+    }
+
+    .visibloc-admin-scheduled-table tbody {
+        display: block;
+    }
+
+    .visibloc-admin-scheduled-table tr {
+        margin-bottom: 12px;
+        border: 1px solid #dcdcde;
+        border-radius: 4px;
+        background: #fff;
+        padding: 12px 14px;
+        box-sizing: border-box;
+    }
+
+    .visibloc-admin-scheduled-table tr:last-child {
+        margin-bottom: 0;
+    }
+
+    .visibloc-admin-scheduled-table td {
+        padding: 0;
+        margin: 0 0 10px;
+        border-bottom: 0;
+    }
+
+    .visibloc-admin-scheduled-table td:last-child {
+        margin-bottom: 0;
+    }
+
+    .visibloc-admin-scheduled-table td::before {
+        content: attr(data-label);
+        display: block;
+        font-weight: 600;
+        margin-bottom: 4px;
+        color: #1d2327;
+    }
+}
