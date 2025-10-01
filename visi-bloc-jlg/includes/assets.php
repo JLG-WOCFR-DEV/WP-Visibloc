@@ -433,7 +433,7 @@ function visibloc_jlg_get_display_fallback_for_selector( $selector ) {
         return null;
     }
 
-    $fallback = 'display: initial !important;';
+    $fallback = 'display: block !important;';
 
     if ( false !== strpos( $selector, '-only' ) ) {
         return $fallback;
