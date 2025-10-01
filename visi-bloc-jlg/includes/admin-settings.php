@@ -195,13 +195,15 @@ function visibloc_jlg_render_help_page_content() {
     $device_posts    = visibloc_jlg_get_device_specific_posts();
     $status          = visibloc_jlg_get_sanitized_query_arg( 'status' );
 
+    $breakpoints_requirement_message = visibloc_jlg_get_breakpoints_requirement_message();
+
     ?>
     <div class="wrap">
         <h1><?php esc_html_e( 'Visi-Bloc - JLG - Aide et Réglages', 'visi-bloc-jlg' ); ?></h1>
         <?php if ( 'updated' === $status ) : ?>
             <div id="message" class="updated notice is-dismissible"><p><?php esc_html_e( 'Réglages mis à jour.', 'visi-bloc-jlg' ); ?></p></div>
         <?php elseif ( 'invalid_breakpoints' === $status ) : ?>
-            <div id="message" class="notice notice-error is-dismissible"><p><?php esc_html_e( 'Les valeurs de breakpoint doivent être des nombres positifs et la tablette doit être supérieure au mobile. Les réglages n’ont pas été enregistrés.', 'visi-bloc-jlg' ); ?></p></div>
+            <div id="message" class="notice notice-error is-dismissible"><p><?php echo esc_html( $breakpoints_requirement_message ); ?> <?php esc_html_e( 'Les réglages n’ont pas été enregistrés.', 'visi-bloc-jlg' ); ?></p></div>
         <?php endif; ?>
         <div id="poststuff">
             <?php
@@ -428,6 +430,9 @@ function visibloc_jlg_render_debug_mode_section( $debug_status ) {
 }
 
 function visibloc_jlg_render_breakpoints_section( $mobile_bp, $tablet_bp ) {
+    $breakpoints_requirement_message = visibloc_jlg_get_breakpoints_requirement_message();
+    $breakpoints_help_id             = 'visibloc_breakpoints_help';
+
     ?>
     <div class="postbox">
         <h2 class="hndle"><span><?php esc_html_e( 'Réglage des points de rupture', 'visi-bloc-jlg' ); ?></span></h2>
@@ -437,13 +442,14 @@ function visibloc_jlg_render_breakpoints_section( $mobile_bp, $tablet_bp ) {
                 <table class="form-table">
                     <tr>
                         <th scope="row"><label for="visibloc_breakpoint_mobile"><?php esc_html_e( 'Largeur max. mobile', 'visi-bloc-jlg' ); ?></label></th>
-                        <td><input name="visibloc_breakpoint_mobile" type="number" id="visibloc_breakpoint_mobile" value="<?php echo esc_attr( $mobile_bp ); ?>" class="small-text"> <?php esc_html_e( 'px', 'visi-bloc-jlg' ); ?></td>
+                        <td><input name="visibloc_breakpoint_mobile" type="number" id="visibloc_breakpoint_mobile" value="<?php echo esc_attr( $mobile_bp ); ?>" class="small-text" min="1" step="1" inputmode="numeric" aria-describedby="<?php echo esc_attr( $breakpoints_help_id ); ?>"> <?php esc_html_e( 'px', 'visi-bloc-jlg' ); ?></td>
                     </tr>
                     <tr>
                         <th scope="row"><label for="visibloc_breakpoint_tablet"><?php esc_html_e( 'Largeur max. tablette', 'visi-bloc-jlg' ); ?></label></th>
-                        <td><input name="visibloc_breakpoint_tablet" type="number" id="visibloc_breakpoint_tablet" value="<?php echo esc_attr( $tablet_bp ); ?>" class="small-text"> <?php esc_html_e( 'px', 'visi-bloc-jlg' ); ?></td>
+                        <td><input name="visibloc_breakpoint_tablet" type="number" id="visibloc_breakpoint_tablet" value="<?php echo esc_attr( $tablet_bp ); ?>" class="small-text" min="1" step="1" inputmode="numeric" aria-describedby="<?php echo esc_attr( $breakpoints_help_id ); ?>"> <?php esc_html_e( 'px', 'visi-bloc-jlg' ); ?></td>
                     </tr>
                 </table>
+                <p id="<?php echo esc_attr( $breakpoints_help_id ); ?>" class="description"><?php echo esc_html( $breakpoints_requirement_message ); ?></p>
                 <input type="hidden" name="action" value="visibloc_save_breakpoints">
                 <?php wp_nonce_field( 'visibloc_save_breakpoints', 'visibloc_nonce' ); ?>
                 <?php submit_button( __( 'Enregistrer les breakpoints', 'visi-bloc-jlg' ) ); ?>
@@ -451,6 +457,10 @@ function visibloc_jlg_render_breakpoints_section( $mobile_bp, $tablet_bp ) {
         </div>
     </div>
     <?php
+}
+
+function visibloc_jlg_get_breakpoints_requirement_message() {
+    return __( 'Les valeurs de breakpoint doivent être des nombres positifs et la tablette doit être supérieure au mobile.', 'visi-bloc-jlg' );
 }
 
 function visibloc_jlg_group_posts_by_id( $posts ) {
