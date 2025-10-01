@@ -263,15 +263,34 @@ HTML;
         $this->assertSame( [ 101, 102 ], $device_ids );
 
         $this->assertCount( 2, $metadata['scheduled'] );
+
         $scheduled_windows = array_map(
             static function ( $item ) {
-                return [ $item['id'], $item['start'] ?? null, $item['end'] ?? null ];
+                return [
+                    'id'    => $item['id'],
+                    'start' => $item['start'] ?? null,
+                    'end'   => $item['end'] ?? null,
+                ];
             },
             $metadata['scheduled']
         );
 
-        $this->assertContains( [ 101, '2024-05-01T09:00:00', '2024-05-10T17:00:00' ], $scheduled_windows );
-        $this->assertContains( [ 102, '2024-06-15T12:00:00', null ], $scheduled_windows );
+        $this->assertSame(
+            [
+                [
+                    'id'    => 101,
+                    'start' => '2024-05-01T09:00:00',
+                    'end'   => '2024-05-10T17:00:00',
+                ],
+                [
+                    'id'    => 102,
+                    'start' => '2024-06-15T12:00:00',
+                    'end'   => null,
+                ],
+            ],
+            $scheduled_windows,
+            'Scheduled entries should be sorted chronologically by their start then end dates.'
+        );
 
         $grouped_hidden = visibloc_jlg_group_posts_by_id( $metadata['hidden'] );
         $this->assertCount( 1, $grouped_hidden );
@@ -281,5 +300,33 @@ HTML;
 
         $cached_metadata = visibloc_jlg_collect_group_block_metadata();
         $this->assertSame( $metadata, $cached_metadata );
+
+        $cached_scheduled_windows = array_map(
+            static function ( $item ) {
+                return [
+                    'id'    => $item['id'],
+                    'start' => $item['start'] ?? null,
+                    'end'   => $item['end'] ?? null,
+                ];
+            },
+            $cached_metadata['scheduled']
+        );
+
+        $this->assertSame(
+            [
+                [
+                    'id'    => 101,
+                    'start' => '2024-05-01T09:00:00',
+                    'end'   => '2024-05-10T17:00:00',
+                ],
+                [
+                    'id'    => 102,
+                    'start' => '2024-06-15T12:00:00',
+                    'end'   => null,
+                ],
+            ],
+            $cached_scheduled_windows,
+            'Cached scheduled entries should preserve the chronological order.'
+        );
     }
 }
