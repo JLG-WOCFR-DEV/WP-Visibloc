@@ -201,8 +201,37 @@ function visibloc_jlg_generate_device_visibility_css( $can_preview, $mobile_bp =
     }
 
     if ( $can_preview ) {
-        $css_lines[] = '.vb-desktop-only, .vb-tablet-only, .vb-mobile-only, .vb-hide-on-desktop, .vb-hide-on-tablet, .vb-hide-on-mobile { position: relative; outline: 2px dashed #0073aa; outline-offset: 2px; }';
-        $css_lines[] = '.vb-desktop-only::before, .vb-tablet-only::before, .vb-mobile-only::before, .vb-hide-on-desktop::before, .vb-hide-on-tablet::before, .vb-hide-on-mobile::before { content: attr(data-visibloc-label); position: absolute; bottom: -2px; right: -2px; background-color: #0073aa; color: white; padding: 2px 8px; font-size: 11px; font-family: sans-serif; font-weight: bold; z-index: 99; border-radius: 3px 0 3px 0; }';
+        $preview_selectors = [
+            '.vb-desktop-only',
+            '.vb-tablet-only',
+            '.vb-mobile-only',
+            '.vb-hide-on-desktop',
+            '.vb-hide-on-tablet',
+            '.vb-hide-on-mobile',
+        ];
+
+        $selectors_without_pseudo = implode( ', ', $preview_selectors );
+        $selectors_with_pseudo    = implode( '::before, ', $preview_selectors ) . '::before';
+
+        $css_lines[] = sprintf(
+            '%s { position: relative; outline: 2px dashed #0073aa; outline-offset: 2px; }',
+            $selectors_without_pseudo
+        );
+
+        $css_lines[] = sprintf(
+            '%s { content: attr(data-visibloc-label); position: absolute; bottom: -2px; right: -2px; background-color: #0073aa; color: white; padding: 2px 8px; font-size: 11px; font-family: sans-serif; font-weight: bold; z-index: 99; border-radius: 3px 0 3px 0; line-height: 1.4; text-align: left; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15); }',
+            $selectors_with_pseudo
+        );
+
+        $css_lines[] = '.vb-label-top::before { bottom: auto; top: -2px; transform: translateY(-100%); border-radius: 3px 3px 0 0; }';
+
+        $css_lines[] = '@media (max-width: 782px) {';
+        $css_lines[] = sprintf(
+            '    %s::before { position: static; display: inline-flex; align-items: center; justify-content: flex-start; gap: 4px; margin: 0 0 8px; right: auto; bottom: auto; left: auto; top: auto; transform: none; border-radius: 999px; padding: 4px 12px; box-shadow: none; }',
+            $selectors_without_pseudo
+        );
+        $css_lines[] = '    .vb-label-top::before { margin-bottom: 8px; }';
+        $css_lines[] = '}';
 
         $labels = [
             '.vb-hide-on-mobile::before'   => __( 'Caché sur Mobile', 'visi-bloc-jlg' ),
