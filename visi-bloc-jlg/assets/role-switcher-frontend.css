@@ -3,10 +3,14 @@
     left: 0;
     right: 0;
     bottom: 1rem;
+    bottom: calc(1rem + constant(safe-area-inset-bottom));
+    bottom: calc(1rem + env(safe-area-inset-bottom));
     display: none;
     justify-content: center;
     align-items: flex-end;
     padding: 0 1rem;
+    padding: 0 1rem calc(1rem + constant(safe-area-inset-bottom));
+    padding: 0 1rem calc(1rem + env(safe-area-inset-bottom));
     z-index: 100000;
     pointer-events: none;
 }
