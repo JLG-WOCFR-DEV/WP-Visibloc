@@ -12,6 +12,20 @@
     margin-bottom: 0;
 }
 
+.visibloc-supported-blocks-fieldset {
+    border: 0;
+    margin: 0;
+    padding: 0;
+}
+
+.visibloc-supported-blocks-legend {
+    color: #1d2327;
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 12px;
+    padding: 0;
+}
+
 .visibloc-admin-table-wrapper {
     overflow-x: auto;
 }
