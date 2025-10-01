@@ -41,3 +41,29 @@
     font-weight: bold;
     z-index: 100;
 }
+
+.vb-label-top::before {
+    bottom: auto;
+    top: -12px;
+    transform: translateY(-100%);
+}
+
+@media (max-width: 782px) {
+    .bloc-cache-apercu,
+    .bloc-schedule-apercu {
+        padding-top: 16px;
+    }
+
+    .bloc-cache-apercu::before,
+    .bloc-schedule-apercu::before,
+    .vb-label-top::before {
+        position: static;
+        display: inline-flex;
+        align-items: center;
+        margin: 0 0 8px;
+        padding: 4px 12px;
+        border-radius: 999px;
+        transform: none;
+        box-shadow: none;
+    }
+}

@@ -105,7 +105,7 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
 
     if ( $should_show_hidden_preview ) {
         $hidden_preview_markup = sprintf(
-            '<div class="bloc-cache-apercu" data-visibloc-label="%s">%s</div>',
+            '<div class="bloc-cache-apercu vb-label-top" data-visibloc-label="%s">%s</div>',
             esc_attr__( 'Hidden block', 'visi-bloc-jlg' ),
             $block_content
         );
@@ -130,7 +130,7 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
                     $start_date_fr,
                     $end_date_fr
                 );
-                return '<div class="bloc-schedule-apercu" data-schedule-info="' . esc_attr( $info ) . '">' . $block_content . '</div>';
+                return '<div class="bloc-schedule-apercu vb-label-top" data-schedule-info="' . esc_attr( $info ) . '">' . $block_content . '</div>';
             }
             return '';
         }

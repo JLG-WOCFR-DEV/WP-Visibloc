@@ -84,6 +84,7 @@ class VisibilityLogicTest extends TestCase {
         $output = visibloc_jlg_render_block_filter( '<p>Hidden admin content</p>', $block );
 
         $this->assertStringContainsString( 'bloc-cache-apercu', $output );
+        $this->assertStringContainsString( 'vb-label-top', $output );
         $this->assertStringContainsString( '<p>Hidden admin content</p>', $output );
     }
 
@@ -317,6 +318,7 @@ class VisibilityLogicTest extends TestCase {
         $output = visibloc_jlg_render_block_filter( '<p>Scheduled content</p>', $block );
 
         $this->assertStringContainsString( 'bloc-schedule-apercu', $output );
+        $this->assertStringContainsString( 'vb-label-top', $output );
         $this->assertStringContainsString( 'Programmé (Début:', $output );
         $this->assertStringContainsString( '<p>Scheduled content</p>', $output );
     }
