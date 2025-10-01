@@ -202,6 +202,10 @@ HTML;
 <div class="wp-block-group">Tablet only group</div>
 <!-- /wp:core/group -->
 
+<!-- wp:core/group {"isSchedulingEnabled":true,"publishStartDate":"2024-05-01T09:00:00","publishEndDate":"2024-05-05T17:00:00"} -->
+<div class="wp-block-group">Campaign warm-up</div>
+<!-- /wp:core/group -->
+
 <!-- wp:core/group {"isSchedulingEnabled":true,"publishStartDate":"2024-05-01T09:00:00","publishEndDate":"2024-05-10T17:00:00"} -->
 <div class="wp-block-group">
     <!-- wp:core/group {"isHidden":true} -->
@@ -212,8 +216,16 @@ HTML;
 HTML;
 
         $secondary_content = <<<'HTML'
+<!-- wp:core/group {"isSchedulingEnabled":true,"publishStartDate":"2024-04-20T08:00:00","publishEndDate":"2024-04-25T20:00:00"} -->
+<div class="wp-block-group">Spring teaser</div>
+<!-- /wp:core/group -->
+
 <!-- wp:core/group {"isSchedulingEnabled":true,"publishStartDate":"2024-06-15T12:00:00"} -->
 <div class="wp-block-group">Future launch</div>
+<!-- /wp:core/group -->
+
+<!-- wp:core/group {"isSchedulingEnabled":true,"publishEndDate":"2024-08-01T18:00:00"} -->
+<div class="wp-block-group">Sunset promo</div>
 <!-- /wp:core/group -->
 
 <!-- wp:core/group {"deviceVisibility":"desktop"} -->
@@ -242,10 +254,10 @@ HTML;
         $this->assertArrayHasKey( 102, $summaries );
         $this->assertSame( 2, $summaries[101]['hidden'] );
         $this->assertSame( 1, $summaries[101]['device'] );
-        $this->assertCount( 1, $summaries[101]['scheduled'] );
+        $this->assertCount( 2, $summaries[101]['scheduled'] );
         $this->assertSame( 0, $summaries[102]['hidden'] );
         $this->assertSame( 1, $summaries[102]['device'] );
-        $this->assertCount( 1, $summaries[102]['scheduled'] );
+        $this->assertCount( 3, $summaries[102]['scheduled'] );
 
         $metadata = visibloc_jlg_collect_group_block_metadata();
 
@@ -262,7 +274,7 @@ HTML;
         sort( $device_ids );
         $this->assertSame( [ 101, 102 ], $device_ids );
 
-        $this->assertCount( 2, $metadata['scheduled'] );
+        $this->assertCount( 5, $metadata['scheduled'] );
 
         $scheduled_windows = array_map(
             static function ( $item ) {
@@ -278,6 +290,16 @@ HTML;
         $this->assertSame(
             [
                 [
+                    'id'    => 102,
+                    'start' => '2024-04-20T08:00:00',
+                    'end'   => '2024-04-25T20:00:00',
+                ],
+                [
+                    'id'    => 101,
+                    'start' => '2024-05-01T09:00:00',
+                    'end'   => '2024-05-05T17:00:00',
+                ],
+                [
                     'id'    => 101,
                     'start' => '2024-05-01T09:00:00',
                     'end'   => '2024-05-10T17:00:00',
@@ -287,9 +309,14 @@ HTML;
                     'start' => '2024-06-15T12:00:00',
                     'end'   => null,
                 ],
+                [
+                    'id'    => 102,
+                    'start' => null,
+                    'end'   => '2024-08-01T18:00:00',
+                ],
             ],
             $scheduled_windows,
-            'Scheduled entries should be sorted chronologically by their start then end dates.'
+            'Scheduled entries should be sorted chronologically by their start then end dates, with open starts last.'
         );
 
         $grouped_hidden = visibloc_jlg_group_posts_by_id( $metadata['hidden'] );
@@ -315,6 +342,16 @@ HTML;
         $this->assertSame(
             [
                 [
+                    'id'    => 102,
+                    'start' => '2024-04-20T08:00:00',
+                    'end'   => '2024-04-25T20:00:00',
+                ],
+                [
+                    'id'    => 101,
+                    'start' => '2024-05-01T09:00:00',
+                    'end'   => '2024-05-05T17:00:00',
+                ],
+                [
                     'id'    => 101,
                     'start' => '2024-05-01T09:00:00',
                     'end'   => '2024-05-10T17:00:00',
@@ -323,6 +360,11 @@ HTML;
                     'id'    => 102,
                     'start' => '2024-06-15T12:00:00',
                     'end'   => null,
+                ],
+                [
+                    'id'    => 102,
+                    'start' => null,
+                    'end'   => '2024-08-01T18:00:00',
                 ],
             ],
             $cached_scheduled_windows,
