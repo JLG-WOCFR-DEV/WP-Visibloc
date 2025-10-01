@@ -154,3 +154,16 @@
         display: none;
     }
 }
+
+html.visibloc-role-switcher--locked,
+html.visibloc-role-switcher--locked body {
+    overflow: hidden;
+    touch-action: none;
+}
+
+html.visibloc-role-switcher--locked body {
+    padding-right: calc(
+        var(--visibloc-role-switcher-body-padding-right, 0px) +
+        var(--visibloc-role-switcher-scrollbar-width, 0px)
+    );
+}
