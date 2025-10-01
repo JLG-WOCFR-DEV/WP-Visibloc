@@ -540,6 +540,103 @@ function visibloc_jlg_get_user_preview_context( $user_id ) {
 }
 
 /**
+ * Retrieve the human readable label for a previewable role.
+ *
+ * @param string      $role_slug  Role slug.
+ * @param array|null  $role_names Optional array of role names keyed by slug.
+ * @return string
+ */
+function visibloc_jlg_get_role_switcher_role_label( $role_slug, $role_names = null ) {
+    $role_slug = sanitize_key( $role_slug );
+
+    if ( '' === $role_slug ) {
+        return '';
+    }
+
+    if ( null === $role_names ) {
+        $role_names = wp_roles()->get_names();
+    }
+
+    if ( 'guest' === $role_slug ) {
+        return __( 'Visiteur (Déconnecté)', 'visi-bloc-jlg' );
+    }
+
+    if ( is_array( $role_names ) && isset( $role_names[ $role_slug ] ) ) {
+        return $role_names[ $role_slug ];
+    }
+
+    return ucfirst( $role_slug );
+}
+
+/**
+ * Build the collection of role switcher links shared between UI surfaces.
+ *
+ * @param array  $context  Preview context.
+ * @param string $base_url Base URL used for the links.
+ * @return array[] {
+ *     @type string $slug  Role slug.
+ *     @type string $label Link label.
+ *     @type string $url   Absolute URL.
+ * }
+ */
+function visibloc_jlg_collect_role_switcher_links( array $context, $base_url ) {
+    $base_url   = esc_url_raw( $base_url );
+    $role_names = wp_roles()->get_names();
+
+    if ( empty( $context['previewable_roles'] ) ) {
+        return [];
+    }
+
+    $guest_links = [];
+    $role_links  = [];
+
+    foreach ( $context['previewable_roles'] as $role_slug ) {
+        $role_slug = sanitize_key( $role_slug );
+
+        if ( '' === $role_slug ) {
+            continue;
+        }
+
+        $is_guest_role = ( 'guest' === $role_slug );
+
+        if ( $is_guest_role && empty( $context['can_preview'] ) ) {
+            continue;
+        }
+
+        if ( ! $is_guest_role && empty( $context['can_impersonate'] ) ) {
+            continue;
+        }
+
+        $label = visibloc_jlg_get_role_switcher_role_label( $role_slug, $role_names );
+
+        if ( '' === $label ) {
+            continue;
+        }
+
+        $nonce_action = $is_guest_role
+            ? 'visibloc_switch_role_guest'
+            : 'visibloc_switch_role_' . $role_slug;
+
+        $preview_url = add_query_arg( 'preview_role', $role_slug, $base_url );
+        $preview_url = wp_nonce_url( $preview_url, $nonce_action );
+
+        $link = [
+            'slug'  => $role_slug,
+            'label' => $label,
+            'url'   => $preview_url,
+        ];
+
+        if ( $is_guest_role ) {
+            $guest_links[] = $link;
+        } else {
+            $role_links[] = $link;
+        }
+    }
+
+    return array_merge( $guest_links, $role_links );
+}
+
+/**
  * Retrieve the runtime preview context used across front-end rendering.
  *
  * @return array{
@@ -777,26 +874,12 @@ function visibloc_jlg_add_role_switcher_menu( $wp_admin_bar ) {
         return;
     }
 
-    $previewable_roles = $context['previewable_roles'];
+    $base_url = visibloc_jlg_get_preview_switch_base_url();
+    $menu_links = visibloc_jlg_collect_role_switcher_links( $context, $base_url );
 
-    if ( empty( $previewable_roles ) ) {
+    if ( empty( $menu_links ) ) {
         return;
     }
-
-    $can_impersonate = $context['can_impersonate'];
-    $can_preview     = $context['can_preview'];
-
-    $editable_roles = [];
-
-    if ( $can_impersonate ) {
-        if ( ! function_exists( 'get_editable_roles' ) ) {
-            require_once ABSPATH . 'wp-admin/includes/user.php';
-        }
-
-        $editable_roles = get_editable_roles();
-    }
-
-    $base_url = visibloc_jlg_get_preview_switch_base_url();
 
     if ( 'invalid_role' === $preview_status ) {
         $wp_admin_bar->add_node([
@@ -844,35 +927,177 @@ function visibloc_jlg_add_role_switcher_menu( $wp_admin_bar ) {
         'href'  => '#',
     ]);
 
-    if ( $can_preview ) {
-        $guest_preview_url = add_query_arg( 'preview_role', 'guest', $base_url );
-        $guest_preview_url = wp_nonce_url( $guest_preview_url, 'visibloc_switch_role_guest' );
-
+    foreach ( $menu_links as $link ) {
         $wp_admin_bar->add_node([
-            'id'     => 'visibloc-role-guest',
-            'title'  => esc_html__( 'Visiteur (Déconnecté)', 'visi-bloc-jlg' ),
-            'href'   => $guest_preview_url,
+            'id'     => 'visibloc-role-' . $link['slug'],
+            'title'  => esc_html( $link['label'] ),
+            'href'   => $link['url'],
             'parent' => 'visibloc-role-switcher',
         ]);
     }
+}
 
-    if ( $can_impersonate ) {
-        foreach ( $editable_roles as $slug => $details ) {
-            if ( ! in_array( $slug, $previewable_roles, true ) ) {
-                continue;
-            }
+/**
+ * Prepare the data model used to render the mobile role switcher on the front end.
+ *
+ * @return array|null
+ */
+function visibloc_jlg_get_role_switcher_frontend_model() {
+    static $is_cached = false;
+    static $cached_model = null;
 
-            $preview_url = add_query_arg( 'preview_role', $slug, $base_url );
-            $preview_url = wp_nonce_url( $preview_url, 'visibloc_switch_role_' . $slug );
-
-            $wp_admin_bar->add_node([
-                'id'     => 'visibloc-role-' . $slug,
-                'title'  => esc_html( isset( $details['name'] ) ? $details['name'] : $slug ),
-                'href'   => $preview_url,
-                'parent' => 'visibloc-role-switcher',
-            ]);
-        }
+    if ( $is_cached ) {
+        return $cached_model;
     }
+
+    $is_cached   = true;
+    $cached_model = null;
+
+    if ( visibloc_jlg_is_admin_or_technical_request() ) {
+        return null;
+    }
+
+    $user_id = visibloc_jlg_get_effective_user_id();
+
+    if ( ! $user_id ) {
+        return null;
+    }
+
+    $context = visibloc_jlg_get_user_preview_context( $user_id );
+
+    if ( empty( $context['can_impersonate'] ) && empty( $context['can_preview'] ) ) {
+        return null;
+    }
+
+    $base_url   = visibloc_jlg_get_preview_switch_base_url();
+    $menu_links = visibloc_jlg_collect_role_switcher_links( $context, $base_url );
+
+    if ( empty( $menu_links ) ) {
+        return null;
+    }
+
+    $current_preview_role = visibloc_jlg_get_preview_role_from_cookie();
+    $role_names           = wp_roles()->get_names();
+    $current_role_label   = '';
+
+    if ( $current_preview_role ) {
+        $current_role_label = visibloc_jlg_get_role_switcher_role_label( $current_preview_role, $role_names );
+    }
+
+    $stop_preview_url = null;
+
+    if ( $current_preview_role ) {
+        $stop_preview_url = add_query_arg( 'stop_preview_role', 'true', $base_url );
+        $stop_preview_url = wp_nonce_url( $stop_preview_url, 'visibloc_switch_role_stop' );
+    }
+
+    $preview_status = visibloc_jlg_get_sanitized_query_arg( 'preview_status' );
+    $error_message  = '';
+
+    if ( 'invalid_role' === $preview_status ) {
+        $error_message = __( 'Le rôle demandé n’est pas disponible pour l’aperçu.', 'visi-bloc-jlg' );
+    }
+
+    $cached_model = [
+        'links'              => $menu_links,
+        'current_role'       => $current_preview_role,
+        'current_role_label' => $current_role_label,
+        'stop_url'           => $stop_preview_url,
+        'error_message'      => $error_message,
+    ];
+
+    return $cached_model;
+}
+
+add_action( 'wp_enqueue_scripts', 'visibloc_jlg_enqueue_role_switcher_frontend_assets', 30 );
+function visibloc_jlg_enqueue_role_switcher_frontend_assets() {
+    if ( is_admin() ) {
+        return;
+    }
+
+    $model = visibloc_jlg_get_role_switcher_frontend_model();
+
+    if ( null === $model ) {
+        return;
+    }
+
+    $plugin_main_file = __DIR__ . '/../visi-bloc-jlg.php';
+    $version          = defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : '1.0.0';
+
+    wp_enqueue_style(
+        'visibloc-jlg-role-switcher',
+        plugins_url( 'assets/role-switcher-frontend.css', $plugin_main_file ),
+        [],
+        $version
+    );
+
+    wp_enqueue_script(
+        'visibloc-jlg-role-switcher',
+        plugins_url( 'assets/role-switcher-frontend.js', $plugin_main_file ),
+        [],
+        $version,
+        true
+    );
+}
+
+add_action( 'wp_footer', 'visibloc_jlg_render_role_switcher_frontend', 20 );
+function visibloc_jlg_render_role_switcher_frontend() {
+    if ( is_admin() ) {
+        return;
+    }
+
+    $model = visibloc_jlg_get_role_switcher_frontend_model();
+
+    if ( null === $model ) {
+        return;
+    }
+
+    $panel_id = 'visibloc-mobile-role-switcher-panel';
+    $title_id = 'visibloc-mobile-role-switcher-title';
+    ?>
+    <div class="visibloc-mobile-role-switcher" data-visibloc-role-switcher>
+        <div class="visibloc-mobile-role-switcher__inner">
+            <button type="button" class="visibloc-mobile-role-switcher__toggle" aria-expanded="false" aria-controls="<?php echo esc_attr( $panel_id ); ?>">
+                <span class="visibloc-mobile-role-switcher__toggle-text"><?php esc_html_e( 'Aperçu en tant que', 'visi-bloc-jlg' ); ?></span>
+            </button>
+            <div class="visibloc-mobile-role-switcher__panel" id="<?php echo esc_attr( $panel_id ); ?>" role="dialog" aria-modal="true" aria-labelledby="<?php echo esc_attr( $title_id ); ?>" hidden>
+                <div class="visibloc-mobile-role-switcher__panel-header">
+                    <span class="visibloc-mobile-role-switcher__panel-title" id="<?php echo esc_attr( $title_id ); ?>"><?php esc_html_e( 'Choisir un aperçu', 'visi-bloc-jlg' ); ?></span>
+                    <button type="button" class="visibloc-mobile-role-switcher__close" data-visibloc-role-switcher-close aria-label="<?php esc_attr_e( 'Fermer le sélecteur d\'aperçu', 'visi-bloc-jlg' ); ?>">&times;</button>
+                </div>
+                <?php if ( ! empty( $model['error_message'] ) ) : ?>
+                    <p class="visibloc-mobile-role-switcher__error"><?php echo esc_html( $model['error_message'] ); ?></p>
+                <?php endif; ?>
+                <?php if ( ! empty( $model['current_role_label'] ) ) : ?>
+                    <?php
+                    $current_message = sprintf(
+                        /* translators: %s: current preview role label. */
+                        esc_html__( 'Aperçu actuel : %s', 'visi-bloc-jlg' ),
+                        esc_html( $model['current_role_label'] )
+                    );
+                    ?>
+                    <p class="visibloc-mobile-role-switcher__current"><?php echo $current_message; ?></p>
+                <?php endif; ?>
+                <ul class="visibloc-mobile-role-switcher__list">
+                    <?php foreach ( $model['links'] as $link ) : ?>
+                        <?php
+                        $is_active = ( $model['current_role'] === $link['slug'] );
+                        $link_classes = 'visibloc-mobile-role-switcher__link' . ( $is_active ? ' is-active' : '' );
+                        ?>
+                        <li class="visibloc-mobile-role-switcher__item">
+                            <a class="<?php echo esc_attr( $link_classes ); ?>" href="<?php echo esc_url( $link['url'] ); ?>"<?php echo $is_active ? ' aria-current="true"' : ''; ?>>
+                                <?php echo esc_html( $link['label'] ); ?>
+                            </a>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+                <?php if ( ! empty( $model['stop_url'] ) ) : ?>
+                    <a class="visibloc-mobile-role-switcher__reset" href="<?php echo esc_url( $model['stop_url'] ); ?>"><?php esc_html_e( '✅ Retour à ma vue', 'visi-bloc-jlg' ); ?></a>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+    <?php
 }
 
 add_filter( 'user_has_cap', 'visibloc_jlg_filter_user_capabilities', 999, 4 );
