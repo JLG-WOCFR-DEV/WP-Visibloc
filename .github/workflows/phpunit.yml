@@ -1,0 +1,43 @@
+name: PHPUnit
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    name: PHPUnit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: xdebug
+          tools: composer
+          cache: composer
+
+      - name: Validate Composer configuration
+        run: composer validate --no-check-lock
+
+      - name: Install dependencies
+        run: composer install --no-progress --prefer-dist --no-interaction
+
+      - name: Prepare log directories
+        run: mkdir -p build/logs
+
+      - name: Run PHPUnit tests
+        run: composer test:phpunit
+
+      - name: Upload PHPUnit artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phpunit-logs
+          path: |
+            build/logs
+          if-no-files-found: ignore
