@@ -371,4 +371,65 @@ HTML;
             'Cached scheduled entries should preserve the chronological order.'
         );
     }
+
+    public function test_supported_block_option_updates_refresh_summary_index_for_dashboard(): void {
+        $custom_block_content = <<<'HTML'
+<!-- wp:myplugin/customblock {"isHidden":true,"deviceVisibility":"desktop","isSchedulingEnabled":true,"publishStartDate":"2025-07-01T08:00:00","publishEndDate":"2025-07-10T20:00:00"} -->
+<div class="wp-block-myplugin-customblock">Campaign teaser</div>
+<!-- /wp:myplugin/customblock -->
+HTML;
+
+        $GLOBALS['visibloc_posts'] = [
+            501 => [
+                'post_content' => $custom_block_content,
+                'post_title'   => 'New Campaign',
+                'post_type'    => 'page',
+                'post_status'  => 'publish',
+            ],
+        ];
+
+        unset( $GLOBALS['visibloc_test_options']['visibloc_supported_blocks'] );
+        visibloc_jlg_store_group_block_summary_index( [] );
+        visibloc_jlg_clear_caches();
+
+        $initial_index = visibloc_jlg_rebuild_group_block_summary_index();
+        $this->assertSame( [], $initial_index, 'Unsupported blocks should be ignored during summary rebuilds.' );
+        $this->assertSame( [], visibloc_jlg_get_group_block_summary_index() );
+
+        visibloc_jlg_update_supported_blocks( [ 'myplugin/customblock' ] );
+        visibloc_jlg_clear_caches();
+
+        $updated_index = visibloc_jlg_get_group_block_summary_index();
+        $this->assertArrayHasKey( 501, $updated_index );
+        $this->assertSame( 1, $updated_index[501]['hidden'] );
+        $this->assertSame( 1, $updated_index[501]['device'] );
+        $this->assertCount( 1, $updated_index[501]['scheduled'] );
+        $this->assertSame(
+            [
+                'start' => '2025-07-01T08:00:00',
+                'end'   => '2025-07-10T20:00:00',
+            ],
+            $updated_index[501]['scheduled'][0]
+        );
+
+        $metadata = visibloc_jlg_collect_group_block_metadata();
+        $this->assertCount( 1, $metadata['hidden'], 'Hidden blocks should appear on the dashboard after enabling support.' );
+        $this->assertSame( 501, $metadata['hidden'][0]['id'] );
+        $this->assertSame( 1, $metadata['hidden'][0]['block_count'] );
+        $this->assertCount( 1, $metadata['scheduled'] );
+        $this->assertSame( 501, $metadata['scheduled'][0]['id'] );
+        $this->assertSame( '2025-07-01T08:00:00', $metadata['scheduled'][0]['start'] );
+        $this->assertSame( '2025-07-10T20:00:00', $metadata['scheduled'][0]['end'] );
+
+        $previous_index = $updated_index;
+        $GLOBALS['visibloc_posts'] = [];
+        visibloc_jlg_clear_caches();
+        visibloc_jlg_update_supported_blocks( [ 'myplugin/customblock' ] );
+
+        $this->assertSame(
+            $previous_index,
+            visibloc_jlg_get_group_block_summary_index(),
+            'The summary index should not be rebuilt when the supported blocks list is unchanged.'
+        );
+    }
 }
