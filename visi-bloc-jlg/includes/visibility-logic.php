@@ -1,6 +1,14 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+if ( ! defined( 'VISIBLOC_JLG_DEFAULT_RECURRING_START' ) ) {
+    define( 'VISIBLOC_JLG_DEFAULT_RECURRING_START', '08:00' );
+}
+
+if ( ! defined( 'VISIBLOC_JLG_DEFAULT_RECURRING_END' ) ) {
+    define( 'VISIBLOC_JLG_DEFAULT_RECURRING_END', '17:00' );
+}
+
 function visibloc_jlg_get_supported_blocks() {
     $default_blocks   = (array) VISIBLOC_JLG_DEFAULT_SUPPORTED_BLOCKS;
     $option_value     = get_option( 'visibloc_supported_blocks', [] );
@@ -260,6 +268,55 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
     return $block_content;
 }
 
+function visibloc_jlg_get_recurring_schedule_allowed_days() {
+    static $allowed = null;
+
+    if ( null !== $allowed ) {
+        return $allowed;
+    }
+
+    $allowed = [ 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun' ];
+
+    return $allowed;
+}
+
+function visibloc_jlg_normalize_recurring_schedule_days( $days ) {
+    if ( ! is_array( $days ) ) {
+        return [];
+    }
+
+    $allowed_days = array_fill_keys( visibloc_jlg_get_recurring_schedule_allowed_days(), true );
+    $normalized   = [];
+
+    foreach ( $days as $day ) {
+        if ( ! is_scalar( $day ) ) {
+            continue;
+        }
+
+        $value = strtolower( (string) $day );
+
+        if ( isset( $allowed_days[ $value ] ) ) {
+            $normalized[ $value ] = true;
+        }
+    }
+
+    return array_keys( $normalized );
+}
+
+function visibloc_jlg_sanitize_schedule_time( $value, $fallback = VISIBLOC_JLG_DEFAULT_RECURRING_START ) {
+    if ( ! is_string( $value ) ) {
+        return $fallback;
+    }
+
+    $trimmed = trim( $value );
+
+    if ( preg_match( '/^(2[0-3]|[01][0-9]):([0-5][0-9])$/', $trimmed ) ) {
+        return $trimmed;
+    }
+
+    return $fallback;
+}
+
 function visibloc_jlg_normalize_advanced_visibility( $value ) {
     $default = [
         'logic' => 'AND',
@@ -347,18 +404,17 @@ function visibloc_jlg_normalize_advanced_rule( $rule ) {
         case 'recurring_schedule':
             $normalized['operator']  = 'matches';
             $normalized['frequency'] = isset( $rule['frequency'] ) && 'weekly' === $rule['frequency'] ? 'weekly' : 'daily';
-            $normalized['days']      = [];
-
-            if ( isset( $rule['days'] ) && is_array( $rule['days'] ) ) {
-                foreach ( $rule['days'] as $day ) {
-                    if ( is_string( $day ) && '' !== $day ) {
-                        $normalized['days'][] = $day;
-                    }
-                }
-            }
-
-            $normalized['startTime'] = isset( $rule['startTime'] ) && is_string( $rule['startTime'] ) ? $rule['startTime'] : '08:00';
-            $normalized['endTime']   = isset( $rule['endTime'] ) && is_string( $rule['endTime'] ) ? $rule['endTime'] : '17:00';
+            $normalized['days']      = 'weekly' === $normalized['frequency']
+                ? visibloc_jlg_normalize_recurring_schedule_days( $rule['days'] ?? [] )
+                : [];
+            $normalized['startTime'] = visibloc_jlg_sanitize_schedule_time(
+                isset( $rule['startTime'] ) ? $rule['startTime'] : '',
+                VISIBLOC_JLG_DEFAULT_RECURRING_START
+            );
+            $normalized['endTime']   = visibloc_jlg_sanitize_schedule_time(
+                isset( $rule['endTime'] ) ? $rule['endTime'] : '',
+                VISIBLOC_JLG_DEFAULT_RECURRING_END
+            );
             break;
     }
 
@@ -500,8 +556,10 @@ function visibloc_jlg_match_template_rule( $rule, $post ) {
 }
 
 function visibloc_jlg_match_recurring_schedule_rule( $rule ) {
-    $start_minutes = visibloc_jlg_parse_time_to_minutes( $rule['startTime'] ?? '' );
-    $end_minutes   = visibloc_jlg_parse_time_to_minutes( $rule['endTime'] ?? '' );
+    $start_time    = visibloc_jlg_sanitize_schedule_time( $rule['startTime'] ?? '', VISIBLOC_JLG_DEFAULT_RECURRING_START );
+    $end_time      = visibloc_jlg_sanitize_schedule_time( $rule['endTime'] ?? '', VISIBLOC_JLG_DEFAULT_RECURRING_END );
+    $start_minutes = visibloc_jlg_parse_time_to_minutes( $start_time );
+    $end_minutes   = visibloc_jlg_parse_time_to_minutes( $end_time );
 
     if ( null === $start_minutes || null === $end_minutes ) {
         return false;
@@ -520,7 +578,7 @@ function visibloc_jlg_match_recurring_schedule_rule( $rule ) {
     }
 
     if ( isset( $rule['frequency'] ) && 'weekly' === $rule['frequency'] ) {
-        $days = isset( $rule['days'] ) && is_array( $rule['days'] ) ? array_values( array_unique( array_filter( array_map( 'strval', $rule['days'] ) ) ) ) : [];
+        $days = visibloc_jlg_normalize_recurring_schedule_days( $rule['days'] ?? [] );
 
         if ( empty( $days ) ) {
             return false;

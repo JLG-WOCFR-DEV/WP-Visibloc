@@ -191,7 +191,7 @@ function visibloc_jlg_get_settings_snapshot() {
         $preview_roles[] = 'administrator';
     }
 
-    return [
+    $snapshot = [
         'supported_blocks' => $supported_blocks,
         'breakpoints'      => [
             'mobile' => $mobile_bp,
@@ -202,6 +202,13 @@ function visibloc_jlg_get_settings_snapshot() {
         'exported_at'      => gmdate( 'c' ),
         'version'          => defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : 'unknown',
     ];
+
+    /**
+     * Permet de filtrer l’export complet des réglages avant l’encodage JSON.
+     *
+     * @param array $snapshot Les réglages prêts à être exportés.
+     */
+    return apply_filters( 'visibloc_jlg_settings_snapshot', $snapshot );
 }
 
 function visibloc_jlg_export_settings_snapshot() {
@@ -245,6 +252,21 @@ function visibloc_jlg_import_settings_snapshot( $payload ) {
         return $sanitized;
     }
 
+    /**
+     * Permet d’ajuster les réglages importés avant leur enregistrement.
+     *
+     * @param array $sanitized Réglages validés et nettoyés.
+     */
+    $sanitized = apply_filters( 'visibloc_jlg_pre_import_settings_snapshot', $sanitized );
+
+    if ( is_wp_error( $sanitized ) ) {
+        return $sanitized;
+    }
+
+    if ( ! is_array( $sanitized ) ) {
+        return new WP_Error( 'visibloc_invalid_payload', __( 'Les données importées sont invalides.', 'visi-bloc-jlg' ) );
+    }
+
     if ( isset( $sanitized['supported_blocks'] ) ) {
         visibloc_jlg_update_supported_blocks( $sanitized['supported_blocks'] );
     }
@@ -261,6 +283,13 @@ function visibloc_jlg_import_settings_snapshot( $payload ) {
     if ( isset( $sanitized['debug_mode'] ) ) {
         update_option( 'visibloc_debug_mode', $sanitized['debug_mode'] );
     }
+
+    /**
+     * Déclenché une fois l’import des réglages terminé.
+     *
+     * @param array $sanitized Les réglages effectivement appliqués.
+     */
+    do_action( 'visibloc_jlg_settings_imported', $sanitized );
 
     visibloc_jlg_clear_caches();
 

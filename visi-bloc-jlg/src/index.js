@@ -1,5 +1,5 @@
 /* global VisiBlocData */
-import { Fragment } from '@wordpress/element';
+import { Fragment, useMemo, useState } from '@wordpress/element';
 import { addFilter, applyFilters } from '@wordpress/hooks';
 import { createHigherOrderComponent } from '@wordpress/compose';
 import { BlockControls, InspectorControls } from '@wordpress/block-editor';
@@ -226,12 +226,26 @@ const DEVICE_VISIBILITY_OPTIONS = [
     },
 ];
 
-const SUPPORTED_ADVANCED_RULE_TYPES = [
-    'post_type',
-    'taxonomy',
-    'template',
-    'recurring_schedule',
-];
+const ADVANCED_RULE_DEFINITIONS = Object.freeze({
+    post_type: {
+        label: __('Type de contenu', 'visi-bloc-jlg'),
+    },
+    taxonomy: {
+        label: __('Taxonomie', 'visi-bloc-jlg'),
+    },
+    template: {
+        label: __('Modèle de page', 'visi-bloc-jlg'),
+    },
+    recurring_schedule: {
+        label: __('Horaire récurrent', 'visi-bloc-jlg'),
+    },
+});
+
+const SUPPORTED_ADVANCED_RULE_TYPES = Object.freeze(Object.keys(ADVANCED_RULE_DEFINITIONS));
+const ADVANCED_RULE_TYPE_OPTIONS = SUPPORTED_ADVANCED_RULE_TYPES.map((type) => ({
+    value: type,
+    label: ADVANCED_RULE_DEFINITIONS[type].label,
+}));
 
 const DEFAULT_ADVANCED_VISIBILITY = Object.freeze({
     logic: 'AND',
@@ -244,6 +258,18 @@ const DEFAULT_RECURRING_SCHEDULE = Object.freeze({
     startTime: '08:00',
     endTime: '17:00',
 });
+
+const RECURRING_TIME_PATTERN = /^([01][0-9]|2[0-3]):([0-5][0-9])$/;
+
+const sanitizeTimeValue = (value, fallback = DEFAULT_RECURRING_SCHEDULE.startTime) => {
+    if (typeof value !== 'string') {
+        return fallback;
+    }
+
+    const trimmed = value.trim();
+
+    return RECURRING_TIME_PATTERN.test(trimmed) ? trimmed : fallback;
+};
 
 const getVisiBlocArray = (key) => {
     if (typeof VisiBlocData !== 'object' || VisiBlocData === null) {
@@ -269,12 +295,22 @@ const DAY_OF_WEEK_LOOKUP = (() => {
     return map;
 })();
 
+const VALID_RECURRING_DAYS = new Set(Array.from(DAY_OF_WEEK_LOOKUP.keys()));
+
 const getDefaultAdvancedVisibility = () => ({
     logic: DEFAULT_ADVANCED_VISIBILITY.logic,
     rules: [...DEFAULT_ADVANCED_VISIBILITY.rules],
 });
 
 const createRuleId = () => `rule-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+
+const ensureSupportedRuleType = (type) => {
+    if (SUPPORTED_ADVANCED_RULE_TYPES.includes(type)) {
+        return type;
+    }
+
+    return SUPPORTED_ADVANCED_RULE_TYPES[0] || 'post_type';
+};
 
 const getFirstOptionValue = (options) => {
     if (!Array.isArray(options) || !options.length) {
@@ -335,7 +371,7 @@ const getDefaultRecurringRule = () => ({
 });
 
 const createDefaultRuleForType = (type) => {
-    switch (type) {
+    switch (ensureSupportedRuleType(type)) {
         case 'taxonomy':
             return getDefaultTaxonomyRule();
         case 'template':
@@ -394,12 +430,16 @@ const normalizeRule = (rule) => {
     normalized.operator = 'matches';
     normalized.frequency = rule.frequency === 'weekly' ? 'weekly' : 'daily';
     normalized.days = Array.isArray(rule.days)
-        ? rule.days
-              .map((day) => (typeof day === 'string' ? day : ''))
-              .filter((day) => DAY_OF_WEEK_LOOKUP.has(day))
+        ? Array.from(
+              new Set(
+                  rule.days
+                      .map((day) => (typeof day === 'string' ? day : ''))
+                      .filter((day) => VALID_RECURRING_DAYS.has(day)),
+              ),
+          )
         : [];
-    normalized.startTime = typeof rule.startTime === 'string' ? rule.startTime : DEFAULT_RECURRING_SCHEDULE.startTime;
-    normalized.endTime = typeof rule.endTime === 'string' ? rule.endTime : DEFAULT_RECURRING_SCHEDULE.endTime;
+    normalized.startTime = sanitizeTimeValue(rule.startTime, DEFAULT_RECURRING_SCHEDULE.startTime);
+    normalized.endTime = sanitizeTimeValue(rule.endTime, DEFAULT_RECURRING_SCHEDULE.endTime);
 
     return normalized;
 };
@@ -478,6 +518,14 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
         } = attributes;
 
         const advancedVisibility = normalizeAdvancedVisibility(rawAdvancedVisibility);
+        const defaultRuleType = useMemo(
+            () => ensureSupportedRuleType(SUPPORTED_ADVANCED_RULE_TYPES[0]),
+            [],
+        );
+        const [newRuleType, setNewRuleType] = useState(defaultRuleType);
+        const safeNewRuleType = ensureSupportedRuleType(newRuleType);
+        const ruleTypeOptions = useMemo(() => ADVANCED_RULE_TYPE_OPTIONS, []);
+        const canAddAdvancedRules = ruleTypeOptions.length > 0;
 
         const updateAdvancedVisibility = (updater) => {
             const current = normalizeAdvancedVisibility({ ...advancedVisibility });
@@ -555,14 +603,15 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                 });
             };
 
-            const onChangeType = (newType) => {
-                if (!SUPPORTED_ADVANCED_RULE_TYPES.includes(newType)) {
-                    return;
-                }
+            const onChangeType = (rawType) => {
+                const nextType = ensureSupportedRuleType(rawType);
 
                 updateAdvancedVisibility((current) => {
                     const rules = [...current.rules];
-                    const replacement = createDefaultRuleForType(newType);
+                    const replacement = {
+                        ...createDefaultRuleForType(nextType),
+                        id: rule.id,
+                    };
                     rules[index] = replacement;
 
                     return {
@@ -589,12 +638,7 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                         <SelectControl
                             label={__('Type de règle', 'visi-bloc-jlg')}
                             value={rule.type}
-                            options={[
-                                { value: 'post_type', label: __('Type de contenu', 'visi-bloc-jlg') },
-                                { value: 'taxonomy', label: __('Taxonomie', 'visi-bloc-jlg') },
-                                { value: 'template', label: __('Modèle de page', 'visi-bloc-jlg') },
-                                { value: 'recurring_schedule', label: __('Horaire récurrent', 'visi-bloc-jlg') },
-                            ]}
+                            options={ruleTypeOptions}
                             onChange={onChangeType}
                         />
                     </FlexBlock>
@@ -746,6 +790,18 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                 onUpdateRule({ days: newDays });
             };
 
+            const sanitizedStartTime = sanitizeTimeValue(
+                rule.startTime,
+                DEFAULT_RECURRING_SCHEDULE.startTime,
+            );
+            const sanitizedEndTime = sanitizeTimeValue(
+                rule.endTime,
+                DEFAULT_RECURRING_SCHEDULE.endTime,
+            );
+            const hasIdenticalTimes = sanitizedStartTime === sanitizedEndTime;
+            const requiresWeeklyDays =
+                rule.frequency === 'weekly' && (!Array.isArray(rule.days) || rule.days.length === 0);
+
             return (
                 <div key={rule.id} className="visibloc-advanced-rule">
                     {commonHeader}
@@ -785,6 +841,14 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                             </BaseControl>
                         </FlexBlock>
                     </Flex>
+                    {hasIdenticalTimes && (
+                        <Notice status="warning" isDismissible={false}>
+                            {__(
+                                'L’heure de début et la fin sont identiques. Ajustez-les pour activer la règle.',
+                                'visi-bloc-jlg',
+                            )}
+                        </Notice>
+                    )}
                     {rule.frequency === 'weekly' && DAY_OF_WEEK_LOOKUP.size > 0 && (
                         <div className="visibloc-advanced-rule__days">
                             <p className="components-base-control__label">
@@ -798,6 +862,14 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                     onChange={(isChecked) => onToggleDay(isChecked, value)}
                                 />
                             ))}
+                            {requiresWeeklyDays && (
+                                <Notice status="warning" isDismissible={false}>
+                                    {__(
+                                        'Sélectionnez au moins un jour pour une fréquence hebdomadaire.',
+                                        'visi-bloc-jlg',
+                                    )}
+                                </Notice>
+                            )}
                         </div>
                     )}
                 </div>
@@ -988,17 +1060,29 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                         }))
                                     }
                                 />
+                                <SelectControl
+                                    label={__('Type de règle à ajouter', 'visi-bloc-jlg')}
+                                    value={safeNewRuleType}
+                                    options={ruleTypeOptions}
+                                    onChange={(value) => setNewRuleType(ensureSupportedRuleType(value))}
+                                    help={__(
+                                        'Sélectionnez le type de règle qui sera prérempli lors de l’ajout.',
+                                        'visi-bloc-jlg',
+                                    )}
+                                    disabled={!canAddAdvancedRules}
+                                />
                                 {advancedVisibility.rules.map((rule, index) =>
                                     renderAdvancedRule(rule, index),
                                 )}
                                 <Button
                                     variant="secondary"
+                                    disabled={!canAddAdvancedRules}
                                     onClick={() =>
                                         updateAdvancedVisibility((current) => ({
                                             ...current,
                                             rules: [
                                                 ...current.rules,
-                                                createDefaultRuleForType('post_type'),
+                                                createDefaultRuleForType(safeNewRuleType),
                                             ],
                                         }))
                                     }
