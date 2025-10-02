@@ -54,6 +54,7 @@ const normalizedSupportedBlocks = normalizeSupportedBlocks(supportedBlocksFilter
 const supportedBlocks =
     normalizedSupportedBlocks.length > 0 ? normalizedSupportedBlocks : baseSupportedBlocks;
 const isSupportedBlockName = (blockName) => supportedBlocks.includes(blockName);
+const HIDDEN_BLOCK_LABEL = __('Hidden block', 'visi-bloc-jlg');
 
 const DATE_SETTINGS =
     typeof __experimentalGetSettings === 'function' ? __experimentalGetSettings() : {};
@@ -465,10 +466,18 @@ function addEditorCanvasClasses(props, block) {
         .filter(Boolean)
         .join(' ');
 
-    return {
+    const newProps = {
         ...props,
         className: newClasses,
     };
+
+    if (isHidden) {
+        newProps['data-visibloc-label'] = HIDDEN_BLOCK_LABEL;
+    } else if ('data-visibloc-label' in newProps) {
+        delete newProps['data-visibloc-label'];
+    }
+
+    return newProps;
 }
 
 function addSaveClasses(extraProps, blockType, attributes) {
@@ -555,8 +564,10 @@ function flushListViewUpdates() {
 
         if (isHidden) {
             row.classList.add('bloc-editeur-cache');
+            row.dataset.visiblocLabel = HIDDEN_BLOCK_LABEL;
         } else {
             row.classList.remove('bloc-editeur-cache');
+            delete row.dataset.visiblocLabel;
         }
     });
 
