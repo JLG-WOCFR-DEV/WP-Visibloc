@@ -15,21 +15,28 @@
     height: 28px;
 }
 
+:root {
+    --visibloc-hidden-block-color: rgba(220, 20, 60, 0.75);
+    --visibloc-hidden-block-color-strong: rgba(220, 20, 60, 0.9);
+    --visibloc-hidden-block-bg: rgba(220, 20, 60, 0.12);
+}
+
 .block-editor-block-list__block.bloc-editeur-cache {
     position: relative;
-    outline: 2px dashed rgba(220, 20, 60, 0.7);
-    outline-offset: 4px;
+    outline: 2px dashed var(--visibloc-hidden-block-color);
+    outline-offset: 6px;
+    border-radius: 6px;
 }
 
 .block-editor-block-list__block.bloc-editeur-cache::before {
     content: attr(data-visibloc-label);
     position: absolute;
     top: 0;
-    left: 16px;
+    left: 24px;
     transform: translateY(-50%);
-    background-color: rgba(220, 20, 60, 0.85);
+    background-color: var(--visibloc-hidden-block-color-strong);
     color: #fff;
-    padding: 2px 10px;
+    padding: 4px 12px;
     font-size: 11px;
     font-family: var(--wp-admin-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
     font-weight: 600;
@@ -40,16 +47,26 @@
     box-shadow: 0 2px 6px rgba(220, 20, 60, 0.25);
     text-transform: uppercase;
     letter-spacing: 0.02em;
+    white-space: nowrap;
 }
 
 .block-editor-block-list__block.bloc-editeur-cache:not([data-visibloc-label])::before {
     content: 'Bloc masqué';
 }
 
+.block-editor-block-list__block.bloc-editeur-cache::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--visibloc-hidden-block-bg);
+    border-radius: 4px;
+    pointer-events: none;
+}
+
 .block-editor-list-view__block.bloc-editeur-cache {
     position: relative;
-    background: rgba(220, 20, 60, 0.08);
-    border-left: 4px solid rgba(220, 20, 60, 0.6);
+    background: var(--visibloc-hidden-block-bg);
+    border-left: 4px solid var(--visibloc-hidden-block-color);
 }
 
 @media (max-width: 782px) {
@@ -64,9 +81,11 @@
         left: auto;
         top: auto;
         box-shadow: none;
+        white-space: normal;
+        text-align: center;
     }
 
     .block-editor-block-list__block.bloc-editeur-cache {
-        outline-offset: 2px;
+        outline-offset: 3px;
     }
 }
