@@ -476,16 +476,20 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                     }
                                 />
                                 <hr />
-                                {Object.entries(VisiBlocData.roles).map(([slug, name]) => (
-                                    <CheckboxControl
-                                        key={slug}
-                                        label={name}
-                                        checked={visibilityRoles.includes(slug)}
-                                        onChange={(isChecked) =>
-                                            onRoleChange(isChecked, slug)
-                                        }
-                                    />
-                                ))}
+                                {Object.entries(VisiBlocData.roles || {})
+                                    .sort(([, firstLabel], [, secondLabel]) =>
+                                        String(firstLabel).localeCompare(String(secondLabel)),
+                                    )
+                                    .map(([slug, name]) => (
+                                        <CheckboxControl
+                                            key={slug}
+                                            label={name}
+                                            checked={visibilityRoles.includes(slug)}
+                                            onChange={(isChecked) =>
+                                                onRoleChange(isChecked, slug)
+                                            }
+                                        />
+                                    ))}
                             </PanelBody>
                         </InspectorControls>
                     </Fragment>
