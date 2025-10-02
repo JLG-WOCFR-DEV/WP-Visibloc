@@ -240,29 +240,64 @@ function visibloc_jlg_render_supported_blocks_section( $registered_block_types, 
                         <legend class="visibloc-supported-blocks-legend">
                             <?php esc_html_e( 'Blocs compatibles', 'visi-bloc-jlg' ); ?>
                         </legend>
-                        <?php foreach ( $registered_block_types as $block ) :
-                            $block_name  = isset( $block['name'] ) && is_string( $block['name'] ) ? $block['name'] : '';
-                            $block_label = isset( $block['label'] ) && is_string( $block['label'] ) ? $block['label'] : $block_name;
-
-                            if ( '' === $block_name ) {
-                                continue;
-                            }
-
-                            $is_default  = in_array( $block_name, $default_blocks, true );
-                            $is_checked  = $is_default || in_array( $block_name, $configured_blocks, true );
-                            $is_disabled = $is_default;
+                        <div class="visibloc-supported-blocks-search" style="margin-bottom: 12px;">
+                            <?php
+                            $search_input_id = 'visibloc-supported-blocks-search';
                             ?>
-                            <label style="display: block; margin-bottom: 6px;">
-                                <input type="checkbox" name="visibloc_supported_blocks[]" value="<?php echo esc_attr( $block_name ); ?>" <?php checked( $is_checked ); ?> <?php disabled( $is_disabled ); ?> />
-                                <?php echo esc_html( $block_label ); ?>
-                                <span class="description" style="margin-left: 4px;">
-                                    (<?php echo esc_html( $block_name ); ?>)
-                                    <?php if ( $is_default ) : ?>
-                                        — <?php esc_html_e( 'Toujours actif', 'visi-bloc-jlg' ); ?>
-                                    <?php endif; ?>
-                                </span>
+                            <label for="<?php echo esc_attr( $search_input_id ); ?>" class="screen-reader-text">
+                                <?php esc_html_e( 'Rechercher un bloc', 'visi-bloc-jlg' ); ?>
                             </label>
-                        <?php endforeach; ?>
+                            <input
+                                type="search"
+                                id="<?php echo esc_attr( $search_input_id ); ?>"
+                                class="regular-text"
+                                placeholder="<?php echo esc_attr__( 'Rechercher un bloc…', 'visi-bloc-jlg' ); ?>"
+                                autocomplete="off"
+                                data-visibloc-blocks-search
+                                data-visibloc-blocks-target="visibloc-supported-blocks-list"
+                            />
+                        </div>
+                        <div
+                            id="visibloc-supported-blocks-list"
+                            class="visibloc-supported-blocks-list"
+                            data-visibloc-blocks-container
+                        >
+                            <?php foreach ( $registered_block_types as $block ) :
+                                $block_name  = isset( $block['name'] ) && is_string( $block['name'] ) ? $block['name'] : '';
+                                $block_label = isset( $block['label'] ) && is_string( $block['label'] ) ? $block['label'] : $block_name;
+
+                                if ( '' === $block_name ) {
+                                    continue;
+                                }
+
+                                $is_default  = in_array( $block_name, $default_blocks, true );
+                                $is_checked  = $is_default || in_array( $block_name, $configured_blocks, true );
+                                $is_disabled = $is_default;
+                                $search_text = wp_strip_all_tags( $block_label . ' ' . $block_name );
+                                $search_value = function_exists( 'mb_strtolower' )
+                                    ? mb_strtolower( $search_text )
+                                    : strtolower( $search_text );
+                                ?>
+                                <label
+                                    class="visibloc-supported-blocks-item"
+                                    data-visibloc-block
+                                    data-visibloc-search-value="<?php echo esc_attr( $search_value ); ?>"
+                                    style="display: block; margin-bottom: 6px;"
+                                >
+                                    <input type="checkbox" name="visibloc_supported_blocks[]" value="<?php echo esc_attr( $block_name ); ?>" <?php checked( $is_checked ); ?> <?php disabled( $is_disabled ); ?> />
+                                    <?php echo esc_html( $block_label ); ?>
+                                    <span class="description" style="margin-left: 4px;">
+                                        (<?php echo esc_html( $block_name ); ?>)
+                                        <?php if ( $is_default ) : ?>
+                                            — <?php esc_html_e( 'Toujours actif', 'visi-bloc-jlg' ); ?>
+                                        <?php endif; ?>
+                                    </span>
+                                </label>
+                            <?php endforeach; ?>
+                            <p class="visibloc-supported-blocks-empty" data-visibloc-blocks-empty hidden>
+                                <?php esc_html_e( 'Aucun bloc ne correspond à votre recherche.', 'visi-bloc-jlg' ); ?>
+                            </p>
+                        </div>
                     </fieldset>
                 <?php endif; ?>
                 <?php wp_nonce_field( 'visibloc_save_supported_blocks', 'visibloc_nonce' ); ?>
