@@ -12,6 +12,11 @@ import {
     CheckboxControl,
     DateTimePicker,
     Notice,
+    Button,
+    BaseControl,
+    Flex,
+    FlexBlock,
+    FlexItem,
 } from '@wordpress/components';
 import { __, sprintf } from '@wordpress/i18n';
 import { __experimentalGetSettings, dateI18n, format as formatDate } from '@wordpress/date';
@@ -221,6 +226,202 @@ const DEVICE_VISIBILITY_OPTIONS = [
     },
 ];
 
+const SUPPORTED_ADVANCED_RULE_TYPES = [
+    'post_type',
+    'taxonomy',
+    'template',
+    'recurring_schedule',
+];
+
+const DEFAULT_ADVANCED_VISIBILITY = Object.freeze({
+    logic: 'AND',
+    rules: [],
+});
+
+const DEFAULT_RECURRING_SCHEDULE = Object.freeze({
+    frequency: 'daily',
+    days: [],
+    startTime: '08:00',
+    endTime: '17:00',
+});
+
+const getVisiBlocArray = (key) => {
+    if (typeof VisiBlocData !== 'object' || VisiBlocData === null) {
+        return [];
+    }
+
+    const value = VisiBlocData[key];
+
+    return Array.isArray(value) ? value : [];
+};
+
+const DAY_OF_WEEK_LOOKUP = (() => {
+    const entries = getVisiBlocArray('daysOfWeek');
+
+    const map = new Map();
+
+    entries.forEach((item) => {
+        if (item && typeof item === 'object' && typeof item.value === 'string') {
+            map.set(item.value, item.label || item.value);
+        }
+    });
+
+    return map;
+})();
+
+const getDefaultAdvancedVisibility = () => ({
+    logic: DEFAULT_ADVANCED_VISIBILITY.logic,
+    rules: [...DEFAULT_ADVANCED_VISIBILITY.rules],
+});
+
+const createRuleId = () => `rule-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+
+const getFirstOptionValue = (options) => {
+    if (!Array.isArray(options) || !options.length) {
+        return '';
+    }
+
+    const first = options.find((option) => option && typeof option.value !== 'undefined');
+
+    if (!first) {
+        return '';
+    }
+
+    const firstValue = typeof first.value === 'undefined' || first.value === null ? '' : first.value;
+
+    return String(firstValue);
+};
+
+const getDefaultPostTypeRule = () => {
+    const options = getVisiBlocArray('postTypes');
+
+    return {
+        id: createRuleId(),
+        type: 'post_type',
+        operator: 'is',
+        value: getFirstOptionValue(options),
+    };
+};
+
+const getDefaultTaxonomyRule = () => {
+    const taxonomies = getVisiBlocArray('taxonomies');
+    const firstTaxonomy = taxonomies.find((item) => item && typeof item.slug === 'string');
+
+    return {
+        id: createRuleId(),
+        type: 'taxonomy',
+        operator: 'in',
+        taxonomy: firstTaxonomy ? firstTaxonomy.slug : '',
+        terms: [],
+    };
+};
+
+const getDefaultTemplateRule = () => {
+    const templates = getVisiBlocArray('templates');
+
+    return {
+        id: createRuleId(),
+        type: 'template',
+        operator: 'is',
+        value: getFirstOptionValue(templates),
+    };
+};
+
+const getDefaultRecurringRule = () => ({
+    id: createRuleId(),
+    type: 'recurring_schedule',
+    operator: 'matches',
+    ...DEFAULT_RECURRING_SCHEDULE,
+});
+
+const createDefaultRuleForType = (type) => {
+    switch (type) {
+        case 'taxonomy':
+            return getDefaultTaxonomyRule();
+        case 'template':
+            return getDefaultTemplateRule();
+        case 'recurring_schedule':
+            return getDefaultRecurringRule();
+        case 'post_type':
+        default:
+            return getDefaultPostTypeRule();
+    }
+};
+
+const normalizeRule = (rule) => {
+    if (!rule || typeof rule !== 'object') {
+        return null;
+    }
+
+    const { type } = rule;
+
+    if (!SUPPORTED_ADVANCED_RULE_TYPES.includes(type)) {
+        return null;
+    }
+
+    const normalized = {
+        id: typeof rule.id === 'string' && rule.id ? rule.id : createRuleId(),
+        type,
+    };
+
+    if (type === 'post_type') {
+        normalized.operator = rule.operator === 'is_not' ? 'is_not' : 'is';
+        normalized.value = typeof rule.value === 'string' ? rule.value : '';
+
+        return normalized;
+    }
+
+    if (type === 'taxonomy') {
+        normalized.operator = rule.operator === 'not_in' ? 'not_in' : 'in';
+        normalized.taxonomy = typeof rule.taxonomy === 'string' ? rule.taxonomy : '';
+        normalized.terms = Array.isArray(rule.terms)
+            ? rule.terms
+                  .map((term) => (typeof term === 'string' || typeof term === 'number' ? String(term) : ''))
+                  .filter(Boolean)
+            : [];
+
+        return normalized;
+    }
+
+    if (type === 'template') {
+        normalized.operator = rule.operator === 'is_not' ? 'is_not' : 'is';
+        normalized.value = typeof rule.value === 'string' ? rule.value : '';
+
+        return normalized;
+    }
+
+    // Recurring schedule
+    normalized.operator = 'matches';
+    normalized.frequency = rule.frequency === 'weekly' ? 'weekly' : 'daily';
+    normalized.days = Array.isArray(rule.days)
+        ? rule.days
+              .map((day) => (typeof day === 'string' ? day : ''))
+              .filter((day) => DAY_OF_WEEK_LOOKUP.has(day))
+        : [];
+    normalized.startTime = typeof rule.startTime === 'string' ? rule.startTime : DEFAULT_RECURRING_SCHEDULE.startTime;
+    normalized.endTime = typeof rule.endTime === 'string' ? rule.endTime : DEFAULT_RECURRING_SCHEDULE.endTime;
+
+    return normalized;
+};
+
+const normalizeAdvancedVisibility = (value) => {
+    if (!value || typeof value !== 'object') {
+        return getDefaultAdvancedVisibility();
+    }
+
+    const logic = value.logic === 'OR' ? 'OR' : 'AND';
+    const rules = Array.isArray(value.rules)
+        ? value.rules
+              .map(normalizeRule)
+              .filter(Boolean)
+        : [];
+
+    return {
+        logic,
+        rules,
+    };
+};
+
 function addVisibilityAttributesToGroup(settings, name) {
     if (!isSupportedBlockName(name)) {
         return settings;
@@ -250,6 +451,10 @@ function addVisibilityAttributesToGroup(settings, name) {
             type: 'array',
             default: [],
         },
+        advancedVisibility: {
+            type: 'object',
+            default: DEFAULT_ADVANCED_VISIBILITY,
+        },
     };
 
     return settings;
@@ -269,7 +474,19 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             publishStartDate,
             publishEndDate,
             visibilityRoles,
+            advancedVisibility: rawAdvancedVisibility,
         } = attributes;
+
+        const advancedVisibility = normalizeAdvancedVisibility(rawAdvancedVisibility);
+
+        const updateAdvancedVisibility = (updater) => {
+            const current = normalizeAdvancedVisibility({ ...advancedVisibility });
+            const next = updater(current) || current;
+
+            setAttributes({
+                advancedVisibility: normalizeAdvancedVisibility(next),
+            });
+        };
 
         const onRoleChange = (isChecked, roleSlug) => {
             const newRoles = isChecked
@@ -324,6 +541,268 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                 scheduleSummary = __('Dates de programmation invalides.', 'visi-bloc-jlg');
             }
         }
+
+        const renderAdvancedRule = (rule, index) => {
+            const onUpdateRule = (partial) => {
+                updateAdvancedVisibility((current) => {
+                    const rules = [...current.rules];
+                    rules[index] = normalizeRule({ ...rule, ...partial });
+
+                    return {
+                        ...current,
+                        rules,
+                    };
+                });
+            };
+
+            const onChangeType = (newType) => {
+                if (!SUPPORTED_ADVANCED_RULE_TYPES.includes(newType)) {
+                    return;
+                }
+
+                updateAdvancedVisibility((current) => {
+                    const rules = [...current.rules];
+                    const replacement = createDefaultRuleForType(newType);
+                    rules[index] = replacement;
+
+                    return {
+                        ...current,
+                        rules,
+                    };
+                });
+            };
+
+            const onRemove = () => {
+                updateAdvancedVisibility((current) => {
+                    const rules = current.rules.filter((_, ruleIndex) => ruleIndex !== index);
+
+                    return {
+                        ...current,
+                        rules,
+                    };
+                });
+            };
+
+            const commonHeader = (
+                <Flex align="center" wrap>
+                    <FlexBlock>
+                        <SelectControl
+                            label={__('Type de règle', 'visi-bloc-jlg')}
+                            value={rule.type}
+                            options={[
+                                { value: 'post_type', label: __('Type de contenu', 'visi-bloc-jlg') },
+                                { value: 'taxonomy', label: __('Taxonomie', 'visi-bloc-jlg') },
+                                { value: 'template', label: __('Modèle de page', 'visi-bloc-jlg') },
+                                { value: 'recurring_schedule', label: __('Horaire récurrent', 'visi-bloc-jlg') },
+                            ]}
+                            onChange={onChangeType}
+                        />
+                    </FlexBlock>
+                    <FlexItem>
+                        <Button isDestructive variant="tertiary" onClick={onRemove}>
+                            {__('Supprimer', 'visi-bloc-jlg')}
+                        </Button>
+                    </FlexItem>
+                </Flex>
+            );
+
+            if (rule.type === 'post_type') {
+                const options = getVisiBlocArray('postTypes')
+                    .map((item) => ({
+                          value: item.value,
+                          label: item.label,
+                      }));
+
+                return (
+                    <div key={rule.id} className="visibloc-advanced-rule">
+                        {commonHeader}
+                        <SelectControl
+                            label={__('Condition', 'visi-bloc-jlg')}
+                            value={rule.operator}
+                            options={[
+                                { value: 'is', label: __('Est', 'visi-bloc-jlg') },
+                                { value: 'is_not', label: __('N’est pas', 'visi-bloc-jlg') },
+                            ]}
+                            onChange={(newOperator) => onUpdateRule({ operator: newOperator })}
+                        />
+                        <SelectControl
+                            label={__('Type de contenu', 'visi-bloc-jlg')}
+                            value={rule.value}
+                            options={options}
+                            onChange={(newValue) => onUpdateRule({ value: newValue })}
+                        />
+                    </div>
+                );
+            }
+
+            if (rule.type === 'taxonomy') {
+                const taxonomies = getVisiBlocArray('taxonomies');
+
+                const currentTaxonomy = taxonomies.find((item) => item.slug === rule.taxonomy);
+                const taxonomyOptions = taxonomies.map((item) => ({
+                    value: item.slug,
+                    label: item.label,
+                }));
+                const taxonomyTerms = currentTaxonomy && Array.isArray(currentTaxonomy.terms)
+                    ? currentTaxonomy.terms
+                    : [];
+                const termOptions = taxonomyTerms.map((term) => ({
+                    value: term.value,
+                    label: term.label,
+                }));
+
+                const onToggleTerm = (isChecked, termValue) => {
+                    const valueAsString = String(termValue);
+                    const newTerms = isChecked
+                        ? [...rule.terms, valueAsString]
+                        : rule.terms.filter((currentTerm) => currentTerm !== valueAsString);
+
+                    onUpdateRule({ terms: newTerms });
+                };
+
+                return (
+                    <div key={rule.id} className="visibloc-advanced-rule">
+                        {commonHeader}
+                        <SelectControl
+                            label={__('Taxonomie', 'visi-bloc-jlg')}
+                            value={rule.taxonomy}
+                            options={taxonomyOptions}
+                            onChange={(newTaxonomy) =>
+                                onUpdateRule({ taxonomy: newTaxonomy, terms: [] })
+                            }
+                        />
+                        <SelectControl
+                            label={__('Condition', 'visi-bloc-jlg')}
+                            value={rule.operator}
+                            options={[
+                                { value: 'in', label: __('Inclut au moins un terme', 'visi-bloc-jlg') },
+                                { value: 'not_in', label: __('Exclut tous les termes', 'visi-bloc-jlg') },
+                            ]}
+                            onChange={(newOperator) => onUpdateRule({ operator: newOperator })}
+                        />
+                        {termOptions.length > 0 ? (
+                            <div className="visibloc-advanced-rule__terms">
+                                {termOptions.map((term) => (
+                                    <CheckboxControl
+                                        key={term.value}
+                                        label={term.label}
+                                        checked={rule.terms.includes(term.value)}
+                                        onChange={(isChecked) => onToggleTerm(isChecked, term.value)}
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="components-help-text">
+                                {__(
+                                    'Aucun terme disponible pour cette taxonomie.',
+                                    'visi-bloc-jlg',
+                                )}
+                            </p>
+                        )}
+                    </div>
+                );
+            }
+
+            if (rule.type === 'template') {
+                const templates = getVisiBlocArray('templates')
+                    .map((item) => ({
+                          value: item.value,
+                          label: item.label,
+                      }));
+
+                return (
+                    <div key={rule.id} className="visibloc-advanced-rule">
+                        {commonHeader}
+                        <SelectControl
+                            label={__('Condition', 'visi-bloc-jlg')}
+                            value={rule.operator}
+                            options={[
+                                { value: 'is', label: __('Est', 'visi-bloc-jlg') },
+                                { value: 'is_not', label: __('N’est pas', 'visi-bloc-jlg') },
+                            ]}
+                            onChange={(newOperator) => onUpdateRule({ operator: newOperator })}
+                        />
+                        <SelectControl
+                            label={__('Modèle', 'visi-bloc-jlg')}
+                            value={rule.value}
+                            options={templates}
+                            onChange={(newValue) => onUpdateRule({ value: newValue })}
+                        />
+                    </div>
+                );
+            }
+
+            // Recurring schedule rule
+            const onTimeChange = (field) => (event) => {
+                const rawValue = event && event.target ? event.target.value : '';
+                const newValue = typeof rawValue === 'string' ? rawValue : '';
+                onUpdateRule({ [field]: newValue });
+            };
+
+            const onToggleDay = (isChecked, day) => {
+                const newDays = isChecked
+                    ? [...new Set([...rule.days, day])]
+                    : rule.days.filter((currentDay) => currentDay !== day);
+                onUpdateRule({ days: newDays });
+            };
+
+            return (
+                <div key={rule.id} className="visibloc-advanced-rule">
+                    {commonHeader}
+                    <SelectControl
+                        label={__('Fréquence', 'visi-bloc-jlg')}
+                        value={rule.frequency}
+                        options={[
+                            { value: 'daily', label: __('Quotidien', 'visi-bloc-jlg') },
+                            { value: 'weekly', label: __('Hebdomadaire', 'visi-bloc-jlg') },
+                        ]}
+                        onChange={(newFrequency) =>
+                            onUpdateRule({
+                                frequency: newFrequency,
+                                days: newFrequency === 'weekly' ? rule.days : [],
+                            })
+                        }
+                    />
+                    <Flex gap="small">
+                        <FlexBlock>
+                            <BaseControl label={__('Heure de début', 'visi-bloc-jlg')}>
+                                <input
+                                    type="time"
+                                    value={rule.startTime || ''}
+                                    onChange={onTimeChange('startTime')}
+                                    className="components-text-control__input"
+                                />
+                            </BaseControl>
+                        </FlexBlock>
+                        <FlexBlock>
+                            <BaseControl label={__('Heure de fin', 'visi-bloc-jlg')}>
+                                <input
+                                    type="time"
+                                    value={rule.endTime || ''}
+                                    onChange={onTimeChange('endTime')}
+                                    className="components-text-control__input"
+                                />
+                            </BaseControl>
+                        </FlexBlock>
+                    </Flex>
+                    {rule.frequency === 'weekly' && DAY_OF_WEEK_LOOKUP.size > 0 && (
+                        <div className="visibloc-advanced-rule__days">
+                            <p className="components-base-control__label">
+                                {__('Jours actifs', 'visi-bloc-jlg')}
+                            </p>
+                            {Array.from(DAY_OF_WEEK_LOOKUP.entries()).map(([value, label]) => (
+                                <CheckboxControl
+                                    key={value}
+                                    label={label}
+                                    checked={rule.days.includes(value)}
+                                    onChange={(isChecked) => onToggleDay(isChecked, value)}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        };
 
         return (
             <Fragment>
@@ -490,6 +969,48 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                             }
                                         />
                                     ))}
+                            </PanelBody>
+                            <PanelBody
+                                title={__('Règles de visibilité avancées', 'visi-bloc-jlg')}
+                                initialOpen={false}
+                            >
+                                <SelectControl
+                                    label={__('Logique entre les règles', 'visi-bloc-jlg')}
+                                    value={advancedVisibility.logic}
+                                    options={[
+                                        { value: 'AND', label: __('Toutes les règles doivent être vraies (ET)', 'visi-bloc-jlg') },
+                                        { value: 'OR', label: __('Au moins une règle doit être vraie (OU)', 'visi-bloc-jlg') },
+                                    ]}
+                                    onChange={(newLogic) =>
+                                        updateAdvancedVisibility((current) => ({
+                                            ...current,
+                                            logic: newLogic === 'OR' ? 'OR' : 'AND',
+                                        }))
+                                    }
+                                />
+                                {advancedVisibility.rules.map((rule, index) =>
+                                    renderAdvancedRule(rule, index),
+                                )}
+                                <Button
+                                    variant="secondary"
+                                    onClick={() =>
+                                        updateAdvancedVisibility((current) => ({
+                                            ...current,
+                                            rules: [
+                                                ...current.rules,
+                                                createDefaultRuleForType('post_type'),
+                                            ],
+                                        }))
+                                    }
+                                >
+                                    {__('Ajouter une règle', 'visi-bloc-jlg')}
+                                </Button>
+                                <p className="components-help-text">
+                                    {__(
+                                        'Ces règles permettent d’affiner la visibilité selon le contexte du contenu, le modèle ou un horaire récurrent.',
+                                        'visi-bloc-jlg',
+                                    )}
+                                </p>
                             </PanelBody>
                         </InspectorControls>
                     </Fragment>

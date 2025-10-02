@@ -78,6 +78,36 @@ function visibloc_jlg_handle_options_save() {
         exit;
     }
 
+    if ( wp_verify_nonce( $nonce, 'visibloc_export_settings' ) ) {
+        visibloc_jlg_export_settings_snapshot();
+        exit;
+    }
+
+    if ( wp_verify_nonce( $nonce, 'visibloc_import_settings' ) ) {
+        $payload = isset( $_POST['visibloc_settings_payload'] )
+            ? wp_unslash( $_POST['visibloc_settings_payload'] )
+            : '';
+
+        $import_result = visibloc_jlg_import_settings_snapshot( $payload );
+        $status        = is_wp_error( $import_result ) ? 'settings_import_failed' : 'settings_imported';
+        $redirect_url  = add_query_arg(
+            'status',
+            $status,
+            admin_url( 'admin.php?page=visi-bloc-jlg-help' )
+        );
+
+        if ( is_wp_error( $import_result ) ) {
+            $error_code = $import_result->get_error_code();
+
+            if ( is_string( $error_code ) && '' !== $error_code ) {
+                $redirect_url = add_query_arg( 'error_code', rawurlencode( $error_code ), $redirect_url );
+            }
+        }
+
+        wp_safe_redirect( $redirect_url );
+        exit;
+    }
+
     if ( wp_verify_nonce( $nonce, 'visibloc_toggle_debug' ) ) {
         $current_status = get_option( 'visibloc_debug_mode', 'off' );
         update_option( 'visibloc_debug_mode', ( $current_status === 'on' ) ? 'off' : 'on' );
@@ -146,6 +176,161 @@ function visibloc_jlg_handle_options_save() {
         wp_safe_redirect( admin_url( 'admin.php?page=visi-bloc-jlg-help&status=updated' ) );
         exit;
     }
+}
+
+function visibloc_jlg_get_settings_snapshot() {
+    $supported_blocks = visibloc_jlg_normalize_block_names( get_option( 'visibloc_supported_blocks', [] ) );
+    $mobile_bp        = (int) get_option( 'visibloc_breakpoint_mobile', 781 );
+    $tablet_bp        = (int) get_option( 'visibloc_breakpoint_tablet', 1024 );
+    $preview_roles    = get_option( 'visibloc_preview_roles', [ 'administrator' ] );
+    $debug_mode       = get_option( 'visibloc_debug_mode', 'off' );
+
+    $preview_roles = array_values( array_unique( array_map( 'sanitize_key', (array) $preview_roles ) ) );
+
+    if ( empty( $preview_roles ) || ! in_array( 'administrator', $preview_roles, true ) ) {
+        $preview_roles[] = 'administrator';
+    }
+
+    return [
+        'supported_blocks' => $supported_blocks,
+        'breakpoints'      => [
+            'mobile' => $mobile_bp,
+            'tablet' => $tablet_bp,
+        ],
+        'preview_roles'    => $preview_roles,
+        'debug_mode'       => ( 'on' === $debug_mode ) ? 'on' : 'off',
+        'exported_at'      => gmdate( 'c' ),
+        'version'          => defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : 'unknown',
+    ];
+}
+
+function visibloc_jlg_export_settings_snapshot() {
+    $snapshot = visibloc_jlg_get_settings_snapshot();
+    $json     = wp_json_encode( $snapshot, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
+
+    if ( false === $json ) {
+        $json = '{}';
+    }
+
+    if ( function_exists( 'nocache_headers' ) ) {
+        nocache_headers();
+    }
+
+    $filename = sprintf( 'visibloc-settings-%s.json', gmdate( 'Ymd-His' ) );
+
+    header( 'Content-Type: application/json; charset=utf-8' );
+    header( 'Content-Disposition: attachment; filename=' . $filename );
+
+    echo $json; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+}
+
+function visibloc_jlg_import_settings_snapshot( $payload ) {
+    if ( ! is_string( $payload ) || '' === trim( $payload ) ) {
+        return new WP_Error( 'visibloc_empty_payload', __( 'Aucune donnée fournie pour l’import.', 'visi-bloc-jlg' ) );
+    }
+
+    $decoded = json_decode( $payload, true );
+
+    if ( null === $decoded && JSON_ERROR_NONE !== json_last_error() ) {
+        return new WP_Error( 'visibloc_invalid_json', __( 'Le fichier fourni n’est pas un JSON valide.', 'visi-bloc-jlg' ) );
+    }
+
+    if ( ! is_array( $decoded ) ) {
+        return new WP_Error( 'visibloc_invalid_payload', __( 'Les données importées sont invalides.', 'visi-bloc-jlg' ) );
+    }
+
+    $sanitized = visibloc_jlg_sanitize_import_settings( $decoded );
+
+    if ( is_wp_error( $sanitized ) ) {
+        return $sanitized;
+    }
+
+    if ( isset( $sanitized['supported_blocks'] ) ) {
+        visibloc_jlg_update_supported_blocks( $sanitized['supported_blocks'] );
+    }
+
+    if ( isset( $sanitized['breakpoints'] ) ) {
+        update_option( 'visibloc_breakpoint_mobile', $sanitized['breakpoints']['mobile'] );
+        update_option( 'visibloc_breakpoint_tablet', $sanitized['breakpoints']['tablet'] );
+    }
+
+    if ( isset( $sanitized['preview_roles'] ) ) {
+        update_option( 'visibloc_preview_roles', $sanitized['preview_roles'] );
+    }
+
+    if ( isset( $sanitized['debug_mode'] ) ) {
+        update_option( 'visibloc_debug_mode', $sanitized['debug_mode'] );
+    }
+
+    visibloc_jlg_clear_caches();
+
+    return true;
+}
+
+function visibloc_jlg_sanitize_import_settings( $data ) {
+    if ( ! is_array( $data ) ) {
+        return new WP_Error( 'visibloc_invalid_payload', __( 'Les données importées sont invalides.', 'visi-bloc-jlg' ) );
+    }
+
+    $sanitized = [];
+
+    if ( array_key_exists( 'supported_blocks', $data ) ) {
+        $sanitized['supported_blocks'] = visibloc_jlg_normalize_block_names( $data['supported_blocks'] );
+    }
+
+    if ( isset( $data['breakpoints'] ) && is_array( $data['breakpoints'] ) ) {
+        $mobile = isset( $data['breakpoints']['mobile'] ) ? absint( $data['breakpoints']['mobile'] ) : null;
+        $tablet = isset( $data['breakpoints']['tablet'] ) ? absint( $data['breakpoints']['tablet'] ) : null;
+
+        if ( null === $mobile || null === $tablet || $mobile < 1 || $tablet < 1 || $tablet <= $mobile ) {
+            return new WP_Error( 'visibloc_invalid_breakpoints', visibloc_jlg_get_breakpoints_requirement_message() );
+        }
+
+        $sanitized['breakpoints'] = [
+            'mobile' => $mobile,
+            'tablet' => $tablet,
+        ];
+    }
+
+    if ( array_key_exists( 'preview_roles', $data ) ) {
+        if ( ! function_exists( 'get_editable_roles' ) ) {
+            require_once ABSPATH . 'wp-admin/includes/user.php';
+        }
+
+        $editable_roles = array_keys( (array) get_editable_roles() );
+        $editable_roles = array_map( 'sanitize_key', $editable_roles );
+
+        $roles = array_map( 'sanitize_key', (array) $data['preview_roles'] );
+        $roles = array_values( array_unique( array_intersect( $roles, $editable_roles ) ) );
+
+        if ( empty( $roles ) || ! in_array( 'administrator', $roles, true ) ) {
+            $roles[] = 'administrator';
+        }
+
+        $sanitized['preview_roles'] = $roles;
+    }
+
+    if ( array_key_exists( 'debug_mode', $data ) ) {
+        $debug_mode = ( 'on' === $data['debug_mode'] ) ? 'on' : 'off';
+        $sanitized['debug_mode'] = $debug_mode;
+    }
+
+    return $sanitized;
+}
+
+function visibloc_jlg_get_import_error_message( $code ) {
+    switch ( $code ) {
+        case 'visibloc_invalid_json':
+            return __( 'Le fichier fourni n’est pas un JSON valide.', 'visi-bloc-jlg' );
+        case 'visibloc_invalid_payload':
+            return __( 'Les données importées sont invalides.', 'visi-bloc-jlg' );
+        case 'visibloc_invalid_breakpoints':
+            return visibloc_jlg_get_breakpoints_requirement_message();
+        case 'visibloc_empty_payload':
+            return __( 'Aucune donnée fournie pour l’import.', 'visi-bloc-jlg' );
+    }
+
+    return '';
 }
 
 add_action( 'admin_menu', 'visibloc_jlg_add_admin_menu' );
@@ -222,6 +407,15 @@ function visibloc_jlg_render_help_page_content() {
             <div id="message" class="updated notice is-dismissible"><p><?php esc_html_e( 'Réglages mis à jour.', 'visi-bloc-jlg' ); ?></p></div>
         <?php elseif ( 'invalid_breakpoints' === $status ) : ?>
             <div id="message" class="notice notice-error is-dismissible"><p><?php echo esc_html( $breakpoints_requirement_message ); ?> <?php esc_html_e( 'Les réglages n’ont pas été enregistrés.', 'visi-bloc-jlg' ); ?></p></div>
+        <?php elseif ( 'settings_imported' === $status ) : ?>
+            <div id="message" class="updated notice is-dismissible"><p><?php esc_html_e( 'Les réglages ont été importés avec succès.', 'visi-bloc-jlg' ); ?></p></div>
+        <?php elseif ( 'settings_import_failed' === $status ) : ?>
+            <?php
+            $error_code     = visibloc_jlg_get_sanitized_query_arg( 'error_code' );
+            $error_message  = visibloc_jlg_get_import_error_message( $error_code );
+            $fallback_error = __( 'L’import a échoué. Vérifiez le contenu du fichier et réessayez.', 'visi-bloc-jlg' );
+            ?>
+            <div id="message" class="notice notice-error is-dismissible"><p><?php echo esc_html( $error_message ?: $fallback_error ); ?></p></div>
         <?php endif; ?>
         <div id="poststuff">
             <?php
@@ -232,6 +426,7 @@ function visibloc_jlg_render_help_page_content() {
             visibloc_jlg_render_scheduled_blocks_section( $scheduled_posts );
             visibloc_jlg_render_debug_mode_section( $debug_status );
             visibloc_jlg_render_breakpoints_section( $mobile_bp, $tablet_bp );
+            visibloc_jlg_render_settings_backup_section();
             ?>
         </div>
     </div>
@@ -500,6 +695,33 @@ function visibloc_jlg_render_debug_mode_section( $debug_status ) {
                 <input type="hidden" name="action" value="visibloc_toggle_debug">
                 <?php wp_nonce_field( 'visibloc_toggle_debug', 'visibloc_nonce' ); ?>
                 <button type="submit" class="button button-primary"><?php echo ( 'on' === $debug_status ) ? esc_html__( 'Désactiver', 'visi-bloc-jlg' ) : esc_html__( 'Activer', 'visi-bloc-jlg' ); ?></button>
+            </form>
+        </div>
+    </div>
+    <?php
+}
+
+function visibloc_jlg_render_settings_backup_section() {
+    ?>
+    <div class="postbox">
+        <h2 class="hndle"><span><?php esc_html_e( 'Export & sauvegarde', 'visi-bloc-jlg' ); ?></span></h2>
+        <div class="inside">
+            <p><?php esc_html_e( 'Exportez vos réglages pour les sauvegarder ou les transférer vers un autre site.', 'visi-bloc-jlg' ); ?></p>
+            <form method="POST" action="" style="margin-bottom: 16px;">
+                <input type="hidden" name="action" value="visibloc_export_settings">
+                <?php wp_nonce_field( 'visibloc_export_settings', 'visibloc_nonce' ); ?>
+                <?php submit_button( __( 'Exporter les réglages', 'visi-bloc-jlg' ), 'secondary', 'submit', false ); ?>
+            </form>
+            <hr />
+            <p><?php esc_html_e( 'Collez ci-dessous un export JSON précédemment généré pour restaurer vos réglages globaux.', 'visi-bloc-jlg' ); ?></p>
+            <form method="POST" action="">
+                <textarea name="visibloc_settings_payload" rows="7" class="large-text code" required aria-describedby="visibloc_settings_import_help"></textarea>
+                <p id="visibloc_settings_import_help" class="description">
+                    <?php esc_html_e( 'Le contenu doit correspondre au fichier JSON exporté depuis Visi-Bloc.', 'visi-bloc-jlg' ); ?>
+                </p>
+                <input type="hidden" name="action" value="visibloc_import_settings">
+                <?php wp_nonce_field( 'visibloc_import_settings', 'visibloc_nonce' ); ?>
+                <?php submit_button( __( 'Importer les réglages', 'visi-bloc-jlg' ) ); ?>
             </form>
         </div>
     </div>
