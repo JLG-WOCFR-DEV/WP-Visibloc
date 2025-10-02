@@ -104,9 +104,10 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
     $hidden_preview_markup = null;
 
     if ( $should_show_hidden_preview ) {
+        $hidden_preview_label = esc_attr__( 'Hidden block', 'visi-bloc-jlg' );
         $hidden_preview_markup = sprintf(
             '<div class="bloc-cache-apercu vb-label-top" data-visibloc-label="%s">%s</div>',
-            esc_attr__( 'Hidden block', 'visi-bloc-jlg' ),
+            $hidden_preview_label,
             $block_content
         );
     }
