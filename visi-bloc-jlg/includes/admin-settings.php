@@ -242,7 +242,8 @@ function visibloc_jlg_render_supported_blocks_section( $registered_block_types, 
                         </legend>
                         <div class="visibloc-supported-blocks-search" style="margin-bottom: 12px;">
                             <?php
-                            $search_input_id = 'visibloc-supported-blocks-search';
+                            $search_input_id = 'visibloc-supported-blocks-search-' . uniqid();
+                            $search_description_id = $search_input_id . '-description';
                             ?>
                             <label for="<?php echo esc_attr( $search_input_id ); ?>" class="screen-reader-text">
                                 <?php esc_html_e( 'Rechercher un bloc', 'visi-bloc-jlg' ); ?>
@@ -253,9 +254,13 @@ function visibloc_jlg_render_supported_blocks_section( $registered_block_types, 
                                 class="regular-text"
                                 placeholder="<?php echo esc_attr__( 'Rechercher un bloc…', 'visi-bloc-jlg' ); ?>"
                                 autocomplete="off"
+                                aria-describedby="<?php echo esc_attr( $search_description_id ); ?>"
                                 data-visibloc-blocks-search
                                 data-visibloc-blocks-target="visibloc-supported-blocks-list"
                             />
+                            <p id="<?php echo esc_attr( $search_description_id ); ?>" class="description" style="margin-top: 4px;">
+                                <?php esc_html_e( 'Saisissez un terme pour filtrer la liste des blocs disponibles.', 'visi-bloc-jlg' ); ?>
+                            </p>
                         </div>
                         <div
                             id="visibloc-supported-blocks-list"
@@ -294,6 +299,20 @@ function visibloc_jlg_render_supported_blocks_section( $registered_block_types, 
                                     </span>
                                 </label>
                             <?php endforeach; ?>
+                            <?php
+                            $count_template        = __( 'Blocs visibles : %d', 'visi-bloc-jlg' );
+                            $count_template_attr   = esc_attr( $count_template );
+                            $total_blocks          = count( $registered_block_types );
+                            $count_template_output = sprintf( $count_template, (int) $total_blocks );
+                            ?>
+                            <p
+                                class="visibloc-supported-blocks-count"
+                                data-visibloc-blocks-count
+                                data-visibloc-count-template="<?php echo $count_template_attr; ?>"
+                                aria-live="polite"
+                            >
+                                <?php echo esc_html( $count_template_output ); ?>
+                            </p>
                             <p class="visibloc-supported-blocks-empty" data-visibloc-blocks-empty hidden>
                                 <?php esc_html_e( 'Aucun bloc ne correspond à votre recherche.', 'visi-bloc-jlg' ); ?>
                             </p>
