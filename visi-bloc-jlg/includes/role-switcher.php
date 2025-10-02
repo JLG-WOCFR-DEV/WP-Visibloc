@@ -940,17 +940,23 @@ function visibloc_jlg_add_role_switcher_menu( $wp_admin_bar ) {
 /**
  * Prepare the data model used to render the mobile role switcher on the front end.
  *
+ * @param bool $force_refresh Optional. Whether to recompute the model instead of returning the cached value.
  * @return array|null
  */
-function visibloc_jlg_get_role_switcher_frontend_model() {
+function visibloc_jlg_get_role_switcher_frontend_model( $force_refresh = false ) {
     static $is_cached = false;
     static $cached_model = null;
+
+    if ( $force_refresh ) {
+        $is_cached    = false;
+        $cached_model = null;
+    }
 
     if ( $is_cached ) {
         return $cached_model;
     }
 
-    $is_cached   = true;
+    $is_cached    = true;
     $cached_model = null;
 
     if ( visibloc_jlg_is_admin_or_technical_request() ) {
@@ -998,12 +1004,32 @@ function visibloc_jlg_get_role_switcher_frontend_model() {
         $error_message = __( 'Le rôle demandé n’est pas disponible pour l’aperçu.', 'visi-bloc-jlg' );
     }
 
+    $default_mobile_bp = 781;
+    $default_tablet_bp = 1024;
+
+    $mobile_bp = absint( get_option( 'visibloc_breakpoint_mobile', $default_mobile_bp ) );
+    $tablet_bp = absint( get_option( 'visibloc_breakpoint_tablet', $default_tablet_bp ) );
+
+    $mobile_bp = $mobile_bp > 0 ? $mobile_bp : $default_mobile_bp;
+    $tablet_bp = $tablet_bp > 0 ? $tablet_bp : $default_tablet_bp;
+
+    $toggle_max_width = max( $mobile_bp, $tablet_bp );
+
+    if ( $toggle_max_width <= 0 ) {
+        $toggle_max_width = 900;
+    }
+
     $cached_model = [
         'links'              => $menu_links,
         'current_role'       => $current_preview_role,
         'current_role_label' => $current_role_label,
         'stop_url'           => $stop_preview_url,
         'error_message'      => $error_message,
+        'breakpoints'        => [
+            'mobile' => $mobile_bp,
+            'tablet' => $tablet_bp,
+        ],
+        'toggle_max_width'   => $toggle_max_width,
     ];
 
     return $cached_model;
@@ -1031,6 +1057,27 @@ function visibloc_jlg_enqueue_role_switcher_frontend_assets() {
         $version
     );
 
+    $toggle_max_width = isset( $model['toggle_max_width'] ) ? absint( $model['toggle_max_width'] ) : 0;
+
+    if ( $toggle_max_width <= 0 && isset( $model['breakpoints']['tablet'] ) ) {
+        $toggle_max_width = absint( $model['breakpoints']['tablet'] );
+    }
+
+    if ( $toggle_max_width <= 0 && isset( $model['breakpoints']['mobile'] ) ) {
+        $toggle_max_width = absint( $model['breakpoints']['mobile'] );
+    }
+
+    if ( $toggle_max_width <= 0 ) {
+        $toggle_max_width = 900;
+    }
+
+    $min_hide_width = $toggle_max_width + 1;
+    $inline_css     = sprintf( ':root{--visibloc-role-switcher-max-width:%dpx;}', $toggle_max_width );
+    $inline_css    .= sprintf( '@media (max-width: %1$dpx){.visibloc-mobile-role-switcher{display:flex;}}', $toggle_max_width );
+    $inline_css    .= sprintf( '@media (min-width: %1$dpx){.visibloc-mobile-role-switcher{display:none;}}', $min_hide_width );
+
+    wp_add_inline_style( 'visibloc-jlg-role-switcher', $inline_css );
+
     wp_enqueue_script(
         'visibloc-jlg-role-switcher',
         plugins_url( 'assets/role-switcher-frontend.js', $plugin_main_file ),
@@ -1054,8 +1101,27 @@ function visibloc_jlg_render_role_switcher_frontend() {
 
     $panel_id = 'visibloc-mobile-role-switcher-panel';
     $title_id = 'visibloc-mobile-role-switcher-title';
+    $toggle_max_width = isset( $model['toggle_max_width'] ) ? absint( $model['toggle_max_width'] ) : 0;
+    $data_attributes = [
+        'data-visibloc-role-switcher' => '',
+    ];
+
+    if ( $toggle_max_width > 0 ) {
+        $data_attributes['data-visibloc-role-switcher-max-width'] = (string) $toggle_max_width;
+    }
+
+    $attributes_string = '';
+
+    foreach ( $data_attributes as $attribute_name => $attribute_value ) {
+        if ( '' === $attribute_value ) {
+            $attributes_string .= ' ' . $attribute_name;
+            continue;
+        }
+
+        $attributes_string .= sprintf( ' %s="%s"', $attribute_name, esc_attr( $attribute_value ) );
+    }
     ?>
-    <div class="visibloc-mobile-role-switcher" data-visibloc-role-switcher>
+    <div class="visibloc-mobile-role-switcher"<?php echo $attributes_string; ?>>
         <div class="visibloc-mobile-role-switcher__inner">
             <button type="button" class="visibloc-mobile-role-switcher__toggle" aria-expanded="false" aria-controls="<?php echo esc_attr( $panel_id ); ?>">
                 <span class="visibloc-mobile-role-switcher__toggle-text"><?php esc_html_e( 'Aperçu en tant que', 'visi-bloc-jlg' ); ?></span>

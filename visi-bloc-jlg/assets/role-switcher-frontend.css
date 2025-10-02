@@ -1,3 +1,7 @@
+:root {
+    --visibloc-role-switcher-max-width: 900px;
+}
+
 .visibloc-mobile-role-switcher {
     position: fixed;
     left: 0;
@@ -146,12 +150,6 @@
 @media (max-width: 900px) {
     .visibloc-mobile-role-switcher {
         display: flex;
-    }
-}
-
-@media (min-width: 901px) {
-    .visibloc-mobile-role-switcher {
-        display: none;
     }
 }
 
