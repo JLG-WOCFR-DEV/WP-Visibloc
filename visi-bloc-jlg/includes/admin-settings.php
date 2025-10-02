@@ -257,6 +257,7 @@ function visibloc_jlg_render_supported_blocks_section( $registered_block_types, 
                                 aria-describedby="<?php echo esc_attr( $search_description_id ); ?>"
                                 data-visibloc-blocks-search
                                 data-visibloc-blocks-target="visibloc-supported-blocks-list"
+                                aria-controls="visibloc-supported-blocks-list"
                             />
                             <p id="<?php echo esc_attr( $search_description_id ); ?>" class="description" style="margin-top: 4px;">
                                 <?php esc_html_e( 'Saisissez un terme pour filtrer la liste des blocs disponibles.', 'visi-bloc-jlg' ); ?>
@@ -279,9 +280,13 @@ function visibloc_jlg_render_supported_blocks_section( $registered_block_types, 
                                 $is_checked  = $is_default || in_array( $block_name, $configured_blocks, true );
                                 $is_disabled = $is_default;
                                 $search_text = wp_strip_all_tags( $block_label . ' ' . $block_name );
+                                $search_value = function_exists( 'remove_accents' )
+                                    ? remove_accents( $search_text )
+                                    : $search_text;
+
                                 $search_value = function_exists( 'mb_strtolower' )
-                                    ? mb_strtolower( $search_text )
-                                    : strtolower( $search_text );
+                                    ? mb_strtolower( $search_value, 'UTF-8' )
+                                    : strtolower( $search_value );
                                 ?>
                                 <label
                                     class="visibloc-supported-blocks-item"
