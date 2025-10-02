@@ -13,6 +13,7 @@ if ( ! defined( 'WPINC' ) ) {
 }
 
 require_once __DIR__ . '/autoload.php';
+require_once __DIR__ . '/includes/i18n-inline.php';
 
 use VisiBloc\Plugin;
 
