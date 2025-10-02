@@ -1,6 +1,8 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+require_once __DIR__ . '/fallback.php';
+
 function visibloc_jlg_get_supported_blocks() {
     $default_blocks   = (array) VISIBLOC_JLG_DEFAULT_SUPPORTED_BLOCKS;
     $option_value     = get_option( 'visibloc_supported_blocks', [] );
@@ -49,6 +51,7 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
     if ( empty( $block['attrs'] ) ) { return $block_content; }
 
     $attrs = $block['attrs'];
+    $fallback_markup = visibloc_jlg_get_block_fallback_markup( $attrs );
 
     $visibility_roles = [];
 
@@ -152,9 +155,15 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
                         $start_date_fr,
                         $end_date_fr
                     );
-                    return '<div class="bloc-schedule-apercu vb-label-top" data-schedule-info="' . esc_attr( $info ) . '">' . $block_content . '</div>';
+                    $schedule_preview_markup = '<div class="bloc-schedule-apercu vb-label-top" data-schedule-info="' . esc_attr( $info ) . '">' . (
+                        $has_preview_markup && null !== $hidden_preview_markup
+                            ? $hidden_preview_markup
+                            : $block_content
+                    ) . '</div>';
+
+                    return visibloc_jlg_wrap_preview_with_fallback_notice( $schedule_preview_markup, $fallback_markup );
                 }
-                return '';
+                return $fallback_markup;
             }
         }
     }
@@ -176,7 +185,7 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
                 $hidden_preview_markup = $advanced_markup;
                 $has_preview_markup    = true;
             } else {
-                return '';
+                return $fallback_markup;
             }
         }
     }
@@ -245,19 +254,42 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         if ( ! $is_visible && in_array( 'logged-in', $visibility_roles, true ) && $is_logged_in ) $is_visible = true;
         if ( ! $is_visible && ! empty( $user_roles ) && count( array_intersect( $user_roles, $visibility_roles ) ) > 0 ) { $is_visible = true; }
         if ( ! $is_visible ) {
-            return $has_preview_markup ? $hidden_preview_markup : '';
+            if ( $has_preview_markup && null !== $hidden_preview_markup ) {
+                return visibloc_jlg_wrap_preview_with_fallback_notice( $hidden_preview_markup, $fallback_markup );
+            }
+
+            return $fallback_markup;
         }
     }
 
     if ( $has_hidden_flag ) {
-        return $has_preview_markup ? $hidden_preview_markup : '';
+        if ( $has_preview_markup && null !== $hidden_preview_markup ) {
+            return visibloc_jlg_wrap_preview_with_fallback_notice( $hidden_preview_markup, $fallback_markup );
+        }
+
+        return $fallback_markup;
     }
 
     if ( $has_preview_markup && null !== $hidden_preview_markup ) {
-        return $hidden_preview_markup;
+        return visibloc_jlg_wrap_preview_with_fallback_notice( $hidden_preview_markup, $fallback_markup );
     }
 
     return $block_content;
+}
+
+function visibloc_jlg_wrap_preview_with_fallback_notice( $preview_markup, $fallback_markup ) {
+    if ( '' === $fallback_markup ) {
+        return $preview_markup;
+    }
+
+    $label = esc_attr__( 'Contenu de repli actif', 'visi-bloc-jlg' );
+
+    return sprintf(
+        '<div class="bloc-fallback-apercu vb-label-top" data-visibloc-fallback="1" data-visibloc-label="%s">%s<div class="bloc-fallback-apercu__replacement">%s</div></div>',
+        $label,
+        $preview_markup,
+        $fallback_markup
+    );
 }
 
 function visibloc_jlg_normalize_advanced_visibility( $value ) {

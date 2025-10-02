@@ -20,6 +20,8 @@ if ( ! defined( 'VISIBLOC_JLG_MISSING_EDITOR_ASSETS_TRANSIENT' ) ) {
     define( 'VISIBLOC_JLG_MISSING_EDITOR_ASSETS_TRANSIENT', 'visibloc_jlg_missing_editor_assets' );
 }
 
+require_once __DIR__ . '/fallback.php';
+
 add_action( 'wp_enqueue_scripts', 'visibloc_jlg_enqueue_public_styles' );
 function visibloc_jlg_enqueue_public_styles() {
     $plugin_main_file = __DIR__ . '/../visi-bloc-jlg.php';
@@ -130,6 +132,8 @@ function visibloc_jlg_enqueue_editor_assets() {
             'taxonomies'       => visibloc_jlg_get_editor_taxonomies(),
             'templates'        => visibloc_jlg_get_editor_templates(),
             'daysOfWeek'       => visibloc_jlg_get_editor_days_of_week(),
+            'fallbackSettings' => visibloc_jlg_get_editor_fallback_settings(),
+            'fallbackBlocks'   => visibloc_jlg_get_editor_fallback_blocks(),
         ]
     );
 }

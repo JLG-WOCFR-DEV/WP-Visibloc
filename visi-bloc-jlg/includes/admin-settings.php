@@ -2,6 +2,7 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 require_once __DIR__ . '/block-utils.php';
+require_once __DIR__ . '/fallback.php';
 
 function visibloc_jlg_update_supported_blocks( $block_names ) {
     $normalized_blocks    = visibloc_jlg_normalize_block_names( $block_names );
@@ -151,6 +152,27 @@ function visibloc_jlg_handle_options_save() {
             update_option( 'visibloc_breakpoint_tablet', $tablet_breakpoint );
         }
 
+        visibloc_jlg_clear_caches();
+        wp_safe_redirect( admin_url( 'admin.php?page=visi-bloc-jlg-help&status=updated' ) );
+        exit;
+    }
+
+    if ( wp_verify_nonce( $nonce, 'visibloc_save_fallback' ) ) {
+        $raw_settings = [
+            'mode'     => isset( $_POST['visibloc_fallback_mode'] )
+                ? wp_unslash( $_POST['visibloc_fallback_mode'] )
+                : 'none',
+            'text'     => isset( $_POST['visibloc_fallback_text'] )
+                ? wp_unslash( $_POST['visibloc_fallback_text'] )
+                : '',
+            'block_id' => isset( $_POST['visibloc_fallback_block_id'] )
+                ? wp_unslash( $_POST['visibloc_fallback_block_id'] )
+                : 0,
+        ];
+
+        $normalized_settings = visibloc_jlg_normalize_fallback_settings( $raw_settings );
+
+        update_option( 'visibloc_fallback_settings', $normalized_settings );
         visibloc_jlg_clear_caches();
         wp_safe_redirect( admin_url( 'admin.php?page=visi-bloc-jlg-help&status=updated' ) );
         exit;
@@ -350,6 +372,8 @@ function visibloc_jlg_render_help_page_content() {
     $debug_status   = get_option( 'visibloc_debug_mode', 'off' );
     $mobile_bp      = get_option( 'visibloc_breakpoint_mobile', 781 );
     $tablet_bp      = get_option( 'visibloc_breakpoint_tablet', 1024 );
+    $fallback_settings = visibloc_jlg_get_fallback_settings();
+    $fallback_blocks   = visibloc_jlg_get_available_fallback_blocks();
 
     $allowed_roles_option   = get_option( 'visibloc_preview_roles', [ 'administrator' ] );
     $allowed_roles          = array_filter( (array) $allowed_roles_option );
@@ -426,6 +450,7 @@ function visibloc_jlg_render_help_page_content() {
             visibloc_jlg_render_scheduled_blocks_section( $scheduled_posts );
             visibloc_jlg_render_debug_mode_section( $debug_status );
             visibloc_jlg_render_breakpoints_section( $mobile_bp, $tablet_bp );
+            visibloc_jlg_render_fallback_section( $fallback_settings, $fallback_blocks );
             visibloc_jlg_render_settings_backup_section();
             ?>
         </div>
@@ -752,6 +777,82 @@ function visibloc_jlg_render_breakpoints_section( $mobile_bp, $tablet_bp ) {
                 <input type="hidden" name="action" value="visibloc_save_breakpoints">
                 <?php wp_nonce_field( 'visibloc_save_breakpoints', 'visibloc_nonce' ); ?>
                 <?php submit_button( __( 'Enregistrer les breakpoints', 'visi-bloc-jlg' ) ); ?>
+            </form>
+        </div>
+    </div>
+    <?php
+}
+
+function visibloc_jlg_render_fallback_section( $fallback_settings, $fallback_blocks ) {
+    $fallback_settings = visibloc_jlg_normalize_fallback_settings( $fallback_settings );
+    $fallback_mode     = $fallback_settings['mode'];
+    $fallback_text     = $fallback_settings['text'];
+    $fallback_block_id = $fallback_settings['block_id'];
+    $has_blocks        = ! empty( $fallback_blocks );
+
+    ?>
+    <div class="postbox">
+        <h2 class="hndle"><span><?php esc_html_e( 'Contenu de repli global', 'visi-bloc-jlg' ); ?></span></h2>
+        <div class="inside">
+            <form method="POST" action="">
+                <p><?php esc_html_e( 'Définissez le contenu affiché aux visiteurs lorsque l’accès à un bloc est restreint.', 'visi-bloc-jlg' ); ?></p>
+                <table class="form-table">
+                    <tr>
+                        <th scope="row">
+                            <label for="visibloc_fallback_mode"><?php esc_html_e( 'Type de repli', 'visi-bloc-jlg' ); ?></label>
+                        </th>
+                        <td>
+                            <select name="visibloc_fallback_mode" id="visibloc_fallback_mode">
+                                <option value="none" <?php selected( 'none', $fallback_mode ); ?>><?php esc_html_e( 'Aucun', 'visi-bloc-jlg' ); ?></option>
+                                <option value="text" <?php selected( 'text', $fallback_mode ); ?>><?php esc_html_e( 'Texte personnalisé', 'visi-bloc-jlg' ); ?></option>
+                                <option value="block" <?php selected( 'block', $fallback_mode ); ?>><?php esc_html_e( 'Bloc réutilisable', 'visi-bloc-jlg' ); ?></option>
+                            </select>
+                            <p class="description"><?php esc_html_e( 'Ce paramètre peut être surchargé bloc par bloc dans l’éditeur.', 'visi-bloc-jlg' ); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label for="visibloc_fallback_text"><?php esc_html_e( 'Texte de repli', 'visi-bloc-jlg' ); ?></label>
+                        </th>
+                        <td>
+                            <textarea
+                                name="visibloc_fallback_text"
+                                id="visibloc_fallback_text"
+                                rows="5"
+                                class="large-text"
+                            ><?php echo esc_textarea( $fallback_text ); ?></textarea>
+                            <p class="description"><?php esc_html_e( 'Ce contenu est utilisé lorsque le type « Texte personnalisé » est sélectionné.', 'visi-bloc-jlg' ); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label for="visibloc_fallback_block_id"><?php esc_html_e( 'Bloc de substitution', 'visi-bloc-jlg' ); ?></label>
+                        </th>
+                        <td>
+                            <select name="visibloc_fallback_block_id" id="visibloc_fallback_block_id" class="regular-text">
+                                <option value="0" <?php selected( 0, $fallback_block_id ); ?>><?php esc_html_e( '— Sélectionnez un bloc —', 'visi-bloc-jlg' ); ?></option>
+                                <?php foreach ( $fallback_blocks as $block ) :
+                                    $value = isset( $block['value'] ) ? (int) $block['value'] : 0;
+                                    $label = isset( $block['label'] ) ? $block['label'] : '';
+
+                                    if ( 0 === $value ) {
+                                        continue;
+                                    }
+                                    ?>
+                                    <option value="<?php echo esc_attr( $value ); ?>" <?php selected( $value, $fallback_block_id ); ?>><?php echo esc_html( $label ); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <?php if ( ! $has_blocks ) : ?>
+                                <p class="description"><?php esc_html_e( 'Aucun bloc réutilisable publié n’a été trouvé.', 'visi-bloc-jlg' ); ?></p>
+                            <?php else : ?>
+                                <p class="description"><?php esc_html_e( 'Utilisé lorsque le type « Bloc réutilisable » est sélectionné.', 'visi-bloc-jlg' ); ?></p>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                </table>
+                <input type="hidden" name="action" value="visibloc_save_fallback">
+                <?php wp_nonce_field( 'visibloc_save_fallback', 'visibloc_nonce' ); ?>
+                <?php submit_button( __( 'Enregistrer le repli', 'visi-bloc-jlg' ) ); ?>
             </form>
         </div>
     </div>
