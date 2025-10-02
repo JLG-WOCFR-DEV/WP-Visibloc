@@ -20,6 +20,8 @@
         }
 
         var emptyMessage = container.querySelector('[data-visibloc-blocks-empty]');
+        var countMessage = container.querySelector('[data-visibloc-blocks-count]');
+        var countTemplate = countMessage ? countMessage.getAttribute('data-visibloc-count-template') : '';
 
         var toggleItems = function () {
             var query = input.value || '';
@@ -39,6 +41,11 @@
 
             if (emptyMessage) {
                 emptyMessage.hidden = visibleCount > 0;
+            }
+
+            if (countMessage && countTemplate) {
+                var output = countTemplate.replace('%d', visibleCount);
+                countMessage.textContent = output;
             }
         };
 
