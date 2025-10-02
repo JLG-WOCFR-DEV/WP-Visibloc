@@ -128,6 +128,8 @@ const DEVICE_VISIBILITY_OPTIONS = [
     },
 ];
 
+const HIDDEN_BLOCK_BADGE_LABEL = __('Bloc caché (VisiBloc)', 'visi-bloc-jlg');
+
 function addVisibilityAttributesToGroup(settings, name) {
     if (!isSupportedBlockName(name)) {
         return settings;
@@ -382,10 +384,18 @@ function addEditorCanvasClasses(props, block) {
         .filter(Boolean)
         .join(' ');
 
-    return {
+    const newProps = {
         ...props,
         className: newClasses,
     };
+
+    if (isHidden) {
+        newProps['data-visibloc-label'] = HIDDEN_BLOCK_BADGE_LABEL;
+    } else if ('data-visibloc-label' in newProps) {
+        delete newProps['data-visibloc-label'];
+    }
+
+    return newProps;
 }
 
 function addSaveClasses(extraProps, blockType, attributes) {
@@ -472,8 +482,10 @@ function flushListViewUpdates() {
 
         if (isHidden) {
             row.classList.add('bloc-editeur-cache');
+            row.setAttribute('data-visibloc-label', HIDDEN_BLOCK_BADGE_LABEL);
         } else {
             row.classList.remove('bloc-editeur-cache');
+            row.removeAttribute('data-visibloc-label');
         }
     });
 
