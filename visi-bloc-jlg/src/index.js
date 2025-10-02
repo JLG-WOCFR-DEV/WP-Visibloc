@@ -11,6 +11,7 @@ import {
     ToggleControl,
     CheckboxControl,
     DateTimePicker,
+    Notice,
 } from '@wordpress/components';
 import { __, sprintf } from '@wordpress/i18n';
 import { __experimentalGetSettings, dateI18n, format as formatDate } from '@wordpress/date';
@@ -157,6 +158,20 @@ const formatScheduleDate = (value) => {
 
 const getCurrentSiteIsoDate = () => formatDate('Y-m-d\\TH:i:s', new Date());
 
+const parseDateValue = (value) => {
+    if (!value) {
+        return null;
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return null;
+    }
+
+    return date;
+};
+
 const DEVICE_VISIBILITY_OPTIONS = [
     {
         label: __('Visible sur tous les appareils', 'visi-bloc-jlg'),
@@ -265,6 +280,11 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             TIMEZONE_LABEL,
         );
 
+        const startDateObj = parseDateValue(publishStartDate);
+        const endDateObj = parseDateValue(publishEndDate);
+        const hasScheduleRangeError =
+            isSchedulingEnabled && !!startDateObj && !!endDateObj && endDateObj.getTime() < startDateObj.getTime();
+
         if (isSchedulingEnabled) {
             const startDate = formatScheduleDate(publishStartDate);
             const endDate = formatScheduleDate(publishEndDate);
@@ -290,6 +310,10 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                 );
             } else {
                 scheduleSummary = __('Activée, mais sans date définie.', 'visi-bloc-jlg');
+            }
+
+            if (hasScheduleRangeError) {
+                scheduleSummary = __('Dates de programmation invalides.', 'visi-bloc-jlg');
             }
         }
 
@@ -352,6 +376,14 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                         >
                                             {scheduleSummary}
                                         </p>
+                                        {hasScheduleRangeError && (
+                                            <Notice status="error" isDismissible={false}>
+                                                {__(
+                                                    'La date de fin doit être postérieure à la date de début.',
+                                                    'visi-bloc-jlg',
+                                                )}
+                                            </Notice>
+                                        )}
                                         <p
                                             style={{
                                                 fontStyle: 'italic',
