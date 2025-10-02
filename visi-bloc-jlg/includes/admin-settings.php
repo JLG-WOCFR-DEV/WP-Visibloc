@@ -935,6 +935,23 @@ function visibloc_jlg_clear_caches( $unused_post_id = null ) {
     delete_transient( 'visibloc_device_posts' );
     delete_transient( 'visibloc_scheduled_posts' );
     delete_transient( 'visibloc_group_block_metadata' );
+
+    if ( function_exists( 'get_option' ) ) {
+        $registered_transients = get_option( 'visibloc_device_css_transient_keys', [] );
+
+        if ( is_array( $registered_transients ) ) {
+            foreach ( $registered_transients as $transient_key ) {
+                if ( ! is_string( $transient_key ) || '' === $transient_key ) {
+                    continue;
+                }
+
+                delete_transient( $transient_key );
+            }
+        }
+
+        delete_option( 'visibloc_device_css_transient_keys' );
+    }
+
     if ( function_exists( 'wp_cache_delete' ) ) {
         wp_cache_delete( 'visibloc_device_css_cache', 'visibloc_jlg' );
     }

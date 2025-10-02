@@ -164,6 +164,12 @@ function visibloc_jlg_escape_admin_notice_text( $text ) {
 
 add_action( 'admin_notices', 'visibloc_jlg_render_missing_editor_assets_notice' );
 
+function visibloc_jlg_get_device_css_transient_key( $bucket_key ) {
+    $hash = md5( (string) $bucket_key );
+
+    return sprintf( 'visibloc_device_css_%s', $hash );
+}
+
 function visibloc_jlg_generate_device_visibility_css( $can_preview, $mobile_bp = null, $tablet_bp = null ) {
     $default_mobile_bp = 781;
     $default_tablet_bp = 1024;
@@ -188,6 +194,16 @@ function visibloc_jlg_generate_device_visibility_css( $can_preview, $mobile_bp =
         (int) $mobile_bp,
         (int) $tablet_bp
     );
+
+    $transient_key = visibloc_jlg_get_device_css_transient_key( $bucket_key );
+
+    if ( function_exists( 'get_transient' ) ) {
+        $transient_css = get_transient( $transient_key );
+
+        if ( false !== $transient_css && is_string( $transient_css ) ) {
+            return $transient_css;
+        }
+    }
 
     $cached_css = wp_cache_get( $cache_key, $cache_group );
 
@@ -277,6 +293,23 @@ function visibloc_jlg_generate_device_visibility_css( $can_preview, $mobile_bp =
     $cached_css[ $bucket_key ] = $css;
 
     wp_cache_set( $cache_key, $cached_css, $cache_group );
+
+    if ( function_exists( 'set_transient' ) ) {
+        set_transient( $transient_key, $css, 0 );
+
+        if ( function_exists( 'get_option' ) && function_exists( 'update_option' ) ) {
+            $registered_transients = get_option( 'visibloc_device_css_transient_keys', [] );
+
+            if ( ! is_array( $registered_transients ) ) {
+                $registered_transients = [];
+            }
+
+            if ( ! in_array( $transient_key, $registered_transients, true ) ) {
+                $registered_transients[] = $transient_key;
+                update_option( 'visibloc_device_css_transient_keys', $registered_transients );
+            }
+        }
+    }
 
     return $css;
 }
