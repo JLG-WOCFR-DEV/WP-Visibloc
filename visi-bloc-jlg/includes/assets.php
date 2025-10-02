@@ -126,8 +126,211 @@ function visibloc_jlg_enqueue_editor_assets() {
         [
             'roles'            => wp_roles()->get_names(),
             'supportedBlocks'  => visibloc_jlg_get_supported_blocks(),
+            'postTypes'        => visibloc_jlg_get_editor_post_types(),
+            'taxonomies'       => visibloc_jlg_get_editor_taxonomies(),
+            'templates'        => visibloc_jlg_get_editor_templates(),
+            'daysOfWeek'       => visibloc_jlg_get_editor_days_of_week(),
         ]
     );
+}
+
+function visibloc_jlg_get_editor_post_types() {
+    $post_types = get_post_types(
+        [
+            'public' => true,
+        ],
+        'objects'
+    );
+
+    if ( empty( $post_types ) || ! is_array( $post_types ) ) {
+        return [];
+    }
+
+    $items = [];
+
+    foreach ( $post_types as $slug => $post_type ) {
+        if ( ! is_string( $slug ) || '' === $slug ) {
+            continue;
+        }
+
+        $label = $slug;
+
+        if ( is_object( $post_type ) ) {
+            if ( isset( $post_type->labels->singular_name ) && is_string( $post_type->labels->singular_name ) && '' !== $post_type->labels->singular_name ) {
+                $label = $post_type->labels->singular_name;
+            } elseif ( isset( $post_type->label ) && is_string( $post_type->label ) && '' !== $post_type->label ) {
+                $label = $post_type->label;
+            }
+        }
+
+        $items[] = [
+            'value' => $slug,
+            'label' => $label,
+        ];
+    }
+
+    usort(
+        $items,
+        static function ( $first, $second ) {
+            return strcasecmp( (string) ( $first['label'] ?? '' ), (string) ( $second['label'] ?? '' ) );
+        }
+    );
+
+    return $items;
+}
+
+function visibloc_jlg_get_editor_taxonomies() {
+    $taxonomies = get_taxonomies(
+        [
+            'public' => true,
+        ],
+        'objects'
+    );
+
+    if ( empty( $taxonomies ) || ! is_array( $taxonomies ) ) {
+        return [];
+    }
+
+    $items = [];
+
+    foreach ( $taxonomies as $slug => $taxonomy ) {
+        if ( ! is_string( $slug ) || '' === $slug ) {
+            continue;
+        }
+
+        $label = $slug;
+
+        if ( is_object( $taxonomy ) ) {
+            if ( isset( $taxonomy->labels->singular_name ) && is_string( $taxonomy->labels->singular_name ) && '' !== $taxonomy->labels->singular_name ) {
+                $label = $taxonomy->labels->singular_name;
+            } elseif ( isset( $taxonomy->label ) && is_string( $taxonomy->label ) && '' !== $taxonomy->label ) {
+                $label = $taxonomy->label;
+            }
+        }
+
+        $term_options = [];
+
+        if ( taxonomy_exists( $slug ) ) {
+            $terms = get_terms(
+                [
+                    'taxonomy'   => $slug,
+                    'hide_empty' => false,
+                    'number'     => 200,
+                    'orderby'    => 'name',
+                    'order'      => 'ASC',
+                ]
+            );
+
+            if ( ! is_wp_error( $terms ) ) {
+                foreach ( $terms as $term ) {
+                    if ( ! $term instanceof WP_Term ) {
+                        continue;
+                    }
+
+                    $term_slug = $term->slug;
+
+                    if ( ! is_string( $term_slug ) || '' === $term_slug ) {
+                        $term_slug = (string) $term->term_id;
+                    }
+
+                    $term_options[] = [
+                        'value' => $term_slug,
+                        'label' => $term->name,
+                    ];
+                }
+
+                usort(
+                    $term_options,
+                    static function ( $first, $second ) {
+                        return strcasecmp( (string) ( $first['label'] ?? '' ), (string) ( $second['label'] ?? '' ) );
+                    }
+                );
+            }
+        }
+
+        $items[] = [
+            'slug'  => $slug,
+            'label' => $label,
+            'terms' => $term_options,
+        ];
+    }
+
+    usort(
+        $items,
+        static function ( $first, $second ) {
+            return strcasecmp( (string) ( $first['label'] ?? '' ), (string) ( $second['label'] ?? '' ) );
+        }
+    );
+
+    return $items;
+}
+
+function visibloc_jlg_get_editor_templates() {
+    $templates = [];
+
+    if ( function_exists( 'wp_get_theme' ) ) {
+        $theme = wp_get_theme();
+
+        if ( $theme instanceof WP_Theme ) {
+            $page_templates = $theme->get_page_templates();
+
+            if ( is_array( $page_templates ) ) {
+                foreach ( $page_templates as $template_name => $template_file ) {
+                    if ( ! is_string( $template_file ) ) {
+                        continue;
+                    }
+
+                    $label = is_string( $template_name ) && '' !== $template_name
+                        ? $template_name
+                        : $template_file;
+
+                    $templates[] = [
+                        'value' => $template_file,
+                        'label' => $label,
+                    ];
+                }
+            }
+        }
+    }
+
+    $default_label = __( 'Modèle par défaut', 'visi-bloc-jlg' );
+
+    $templates[] = [
+        'value' => '',
+        'label' => $default_label,
+    ];
+
+    usort(
+        $templates,
+        static function ( $first, $second ) {
+            return strcasecmp( (string) ( $first['label'] ?? '' ), (string) ( $second['label'] ?? '' ) );
+        }
+    );
+
+    return $templates;
+}
+
+function visibloc_jlg_get_editor_days_of_week() {
+    $days = [
+        'mon' => __( 'Lundi', 'visi-bloc-jlg' ),
+        'tue' => __( 'Mardi', 'visi-bloc-jlg' ),
+        'wed' => __( 'Mercredi', 'visi-bloc-jlg' ),
+        'thu' => __( 'Jeudi', 'visi-bloc-jlg' ),
+        'fri' => __( 'Vendredi', 'visi-bloc-jlg' ),
+        'sat' => __( 'Samedi', 'visi-bloc-jlg' ),
+        'sun' => __( 'Dimanche', 'visi-bloc-jlg' ),
+    ];
+
+    $items = [];
+
+    foreach ( $days as $value => $label ) {
+        $items[] = [
+            'value' => $value,
+            'label' => $label,
+        ];
+    }
+
+    return $items;
 }
 
 function visibloc_jlg_flag_missing_editor_assets() {

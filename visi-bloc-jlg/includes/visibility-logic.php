@@ -84,10 +84,12 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         );
     }
 
-    $has_hidden_flag      = isset( $attrs['isHidden'] ) ? visibloc_jlg_normalize_boolean( $attrs['isHidden'] ) : false;
-    $has_schedule_enabled = isset( $attrs['isSchedulingEnabled'] ) ? visibloc_jlg_normalize_boolean( $attrs['isSchedulingEnabled'] ) : false;
+    $advanced_visibility   = visibloc_jlg_normalize_advanced_visibility( $attrs['advancedVisibility'] ?? null );
+    $has_advanced_rules    = ! empty( $advanced_visibility['rules'] );
+    $has_hidden_flag       = isset( $attrs['isHidden'] ) ? visibloc_jlg_normalize_boolean( $attrs['isHidden'] ) : false;
+    $has_schedule_enabled  = isset( $attrs['isSchedulingEnabled'] ) ? visibloc_jlg_normalize_boolean( $attrs['isSchedulingEnabled'] ) : false;
 
-    if ( ! $has_hidden_flag && ! $has_schedule_enabled && empty( $visibility_roles ) ) {
+    if ( ! $has_hidden_flag && ! $has_schedule_enabled && empty( $visibility_roles ) && ! $has_advanced_rules ) {
         return $block_content;
     }
 
@@ -152,6 +154,28 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
                     );
                     return '<div class="bloc-schedule-apercu vb-label-top" data-schedule-info="' . esc_attr( $info ) . '">' . $block_content . '</div>';
                 }
+                return '';
+            }
+        }
+    }
+
+    if ( $has_advanced_rules ) {
+        $advanced_rules_match = visibloc_jlg_evaluate_advanced_visibility( $advanced_visibility );
+
+        if ( ! $advanced_rules_match ) {
+            if ( $can_preview_hidden_blocks ) {
+                $advanced_label = esc_attr__( 'Règles avancées actives', 'visi-bloc-jlg' );
+                $advanced_markup = sprintf(
+                    '<div class="bloc-advanced-apercu vb-label-top" data-visibloc-label="%s">%s</div>',
+                    $advanced_label,
+                    $has_preview_markup && null !== $hidden_preview_markup
+                        ? $hidden_preview_markup
+                        : $block_content
+                );
+
+                $hidden_preview_markup = $advanced_markup;
+                $has_preview_markup    = true;
+            } else {
                 return '';
             }
         }
@@ -234,4 +258,317 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
     }
 
     return $block_content;
+}
+
+function visibloc_jlg_normalize_advanced_visibility( $value ) {
+    $default = [
+        'logic' => 'AND',
+        'rules' => [],
+    ];
+
+    if ( null === $value ) {
+        return $default;
+    }
+
+    if ( is_string( $value ) ) {
+        $decoded = json_decode( $value, true );
+
+        if ( is_array( $decoded ) ) {
+            $value = $decoded;
+        } else {
+            return $default;
+        }
+    }
+
+    if ( ! is_array( $value ) ) {
+        return $default;
+    }
+
+    $logic = isset( $value['logic'] ) && 'OR' === $value['logic'] ? 'OR' : 'AND';
+    $rules = [];
+
+    if ( isset( $value['rules'] ) && is_array( $value['rules'] ) ) {
+        foreach ( $value['rules'] as $rule ) {
+            $normalized_rule = visibloc_jlg_normalize_advanced_rule( $rule );
+
+            if ( null !== $normalized_rule ) {
+                $rules[] = $normalized_rule;
+            }
+        }
+    }
+
+    return [
+        'logic' => $logic,
+        'rules' => $rules,
+    ];
+}
+
+function visibloc_jlg_normalize_advanced_rule( $rule ) {
+    if ( ! is_array( $rule ) ) {
+        return null;
+    }
+
+    $type = isset( $rule['type'] ) ? $rule['type'] : '';
+
+    if ( ! in_array( $type, [ 'post_type', 'taxonomy', 'template', 'recurring_schedule' ], true ) ) {
+        return null;
+    }
+
+    $normalized = [
+        'type' => $type,
+    ];
+
+    switch ( $type ) {
+        case 'post_type':
+            $normalized['operator'] = isset( $rule['operator'] ) && 'is_not' === $rule['operator'] ? 'is_not' : 'is';
+            $normalized['value']    = isset( $rule['value'] ) && is_string( $rule['value'] ) ? $rule['value'] : '';
+            break;
+        case 'taxonomy':
+            $normalized['operator'] = isset( $rule['operator'] ) && 'not_in' === $rule['operator'] ? 'not_in' : 'in';
+            $normalized['taxonomy'] = isset( $rule['taxonomy'] ) && is_string( $rule['taxonomy'] ) ? $rule['taxonomy'] : '';
+            $normalized['terms']    = [];
+
+            if ( isset( $rule['terms'] ) && is_array( $rule['terms'] ) ) {
+                foreach ( $rule['terms'] as $term ) {
+                    if ( is_scalar( $term ) ) {
+                        $term_value = (string) $term;
+
+                        if ( '' !== $term_value ) {
+                            $normalized['terms'][] = $term_value;
+                        }
+                    }
+                }
+            }
+            break;
+        case 'template':
+            $normalized['operator'] = isset( $rule['operator'] ) && 'is_not' === $rule['operator'] ? 'is_not' : 'is';
+            $normalized['value']    = isset( $rule['value'] ) && is_string( $rule['value'] ) ? $rule['value'] : '';
+            break;
+        case 'recurring_schedule':
+            $normalized['operator']  = 'matches';
+            $normalized['frequency'] = isset( $rule['frequency'] ) && 'weekly' === $rule['frequency'] ? 'weekly' : 'daily';
+            $normalized['days']      = [];
+
+            if ( isset( $rule['days'] ) && is_array( $rule['days'] ) ) {
+                foreach ( $rule['days'] as $day ) {
+                    if ( is_string( $day ) && '' !== $day ) {
+                        $normalized['days'][] = $day;
+                    }
+                }
+            }
+
+            $normalized['startTime'] = isset( $rule['startTime'] ) && is_string( $rule['startTime'] ) ? $rule['startTime'] : '08:00';
+            $normalized['endTime']   = isset( $rule['endTime'] ) && is_string( $rule['endTime'] ) ? $rule['endTime'] : '17:00';
+            break;
+    }
+
+    return $normalized;
+}
+
+function visibloc_jlg_evaluate_advanced_visibility( $advanced_visibility ) {
+    if ( empty( $advanced_visibility['rules'] ) ) {
+        return true;
+    }
+
+    $post_context = visibloc_jlg_get_visibility_post_context();
+    $logic        = isset( $advanced_visibility['logic'] ) && 'OR' === $advanced_visibility['logic'] ? 'OR' : 'AND';
+    $results      = [];
+
+    foreach ( $advanced_visibility['rules'] as $rule ) {
+        $results[] = visibloc_jlg_evaluate_advanced_rule( $rule, $post_context );
+    }
+
+    if ( 'OR' === $logic ) {
+        foreach ( $results as $result ) {
+            if ( true === $result ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    foreach ( $results as $result ) {
+        if ( false === $result ) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function visibloc_jlg_get_visibility_post_context() {
+    global $post;
+
+    if ( $post instanceof WP_Post ) {
+        return $post;
+    }
+
+    $post_id = get_the_ID();
+
+    if ( $post_id ) {
+        $maybe_post = get_post( $post_id );
+
+        if ( $maybe_post instanceof WP_Post ) {
+            return $maybe_post;
+        }
+    }
+
+    return null;
+}
+
+function visibloc_jlg_evaluate_advanced_rule( $rule, $post ) {
+    switch ( $rule['type'] ) {
+        case 'post_type':
+            return visibloc_jlg_match_post_type_rule( $rule, $post );
+        case 'taxonomy':
+            return visibloc_jlg_match_taxonomy_rule( $rule, $post );
+        case 'template':
+            return visibloc_jlg_match_template_rule( $rule, $post );
+        case 'recurring_schedule':
+            return visibloc_jlg_match_recurring_schedule_rule( $rule );
+    }
+
+    return true;
+}
+
+function visibloc_jlg_match_post_type_rule( $rule, $post ) {
+    if ( ! $post instanceof WP_Post ) {
+        return true;
+    }
+
+    $post_type = get_post_type( $post );
+    $rule_type = isset( $rule['value'] ) ? $rule['value'] : '';
+
+    if ( '' === $rule_type ) {
+        return true;
+    }
+
+    if ( isset( $rule['operator'] ) && 'is_not' === $rule['operator'] ) {
+        return $post_type !== $rule_type;
+    }
+
+    return $post_type === $rule_type;
+}
+
+function visibloc_jlg_match_taxonomy_rule( $rule, $post ) {
+    if ( ! $post instanceof WP_Post ) {
+        return true;
+    }
+
+    $taxonomy = isset( $rule['taxonomy'] ) ? $rule['taxonomy'] : '';
+    $terms    = isset( $rule['terms'] ) && is_array( $rule['terms'] ) ? $rule['terms'] : [];
+    $operator = isset( $rule['operator'] ) && 'not_in' === $rule['operator'] ? 'not_in' : 'in';
+
+    if ( '' === $taxonomy ) {
+        return true;
+    }
+
+    $terms = array_values( array_unique( array_filter( array_map( 'strval', $terms ) ) ) );
+
+    if ( empty( $terms ) ) {
+        return 'not_in' === $operator;
+    }
+
+    $has_terms = has_term( $terms, $taxonomy, $post );
+
+    return 'not_in' === $operator ? ! $has_terms : $has_terms;
+}
+
+function visibloc_jlg_match_template_rule( $rule, $post ) {
+    if ( ! $post instanceof WP_Post ) {
+        return true;
+    }
+
+    $target_template = isset( $rule['value'] ) ? $rule['value'] : '';
+
+    $current_template = '';
+
+    if ( function_exists( 'get_page_template_slug' ) ) {
+        $current_template = get_page_template_slug( $post );
+    }
+
+    if ( ! is_string( $current_template ) ) {
+        $current_template = '';
+    }
+
+    if ( isset( $rule['operator'] ) && 'is_not' === $rule['operator'] ) {
+        return $current_template !== $target_template;
+    }
+
+    return $current_template === $target_template;
+}
+
+function visibloc_jlg_match_recurring_schedule_rule( $rule ) {
+    $start_minutes = visibloc_jlg_parse_time_to_minutes( $rule['startTime'] ?? '' );
+    $end_minutes   = visibloc_jlg_parse_time_to_minutes( $rule['endTime'] ?? '' );
+
+    if ( null === $start_minutes || null === $end_minutes ) {
+        return false;
+    }
+
+    $current_datetime = current_datetime();
+
+    if ( ! $current_datetime instanceof DateTimeInterface ) {
+        return true;
+    }
+
+    $current_minutes = ( (int) $current_datetime->format( 'H' ) * 60 ) + (int) $current_datetime->format( 'i' );
+
+    if ( ! visibloc_jlg_is_time_within_range( $current_minutes, $start_minutes, $end_minutes ) ) {
+        return false;
+    }
+
+    if ( isset( $rule['frequency'] ) && 'weekly' === $rule['frequency'] ) {
+        $days = isset( $rule['days'] ) && is_array( $rule['days'] ) ? array_values( array_unique( array_filter( array_map( 'strval', $rule['days'] ) ) ) ) : [];
+
+        if ( empty( $days ) ) {
+            return false;
+        }
+
+        $current_day = strtolower( $current_datetime->format( 'D' ) );
+        $day_map     = [
+            'mon' => 'mon',
+            'tue' => 'tue',
+            'wed' => 'wed',
+            'thu' => 'thu',
+            'fri' => 'fri',
+            'sat' => 'sat',
+            'sun' => 'sun',
+        ];
+
+        $current_day_slug = isset( $day_map[ $current_day ] ) ? $day_map[ $current_day ] : strtolower( $current_day );
+
+        return in_array( $current_day_slug, $days, true );
+    }
+
+    return true;
+}
+
+function visibloc_jlg_parse_time_to_minutes( $time ) {
+    if ( ! is_string( $time ) || '' === $time ) {
+        return null;
+    }
+
+    if ( ! preg_match( '/^(2[0-3]|[01]?\d):([0-5]\d)$/', $time, $matches ) ) {
+        return null;
+    }
+
+    $hours   = (int) $matches[1];
+    $minutes = (int) $matches[2];
+
+    return ( $hours * 60 ) + $minutes;
+}
+
+function visibloc_jlg_is_time_within_range( $current, $start, $end ) {
+    if ( $start === $end ) {
+        return false;
+    }
+
+    if ( $start < $end ) {
+        return $current >= $start && $current <= $end;
+    }
+
+    // Overnight range (e.g., 22:00 - 02:00).
+    return $current >= $start || $current <= $end;
 }
