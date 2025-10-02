@@ -74,30 +74,29 @@ const WP_DATETIME_FORMAT =
         ? DATE_FORMATS.datetime
         : `${WP_DATE_FORMAT} ${WP_TIME_FORMAT}`.trim();
 
-const is12Hour = (() => {
-    if (!DATE_SETTINGS || typeof DATE_SETTINGS !== 'object') {
+const getIs12HourFormat = (settings) => {
+    if (!settings || typeof settings !== 'object') {
         return false;
     }
 
-    if (typeof DATE_SETTINGS.twelveHourTime === 'boolean') {
-        return DATE_SETTINGS.twelveHourTime;
+    if (typeof settings.twelveHourTime === 'boolean') {
+        return settings.twelveHourTime;
     }
 
-    const timeFormat =
-        DATE_SETTINGS &&
-        typeof DATE_SETTINGS === 'object' &&
-        DATE_SETTINGS.formats &&
-        typeof DATE_SETTINGS.formats === 'object' &&
-        typeof DATE_SETTINGS.formats.time === 'string'
-            ? DATE_SETTINGS.formats.time
-            : '';
+    const { formats } = settings;
 
-    if (timeFormat.trim()) {
-        return /a(?!\\)/i.test(timeFormat);
+    if (formats && typeof formats === 'object') {
+        const { time } = formats;
+
+        if (typeof time === 'string' && time.trim()) {
+            return /a(?!\\)/i.test(time);
+        }
     }
 
     return false;
-})();
+};
+
+const is12Hour = getIs12HourFormat(DATE_SETTINGS);
 
 const formatGmtOffset = (offset) => {
     if (typeof offset !== 'number' || Number.isNaN(offset)) {
