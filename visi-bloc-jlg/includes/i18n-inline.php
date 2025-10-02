@@ -11,6 +11,10 @@ if ( ! function_exists( 'visibloc_jlg_inline_translate_hidden_block' ) ) {
      * @return string The filtered translation.
      */
     function visibloc_jlg_inline_translate_hidden_block( $translation, $text, $domain ) {
+        if ( 'visi-bloc-jlg' !== $domain ) {
+            return $translation;
+        }
+
         if ( 'Hidden block' === $text ) {
             return 'Bloc caché';
         }
