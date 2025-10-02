@@ -935,6 +935,56 @@ function visibloc_jlg_clear_caches( $unused_post_id = null ) {
     delete_transient( 'visibloc_device_posts' );
     delete_transient( 'visibloc_scheduled_posts' );
     delete_transient( 'visibloc_group_block_metadata' );
+
+    $bucket_keys_to_clear = [];
+
+    if ( function_exists( 'get_option' ) ) {
+        $registered_buckets = get_option( 'visibloc_device_css_transients', [] );
+
+        if ( is_array( $registered_buckets ) ) {
+            $bucket_keys_to_clear = array_merge( $bucket_keys_to_clear, $registered_buckets );
+        }
+    }
+
+    if ( function_exists( 'wp_cache_get' ) ) {
+        $cached_css = wp_cache_get( 'visibloc_device_css_cache', 'visibloc_jlg' );
+
+        if ( is_array( $cached_css ) ) {
+            $bucket_keys_to_clear = array_merge( $bucket_keys_to_clear, array_keys( $cached_css ) );
+        }
+    }
+
+    if ( empty( $bucket_keys_to_clear ) ) {
+        $default_mobile_bp = 781;
+        $default_tablet_bp = 1024;
+        $mobile_bp         = $default_mobile_bp;
+        $tablet_bp         = $default_tablet_bp;
+
+        if ( function_exists( 'get_option' ) ) {
+            $mobile_bp = absint( get_option( 'visibloc_breakpoint_mobile', $default_mobile_bp ) );
+            $tablet_bp = absint( get_option( 'visibloc_breakpoint_tablet', $default_tablet_bp ) );
+        }
+
+        $mobile_bp = $mobile_bp > 0 ? $mobile_bp : $default_mobile_bp;
+        $tablet_bp = $tablet_bp > 0 ? $tablet_bp : $default_tablet_bp;
+        $version   = defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : '0.0.0';
+
+        $bucket_keys_to_clear = [
+            sprintf( '%s:%d:%d:%d', $version, 0, (int) $mobile_bp, (int) $tablet_bp ),
+            sprintf( '%s:%d:%d:%d', $version, 1, (int) $mobile_bp, (int) $tablet_bp ),
+        ];
+    }
+
+    if ( function_exists( 'delete_transient' ) ) {
+        foreach ( array_unique( $bucket_keys_to_clear ) as $bucket_key ) {
+            delete_transient( sprintf( 'visibloc_device_css_%s', $bucket_key ) );
+        }
+    }
+
+    if ( function_exists( 'delete_option' ) ) {
+        delete_option( 'visibloc_device_css_transients' );
+    }
+
     if ( function_exists( 'wp_cache_delete' ) ) {
         wp_cache_delete( 'visibloc_device_css_cache', 'visibloc_jlg' );
     }

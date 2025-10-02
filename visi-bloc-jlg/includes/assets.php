@@ -189,6 +189,16 @@ function visibloc_jlg_generate_device_visibility_css( $can_preview, $mobile_bp =
         (int) $tablet_bp
     );
 
+    $transient_key = sprintf( 'visibloc_device_css_%s', $bucket_key );
+
+    if ( function_exists( 'get_transient' ) ) {
+        $transient_css = get_transient( $transient_key );
+
+        if ( false !== $transient_css ) {
+            return $transient_css;
+        }
+    }
+
     $cached_css = wp_cache_get( $cache_key, $cache_group );
 
     if ( is_array( $cached_css ) && array_key_exists( $bucket_key, $cached_css ) ) {
@@ -275,6 +285,23 @@ function visibloc_jlg_generate_device_visibility_css( $can_preview, $mobile_bp =
     }
 
     $cached_css[ $bucket_key ] = $css;
+
+    if ( function_exists( 'set_transient' ) ) {
+        set_transient( $transient_key, $css, 0 );
+    }
+
+    if ( function_exists( 'get_option' ) && function_exists( 'update_option' ) ) {
+        $registered_buckets = get_option( 'visibloc_device_css_transients', [] );
+
+        if ( ! is_array( $registered_buckets ) ) {
+            $registered_buckets = [];
+        }
+
+        if ( ! in_array( $bucket_key, $registered_buckets, true ) ) {
+            $registered_buckets[] = $bucket_key;
+            update_option( 'visibloc_device_css_transients', $registered_buckets );
+        }
+    }
 
     wp_cache_set( $cache_key, $cached_css, $cache_group );
 
