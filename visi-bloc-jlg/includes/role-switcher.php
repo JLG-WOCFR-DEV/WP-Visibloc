@@ -1102,12 +1102,19 @@ function visibloc_jlg_render_role_switcher_frontend() {
     $panel_id = 'visibloc-mobile-role-switcher-panel';
     $title_id = 'visibloc-mobile-role-switcher-title';
     $toggle_max_width = isset( $model['toggle_max_width'] ) ? absint( $model['toggle_max_width'] ) : 0;
+    $has_current_role_label = ! empty( $model['current_role_label'] );
+    $prefix_without_label = __( 'Aperçu en tant que', 'visi-bloc-jlg' );
+    $prefix_with_label    = __( 'Aperçu en tant que :', 'visi-bloc-jlg' );
     $data_attributes = [
         'data-visibloc-role-switcher' => '',
     ];
 
     if ( $toggle_max_width > 0 ) {
         $data_attributes['data-visibloc-role-switcher-max-width'] = (string) $toggle_max_width;
+    }
+
+    if ( $has_current_role_label ) {
+        $data_attributes['data-visibloc-role-switcher-current-label'] = $model['current_role_label'];
     }
 
     $attributes_string = '';
@@ -1124,7 +1131,16 @@ function visibloc_jlg_render_role_switcher_frontend() {
     <div class="visibloc-mobile-role-switcher"<?php echo $attributes_string; ?>>
         <div class="visibloc-mobile-role-switcher__inner">
             <button type="button" class="visibloc-mobile-role-switcher__toggle" aria-expanded="false" aria-controls="<?php echo esc_attr( $panel_id ); ?>">
-                <span class="visibloc-mobile-role-switcher__toggle-text"><?php esc_html_e( 'Aperçu en tant que', 'visi-bloc-jlg' ); ?></span>
+                <span
+                    class="visibloc-mobile-role-switcher__toggle-prefix"
+                    data-visibloc-role-switcher-prefix-default="<?php echo esc_attr( $prefix_without_label ); ?>"
+                    data-visibloc-role-switcher-prefix-with-label="<?php echo esc_attr( $prefix_with_label ); ?>"
+                ><?php echo esc_html( $has_current_role_label ? $prefix_with_label : $prefix_without_label ); ?></span>
+                <span class="visibloc-mobile-role-switcher__toggle-role" aria-live="polite" data-visibloc-role-switcher-label><?php
+                    if ( $has_current_role_label ) {
+                        echo esc_html( $model['current_role_label'] );
+                    }
+                ?></span>
             </button>
             <div class="visibloc-mobile-role-switcher__panel" id="<?php echo esc_attr( $panel_id ); ?>" role="dialog" aria-modal="true" aria-labelledby="<?php echo esc_attr( $title_id ); ?>" hidden>
                 <div class="visibloc-mobile-role-switcher__panel-header">
