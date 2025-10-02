@@ -33,7 +33,11 @@ if ( ! defined( 'VISIBLOC_JLG_DEFAULT_SUPPORTED_BLOCKS' ) ) {
     define( 'VISIBLOC_JLG_DEFAULT_SUPPORTED_BLOCKS', [ 'core/group' ] );
 }
 
-require_once __DIR__ . '/includes/block-utils.php';
+$autoloader = dirname( __DIR__ ) . '/vendor/autoload.php';
+
+if ( file_exists( $autoloader ) ) {
+    require_once $autoloader;
+}
 
 if ( ! function_exists( 'visibloc_jlg_get_sanitized_query_arg' ) ) {
     /**
@@ -118,16 +122,15 @@ if ( ! function_exists( 'visibloc_jlg_normalize_boolean' ) ) {
     }
 }
 
-// Charge les différents modules du plugin
-require_once __DIR__ . '/includes/datetime-utils.php';
-require_once __DIR__ . '/includes/admin-settings.php';
-require_once __DIR__ . '/includes/assets.php';
-require_once __DIR__ . '/includes/visibility-logic.php';
-require_once __DIR__ . '/includes/i18n-inline.php';
-require_once __DIR__ . '/includes/role-switcher.php';
-if ( defined( 'WP_CLI' ) && WP_CLI ) {
-    require_once __DIR__ . '/includes/cli.php';
-}
+
+add_action(
+    'plugins_loaded',
+    static function () {
+        if ( class_exists( \VisiBloc\Plugin::class ) ) {
+            ( new \VisiBloc\Plugin( __DIR__ ) )->bootstrap();
+        }
+    }
+);
 
 /**
  * Initialise la localisation du plugin.
