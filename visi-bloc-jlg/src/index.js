@@ -226,6 +226,48 @@ const DEVICE_VISIBILITY_OPTIONS = [
     },
 ];
 
+const DEVICE_BADGE_LABELS = new Map([
+    ['desktop-only', __('Desktop Uniquement', 'visi-bloc-jlg')],
+    ['tablet-only', __('Tablette Uniquement', 'visi-bloc-jlg')],
+    ['mobile-only', __('Mobile Uniquement', 'visi-bloc-jlg')],
+    ['hide-on-desktop', __('Caché sur Desktop', 'visi-bloc-jlg')],
+    ['hide-on-tablet', __('Caché sur Tablette', 'visi-bloc-jlg')],
+    ['hide-on-mobile', __('Caché sur Mobile', 'visi-bloc-jlg')],
+]);
+
+const ROLE_SPECIAL_LABELS = new Map([
+    ['logged-in', __('Utilisateurs connectés', 'visi-bloc-jlg')],
+    ['logged-out', __('Visiteurs non connectés', 'visi-bloc-jlg')],
+]);
+
+const ROLE_LABEL_LOOKUP = (() => {
+    const map = new Map();
+
+    if (typeof VisiBlocData === 'object' && VisiBlocData !== null) {
+        const { roles } = VisiBlocData;
+
+        if (roles && typeof roles === 'object') {
+            Object.entries(roles).forEach(([slug, label]) => {
+                if (typeof slug === 'string' && slug) {
+                    const normalizedLabel =
+                        typeof label === 'string' && label.trim() ? label.trim() : slug;
+
+                    map.set(slug, normalizedLabel);
+                }
+            });
+        }
+    }
+
+    return map;
+})();
+
+const BADGE_PREFIXES = Object.freeze({
+    schedule: '🗓️',
+    roles: '👥',
+    device: '📱',
+    advanced: '⚙️',
+});
+
 const SUPPORTED_ADVANCED_RULE_TYPES = [
     'post_type',
     'taxonomy',
@@ -1025,15 +1067,38 @@ function addEditorCanvasClasses(props, block) {
         return props;
     }
 
-    const { isHidden } = block.attributes;
-    const newClasses = [props.className, isHidden ? 'bloc-editeur-cache' : '']
-        .filter(Boolean)
-        .join(' ');
+    const state = buildVisibilityUiState(block.attributes);
+    const baseClasses =
+        typeof props.className === 'string'
+            ? props.className
+                  .split(/\s+/)
+                  .map((className) => className.trim())
+                  .filter(
+                      (className) =>
+                          className &&
+                          !MANAGED_VISIBLOC_CLASS_PREFIXES.some((prefix) =>
+                              className.startsWith(prefix),
+                          ),
+                  )
+            : [];
+    const existingClasses = new Set(baseClasses);
 
-    return {
+    state.classes.forEach((className) => {
+        if (className) {
+            existingClasses.add(className);
+        }
+    });
+
+    const nextProps = {
         ...props,
-        className: newClasses,
+        className: Array.from(existingClasses).join(' '),
     };
+
+    Object.entries(state.dataset).forEach(([key, value]) => {
+        nextProps[key] = value;
+    });
+
+    return nextProps;
 }
 
 function addSaveClasses(extraProps, blockType, attributes) {
@@ -1041,25 +1106,309 @@ function addSaveClasses(extraProps, blockType, attributes) {
         return extraProps;
     }
 
-    const { deviceVisibility } = attributes;
-    const newClasses = [
-        extraProps.className,
-        deviceVisibility && deviceVisibility !== 'all'
-            ? `vb-${deviceVisibility}`
-            : '',
-    ]
-        .filter(Boolean)
-        .join(' ');
+    const state = buildVisibilityUiState(attributes);
+    const baseClasses =
+        typeof extraProps.className === 'string'
+            ? extraProps.className
+                  .split(/\s+/)
+                  .map((className) => className.trim())
+                  .filter(
+                      (className) =>
+                          className &&
+                          !MANAGED_VISIBLOC_CLASS_PREFIXES.some((prefix) =>
+                              className.startsWith(prefix),
+                          ),
+                  )
+            : [];
+    const classSet = new Set(baseClasses);
+
+    state.classes.forEach((className) => {
+        if (className) {
+            classSet.add(className);
+        }
+    });
+
+    const legacyDeviceClass = state.deviceInfo
+        ? `vb-${state.deviceInfo.sanitized}`
+        : getLegacyDeviceClassName(attributes.deviceVisibility);
+
+    if (legacyDeviceClass) {
+        classSet.add(legacyDeviceClass);
+    }
 
     return {
         ...extraProps,
-        className: newClasses,
+        className: Array.from(classSet).join(' '),
     };
 }
+
+const sanitizeClassFragment = (value) => {
+    if (typeof value !== 'string') {
+        return '';
+    }
+
+    return value
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9-]+/g, '-')
+        .replace(/-{2,}/g, '-')
+        .replace(/^-+|-+$/g, '');
+};
+
+const getDeviceBadgeInfo = (deviceVisibility) => {
+    if (typeof deviceVisibility !== 'string') {
+        return null;
+    }
+
+    const trimmed = deviceVisibility.trim();
+
+    if (!trimmed || trimmed === 'all' || trimmed.startsWith('separator')) {
+        return null;
+    }
+
+    const sanitized = sanitizeClassFragment(trimmed);
+
+    if (!sanitized) {
+        return null;
+    }
+
+    const label = DEVICE_BADGE_LABELS.get(trimmed) || trimmed;
+
+    return {
+        className: `vb-device-${sanitized}`,
+        sanitized,
+        label,
+    };
+};
+
+const getLegacyDeviceClassName = (deviceVisibility) => {
+    const badgeInfo = getDeviceBadgeInfo(deviceVisibility);
+
+    if (!badgeInfo) {
+        return '';
+    }
+
+    return `vb-${badgeInfo.sanitized}`;
+};
+
+const getRoleLabelFromSlug = (roleSlug) => {
+    if (typeof roleSlug !== 'string' || !roleSlug) {
+        return '';
+    }
+
+    if (ROLE_SPECIAL_LABELS.has(roleSlug)) {
+        return ROLE_SPECIAL_LABELS.get(roleSlug);
+    }
+
+    if (ROLE_LABEL_LOOKUP.has(roleSlug)) {
+        return ROLE_LABEL_LOOKUP.get(roleSlug);
+    }
+
+    return roleSlug;
+};
+
+const getRoleBadgeLabel = (visibilityRoles) => {
+    if (!Array.isArray(visibilityRoles) || !visibilityRoles.length) {
+        return null;
+    }
+
+    const uniqueRoles = Array.from(
+        new Set(
+            visibilityRoles
+                .map((role) => (typeof role === 'string' ? role.trim() : ''))
+                .filter(Boolean),
+        ),
+    );
+
+    if (!uniqueRoles.length) {
+        return null;
+    }
+
+    const roleLabels = uniqueRoles
+        .map(getRoleLabelFromSlug)
+        .map((label) => (typeof label === 'string' ? label.trim() : ''))
+        .filter(Boolean);
+
+    if (!roleLabels.length) {
+        return __('Visibilité par rôle activée', 'visi-bloc-jlg');
+    }
+
+    return sprintf(__('Rôles : %s', 'visi-bloc-jlg'), roleLabels.join(', '));
+};
+
+const getScheduleBadgeLabel = (attributes) => {
+    if (!attributes || typeof attributes !== 'object') {
+        return null;
+    }
+
+    const { isSchedulingEnabled, publishStartDate, publishEndDate } = attributes;
+
+    if (!isSchedulingEnabled) {
+        return null;
+    }
+
+    const startDateLabel = formatScheduleDate(publishStartDate);
+    const endDateLabel = formatScheduleDate(publishEndDate);
+    const startDateObj = parseDateValue(publishStartDate);
+    const endDateObj = parseDateValue(publishEndDate);
+    const hasScheduleRangeError =
+        !!startDateObj && !!endDateObj && endDateObj.getTime() < startDateObj.getTime();
+
+    if (hasScheduleRangeError) {
+        return __('Programmation invalide', 'visi-bloc-jlg');
+    }
+
+    if (startDateLabel && endDateLabel) {
+        return sprintf(
+            __('Programmation : %1$s → %2$s', 'visi-bloc-jlg'),
+            startDateLabel,
+            endDateLabel,
+        );
+    }
+
+    if (startDateLabel) {
+        return sprintf(__('Programmation : à partir du %s', 'visi-bloc-jlg'), startDateLabel);
+    }
+
+    if (endDateLabel) {
+        return sprintf(__('Programmation : jusqu\'au %s', 'visi-bloc-jlg'), endDateLabel);
+    }
+
+    return __('Programmation activée', 'visi-bloc-jlg');
+};
+
+const getAdvancedBadgeLabel = (rawAdvancedVisibility) => {
+    const advancedVisibility = normalizeAdvancedVisibility(rawAdvancedVisibility);
+
+    if (!advancedVisibility || !Array.isArray(advancedVisibility.rules)) {
+        return null;
+    }
+
+    if (!advancedVisibility.rules.length) {
+        return null;
+    }
+
+    return __('Règles avancées actives', 'visi-bloc-jlg');
+};
+
+const buildVisibilityUiState = (attributes = {}) => {
+    const classes = new Set();
+    const badges = [];
+    const dataset = {};
+
+    if (attributes && attributes.isHidden) {
+        classes.add('bloc-editeur-cache');
+        dataset['data-visibloc-label'] = __('Bloc masqué', 'visi-bloc-jlg');
+    } else {
+        dataset['data-visibloc-label'] = undefined;
+    }
+
+    const deviceInfo = getDeviceBadgeInfo(attributes.deviceVisibility);
+
+    if (deviceInfo) {
+        classes.add(deviceInfo.className);
+        badges.push(
+            `${BADGE_PREFIXES.device} ${sprintf(
+                __('Appareil : %s', 'visi-bloc-jlg'),
+                deviceInfo.label,
+            )}`,
+        );
+    }
+
+    const roleBadge = getRoleBadgeLabel(attributes.visibilityRoles);
+
+    if (roleBadge) {
+        classes.add('bloc-editeur-role');
+        badges.push(`${BADGE_PREFIXES.roles} ${roleBadge}`);
+    }
+
+    const scheduleBadge = getScheduleBadgeLabel(attributes);
+
+    if (scheduleBadge) {
+        classes.add('bloc-editeur-programme');
+        badges.push(`${BADGE_PREFIXES.schedule} ${scheduleBadge}`);
+    }
+
+    const advancedBadge = getAdvancedBadgeLabel(attributes.advancedVisibility);
+
+    if (advancedBadge) {
+        classes.add('bloc-editeur-conditions');
+        badges.push(`${BADGE_PREFIXES.advanced} ${advancedBadge}`);
+    }
+
+    const classList = Array.from(classes).filter(Boolean).sort();
+    const badgesValue = badges.join('\n');
+
+    dataset['data-visibloc-badges'] = badgesValue || undefined;
+
+    return {
+        classes: classList,
+        badges: badgesValue,
+        dataset,
+        deviceInfo,
+    };
+};
+
+const areUiStatesEqual = (first, second) => {
+    if (first === second) {
+        return true;
+    }
+
+    if (!first || !second) {
+        return false;
+    }
+
+    if (first.badges !== second.badges) {
+        return false;
+    }
+
+    if (first.classes.length !== second.classes.length) {
+        return false;
+    }
+
+    for (let index = 0; index < first.classes.length; index += 1) {
+        if (first.classes[index] !== second.classes[index]) {
+            return false;
+        }
+    }
+
+    return true;
+};
 
 const blockVisibilityState = new Map();
 const pendingListViewUpdates = new Map();
 let listViewRafHandle = null;
+
+const MANAGED_VISIBLOC_CLASS_PREFIXES = ['bloc-editeur-', 'vb-device-'];
+
+const applyListViewState = (row, state) => {
+    if (!row || !state) {
+        return;
+    }
+
+    const classSet = new Set(Array.isArray(state.classes) ? state.classes : []);
+
+    Array.from(row.classList).forEach((className) => {
+        if (
+            MANAGED_VISIBLOC_CLASS_PREFIXES.some((prefix) => className.startsWith(prefix)) &&
+            !classSet.has(className)
+        ) {
+            row.classList.remove(className);
+        }
+    });
+
+    state.classes.forEach((className) => {
+        if (className) {
+            row.classList.add(className);
+        }
+    });
+
+    if (state.badges) {
+        row.setAttribute('data-visibloc-badges', state.badges);
+    } else {
+        row.removeAttribute('data-visibloc-badges');
+    }
+};
 
 function getIsListViewOpened() {
     const editPostStore = select('core/edit-post');
@@ -1093,8 +1442,8 @@ function replayPendingListViewUpdates() {
         listViewRafHandle = null;
     }
 
-    updates.forEach(([clientId, isHidden]) => {
-        queueListViewUpdate(clientId, isHidden);
+    updates.forEach(([clientId, state]) => {
+        queueListViewUpdate(clientId, state);
     });
 }
 
@@ -1107,29 +1456,25 @@ function flushListViewUpdates() {
 
     const unresolvedUpdates = new Map();
 
-    pendingListViewUpdates.forEach((isHidden, clientId) => {
+    pendingListViewUpdates.forEach((state, clientId) => {
         const row = document.querySelector(
             `.block-editor-list-view__block[data-block="${clientId}"]`,
         );
 
         if (!row) {
-            unresolvedUpdates.set(clientId, isHidden);
+            unresolvedUpdates.set(clientId, state);
 
             return;
         }
 
-        if (isHidden) {
-            row.classList.add('bloc-editeur-cache');
-        } else {
-            row.classList.remove('bloc-editeur-cache');
-        }
+        applyListViewState(row, state);
     });
 
     pendingListViewUpdates.clear();
 
     if (unresolvedUpdates.size) {
-        unresolvedUpdates.forEach((isHidden, clientId) => {
-            pendingListViewUpdates.set(clientId, isHidden);
+        unresolvedUpdates.forEach((state, clientId) => {
+            pendingListViewUpdates.set(clientId, state);
         });
     }
 
@@ -1144,12 +1489,18 @@ function flushListViewUpdates() {
     listViewRafHandle = null;
 }
 
-function queueListViewUpdate(clientId, isHidden) {
-    if (pendingListViewUpdates.get(clientId) === isHidden) {
+function queueListViewUpdate(clientId, state) {
+    if (!state) {
+        pendingListViewUpdates.delete(clientId);
+
         return;
     }
 
-    pendingListViewUpdates.set(clientId, isHidden);
+    if (areUiStatesEqual(pendingListViewUpdates.get(clientId), state)) {
+        return;
+    }
+
+    pendingListViewUpdates.set(clientId, state);
 
     if (listViewRafHandle) {
         return;
@@ -1185,14 +1536,14 @@ function syncListView() {
         }
 
         if (isSupportedBlockName(block.name)) {
-            const isHidden = Boolean(block.attributes.isHidden);
+            const state = buildVisibilityUiState(block.attributes || {});
             const previousState = blockVisibilityState.get(clientId);
 
-            if (previousState !== isHidden) {
-                queueListViewUpdate(clientId, isHidden);
+            if (!areUiStatesEqual(previousState, state)) {
+                queueListViewUpdate(clientId, state);
             }
 
-            blockVisibilityState.set(clientId, isHidden);
+            blockVisibilityState.set(clientId, state);
             seenSupportedBlocks.add(clientId);
         }
 
