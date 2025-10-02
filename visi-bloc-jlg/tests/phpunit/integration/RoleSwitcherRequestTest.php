@@ -548,6 +548,58 @@ class RoleSwitcherRequestTest extends TestCase {
         $this->assertArrayNotHasKey( 'visibloc-alert', $admin_bar_after->nodes, 'Toolbar alert should disappear once preview stops.' );
     }
 
+    /**
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function test_frontend_model_includes_dynamic_breakpoints(): void {
+        global $visibloc_test_state;
+
+        $user_id = 37;
+
+        $visibloc_test_state['effective_user_id']             = $user_id;
+        $visibloc_test_state['current_user']                  = new Visibloc_Test_User( $user_id, [ 'administrator' ] );
+        $visibloc_test_state['can_preview_users'][ $user_id ] = true;
+        $visibloc_test_state['can_impersonate_users'][ $user_id ] = true;
+        $visibloc_test_state['allowed_preview_roles']         = [ 'administrator', 'editor' ];
+        $visibloc_test_state['roles']['editor']               = (object) [ 'name' => 'Editor', 'capabilities' => [] ];
+
+        delete_option( 'visibloc_breakpoint_mobile' );
+        delete_option( 'visibloc_breakpoint_tablet' );
+
+        $model = visibloc_jlg_get_role_switcher_frontend_model( true );
+
+        $this->assertIsArray( $model, 'Frontend model should be available when preview is allowed.' );
+        $this->assertArrayHasKey( 'breakpoints', $model );
+        $this->assertSame(
+            [
+                'mobile' => 781,
+                'tablet' => 1024,
+            ],
+            $model['breakpoints']
+        );
+        $this->assertArrayHasKey( 'toggle_max_width', $model );
+        $this->assertSame( 1024, $model['toggle_max_width'], 'Default breakpoints should favour the tablet width.' );
+
+        update_option( 'visibloc_breakpoint_mobile', 640 );
+        update_option( 'visibloc_breakpoint_tablet', 900 );
+
+        $custom_model = visibloc_jlg_get_role_switcher_frontend_model( true );
+
+        $this->assertSame( 640, $custom_model['breakpoints']['mobile'] );
+        $this->assertSame( 900, $custom_model['breakpoints']['tablet'] );
+        $this->assertSame( 900, $custom_model['toggle_max_width'], 'Custom tablet breakpoint should define the toggle threshold.' );
+
+        update_option( 'visibloc_breakpoint_mobile', 1280 );
+        update_option( 'visibloc_breakpoint_tablet', 900 );
+
+        $wide_model = visibloc_jlg_get_role_switcher_frontend_model( true );
+
+        $this->assertSame( 1280, $wide_model['breakpoints']['mobile'] );
+        $this->assertSame( 900, $wide_model['breakpoints']['tablet'] );
+        $this->assertSame( 1280, $wide_model['toggle_max_width'], 'The widest breakpoint should control the toggle visibility.' );
+    }
+
     public function test_external_absolute_request_uri_is_neutralized(): void {
         $_SERVER['REQUEST_URI'] = 'https://malicious.test/suspicious/?preview_role=guest&_wpnonce=fake';
 
