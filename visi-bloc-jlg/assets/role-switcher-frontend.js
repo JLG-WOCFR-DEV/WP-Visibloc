@@ -9,6 +9,12 @@
         var toggle = container.querySelector('.visibloc-mobile-role-switcher__toggle');
         var panel = container.querySelector('.visibloc-mobile-role-switcher__panel');
         var closeButtons = container.querySelectorAll('[data-visibloc-role-switcher-close]');
+        var currentLabelElement = container.querySelector('[data-visibloc-role-switcher-label]');
+        var prefixElement = container.querySelector('.visibloc-mobile-role-switcher__toggle-prefix');
+        var availableLinks = container.querySelectorAll('.visibloc-mobile-role-switcher__link');
+        var resetLink = container.querySelector('.visibloc-mobile-role-switcher__reset');
+        var prefixDefault = prefixElement ? prefixElement.getAttribute('data-visibloc-role-switcher-prefix-default') : '';
+        var prefixWithLabel = prefixElement ? prefixElement.getAttribute('data-visibloc-role-switcher-prefix-with-label') : '';
         var openClass = 'visibloc-mobile-role-switcher--open';
         var lockClass = 'visibloc-role-switcher--locked';
         var scrollLockTarget = document.documentElement || document.body;
@@ -16,6 +22,7 @@
         var scrollBarWidthProperty = '--visibloc-role-switcher-scrollbar-width';
         var bodyPaddingProperty = '--visibloc-role-switcher-body-padding-right';
         var containerRemovalObserver = null;
+        var attributeObserver = null;
         var focusableSelectors = [
             'a[href]:not([tabindex="-1"])',
             'area[href]',
@@ -72,6 +79,60 @@
             return Array.prototype.filter.call(elements, function (element) {
                 return panel.contains(element) && isFocusableElement(element);
             });
+        }
+
+        function applyPrefix(hasLabel) {
+            if (!prefixElement) {
+                return;
+            }
+
+            var targetText = hasLabel
+                ? (prefixWithLabel || prefixElement.textContent || '')
+                : (prefixDefault || prefixElement.textContent || '');
+
+            if (targetText) {
+                prefixElement.textContent = targetText;
+            }
+        }
+
+        function applyLabel(labelText) {
+            if (!currentLabelElement) {
+                return;
+            }
+
+            var trimmed = '';
+
+            if ('string' === typeof labelText) {
+                trimmed = labelText.trim();
+            }
+
+            if (trimmed) {
+                currentLabelElement.textContent = trimmed;
+                applyPrefix(true);
+            } else {
+                currentLabelElement.textContent = '';
+                applyPrefix(false);
+            }
+        }
+
+        function setLabel(labelText) {
+            applyLabel(labelText);
+
+            if (!container) {
+                return;
+            }
+
+            var trimmed = '';
+
+            if ('string' === typeof labelText) {
+                trimmed = labelText.trim();
+            }
+
+            if (trimmed) {
+                container.setAttribute('data-visibloc-role-switcher-current-label', trimmed);
+            } else {
+                container.removeAttribute('data-visibloc-role-switcher-current-label');
+            }
         }
 
         function toggleOutsideInert(shouldDisable) {
@@ -200,6 +261,36 @@
             removeScrollLock();
         }
 
+        if (currentLabelElement) {
+            var initialLabel = container.getAttribute('data-visibloc-role-switcher-current-label');
+
+            if (!initialLabel) {
+                initialLabel = currentLabelElement.textContent || '';
+            }
+
+            if (initialLabel) {
+                setLabel(initialLabel);
+            } else {
+                applyLabel('');
+            }
+        }
+
+        if (availableLinks && availableLinks.length) {
+            Array.prototype.forEach.call(availableLinks, function (link) {
+                link.addEventListener('click', function () {
+                    var linkLabel = link ? link.textContent : '';
+
+                    setLabel(linkLabel || '');
+                });
+            });
+        }
+
+        if (resetLink) {
+            resetLink.addEventListener('click', function () {
+                setLabel('');
+            });
+        }
+
         function openPanel() {
             container.classList.add(openClass);
             panel.removeAttribute('hidden');
@@ -319,6 +410,27 @@
         }
 
         if (typeof window !== 'undefined' && 'MutationObserver' in window && document.body) {
+            attributeObserver = new window.MutationObserver(function (mutations) {
+                if (!mutations) {
+                    return;
+                }
+
+                mutations.forEach(function (mutation) {
+                    if (!mutation || mutation.type !== 'attributes' || mutation.attributeName !== 'data-visibloc-role-switcher-current-label') {
+                        return;
+                    }
+
+                    var newLabel = container.getAttribute('data-visibloc-role-switcher-current-label') || '';
+
+                    applyLabel(newLabel);
+                });
+            });
+
+            attributeObserver.observe(container, {
+                attributes: true,
+                attributeFilter: ['data-visibloc-role-switcher-current-label']
+            });
+
             containerRemovalObserver = new window.MutationObserver(function () {
                 if (document.body && document.body.contains(container)) {
                     return;
@@ -329,6 +441,11 @@
                 if (containerRemovalObserver) {
                     containerRemovalObserver.disconnect();
                     containerRemovalObserver = null;
+                }
+
+                if (attributeObserver) {
+                    attributeObserver.disconnect();
+                    attributeObserver = null;
                 }
             });
 
