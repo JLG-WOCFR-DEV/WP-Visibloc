@@ -146,6 +146,19 @@ function visibloc_jlg_handle_options_save() {
         wp_safe_redirect( admin_url( 'admin.php?page=visi-bloc-jlg-help&status=updated' ) );
         exit;
     }
+
+    if ( wp_verify_nonce( $nonce, 'visibloc_save_fallback' ) ) {
+        $raw_fallback_content = isset( $_POST['visibloc_fallback_content'] )
+            ? wp_unslash( $_POST['visibloc_fallback_content'] )
+            : '';
+
+        $sanitized_fallback_content = wp_kses_post( $raw_fallback_content );
+
+        update_option( 'visibloc_fallback_content', $sanitized_fallback_content );
+        visibloc_jlg_clear_caches();
+        wp_safe_redirect( admin_url( 'admin.php?page=visi-bloc-jlg-help&status=updated' ) );
+        exit;
+    }
 }
 
 add_action( 'admin_menu', 'visibloc_jlg_add_admin_menu' );
@@ -232,6 +245,7 @@ function visibloc_jlg_render_help_page_content() {
             visibloc_jlg_render_scheduled_blocks_section( $scheduled_posts );
             visibloc_jlg_render_debug_mode_section( $debug_status );
             visibloc_jlg_render_breakpoints_section( $mobile_bp, $tablet_bp );
+            visibloc_jlg_render_fallback_section();
             ?>
         </div>
     </div>
@@ -344,6 +358,34 @@ function visibloc_jlg_render_supported_blocks_section( $registered_block_types, 
                 <?php endif; ?>
                 <?php wp_nonce_field( 'visibloc_save_supported_blocks', 'visibloc_nonce' ); ?>
                 <?php submit_button( __( 'Enregistrer les blocs compatibles', 'visi-bloc-jlg' ) ); ?>
+            </form>
+        </div>
+    </div>
+    <?php
+}
+
+function visibloc_jlg_render_fallback_section() {
+    $fallback_content = get_option( 'visibloc_fallback_content', '' );
+    $fallback_content = is_string( $fallback_content ) ? $fallback_content : '';
+
+    ?>
+    <div class="postbox">
+        <h2 class="hndle"><span><?php esc_html_e( 'Contenu de repli global', 'visi-bloc-jlg' ); ?></span></h2>
+        <div class="inside">
+            <form method="POST" action="">
+                <p>
+                    <?php esc_html_e( 'Définissez le contenu affiché lorsque Visi-Bloc masque un bloc et qu’un repli est activé.', 'visi-bloc-jlg' ); ?>
+                </p>
+                <textarea
+                    name="visibloc_fallback_content"
+                    rows="6"
+                    class="large-text"
+                ><?php echo esc_textarea( $fallback_content ); ?></textarea>
+                <p class="description">
+                    <?php esc_html_e( 'Vous pouvez saisir du texte ou du HTML simple. Laisser vide pour désactiver le contenu de repli par défaut.', 'visi-bloc-jlg' ); ?>
+                </p>
+                <?php wp_nonce_field( 'visibloc_save_fallback', 'visibloc_nonce' ); ?>
+                <?php submit_button( __( 'Enregistrer le contenu de repli', 'visi-bloc-jlg' ) ); ?>
             </form>
         </div>
     </div>

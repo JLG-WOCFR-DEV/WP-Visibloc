@@ -1,6 +1,8 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+require_once __DIR__ . '/block-utils.php';
+
 if ( ! defined( 'VISIBLOC_JLG_VERSION' ) ) {
     $visibloc_version = '0.0.0';
     $plugin_main_file = __DIR__ . '/../visi-bloc-jlg.php';
@@ -126,8 +128,67 @@ function visibloc_jlg_enqueue_editor_assets() {
         [
             'roles'            => wp_roles()->get_names(),
             'supportedBlocks'  => visibloc_jlg_get_supported_blocks(),
+            'fallback'         => [
+                'content'         => visibloc_jlg_get_global_fallback_content(),
+                'reusableBlocks'  => visibloc_jlg_get_reusable_blocks_for_localization(),
+            ],
         ]
     );
+}
+
+function visibloc_jlg_get_reusable_blocks_for_localization() {
+    static $cache = null;
+
+    if ( null !== $cache ) {
+        return $cache;
+    }
+
+    if ( ! function_exists( 'get_posts' ) ) {
+        $cache = [];
+
+        return $cache;
+    }
+
+    $reusable_blocks = get_posts(
+        [
+            'post_type'      => 'wp_block',
+            'post_status'    => 'publish',
+            'numberposts'    => -1,
+            'orderby'        => 'title',
+            'order'          => 'ASC',
+            'suppress_filters' => false,
+        ]
+    );
+
+    if ( empty( $reusable_blocks ) ) {
+        $cache = [];
+
+        return $cache;
+    }
+
+    $choices = [];
+
+    foreach ( $reusable_blocks as $block_post ) {
+        if ( ! $block_post instanceof WP_Post ) {
+            continue;
+        }
+
+        $title = get_the_title( $block_post );
+
+        if ( '' === $title ) {
+            /* translators: %d is the reusable block ID. */
+            $title = sprintf( __( 'Bloc réutilisable #%d', 'visi-bloc-jlg' ), $block_post->ID );
+        }
+
+        $choices[] = [
+            'id'    => (int) $block_post->ID,
+            'title' => $title,
+        ];
+    }
+
+    $cache = $choices;
+
+    return $cache;
 }
 
 function visibloc_jlg_flag_missing_editor_assets() {

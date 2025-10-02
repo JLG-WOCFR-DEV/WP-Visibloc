@@ -52,3 +52,24 @@ if ( ! function_exists( 'visibloc_jlg_normalize_block_names' ) ) {
         return array_keys( $normalized );
     }
 }
+
+if ( ! function_exists( 'visibloc_jlg_get_global_fallback_content' ) ) {
+    /**
+     * Retrieve the global fallback content configured in the settings.
+     *
+     * @return string
+     */
+    function visibloc_jlg_get_global_fallback_content() {
+        $raw_value = get_option( 'visibloc_fallback_content', '' );
+
+        if ( is_string( $raw_value ) ) {
+            return $raw_value;
+        }
+
+        if ( is_scalar( $raw_value ) ) {
+            return (string) $raw_value;
+        }
+
+        return '';
+    }
+}

@@ -1,6 +1,8 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+require_once __DIR__ . '/block-utils.php';
+
 function visibloc_jlg_get_supported_blocks() {
     $default_blocks   = (array) VISIBLOC_JLG_DEFAULT_SUPPORTED_BLOCKS;
     $option_value     = get_option( 'visibloc_supported_blocks', [] );
@@ -45,10 +47,112 @@ function visibloc_jlg_render_block_visibility_router( $block_content, $block ) {
 
 add_filter( 'render_block', 'visibloc_jlg_render_block_visibility_router', 10, 2 );
 
+function visibloc_jlg_render_reusable_block_content( $block_id ) {
+    if ( ! function_exists( 'get_post' ) || ! function_exists( 'do_blocks' ) ) {
+        return '';
+    }
+
+    $block_post = get_post( $block_id );
+
+    if ( ! ( $block_post instanceof WP_Post ) || 'wp_block' !== $block_post->post_type ) {
+        return '';
+    }
+
+    $raw_content = $block_post->post_content;
+
+    if ( ! is_string( $raw_content ) || '' === $raw_content ) {
+        return '';
+    }
+
+    return do_blocks( $raw_content );
+}
+
+function visibloc_jlg_resolve_block_fallback( $attrs ) {
+    $enabled = isset( $attrs['fallbackEnabled'] ) ? visibloc_jlg_normalize_boolean( $attrs['fallbackEnabled'] ) : false;
+
+    $resolved = [
+        'enabled'            => $enabled,
+        'source'             => 'global',
+        'content'            => '',
+        'has_content'        => false,
+        'reusable_block_id'  => null,
+    ];
+
+    if ( ! $enabled ) {
+        return $resolved;
+    }
+
+    $raw_source = isset( $attrs['fallbackSource'] ) && is_string( $attrs['fallbackSource'] )
+        ? strtolower( $attrs['fallbackSource'] )
+        : 'global';
+
+    $source_whitelist = [ 'global', 'custom', 'reusable' ];
+
+    if ( ! in_array( $raw_source, $source_whitelist, true ) ) {
+        $raw_source = 'global';
+    }
+
+    $resolved['source'] = $raw_source;
+
+    $content = '';
+
+    if ( 'custom' === $raw_source ) {
+        $raw_custom_content = $attrs['fallbackCustomContent'] ?? '';
+
+        if ( is_string( $raw_custom_content ) ) {
+            $content = wp_kses_post( $raw_custom_content );
+        } elseif ( is_scalar( $raw_custom_content ) ) {
+            $content = wp_kses_post( (string) $raw_custom_content );
+        }
+    } elseif ( 'reusable' === $raw_source ) {
+        $raw_reusable_id = $attrs['fallbackReusableBlockId'] ?? null;
+
+        if ( is_numeric( $raw_reusable_id ) ) {
+            $reusable_id = (int) $raw_reusable_id;
+
+            if ( $reusable_id > 0 ) {
+                $resolved['reusable_block_id'] = $reusable_id;
+                $content = visibloc_jlg_render_reusable_block_content( $reusable_id );
+            }
+        }
+    } else {
+        $content = visibloc_jlg_get_global_fallback_content();
+
+        if ( ! is_string( $content ) ) {
+            $content = '';
+        } else {
+            $content = wp_kses_post( $content );
+        }
+    }
+
+    if ( is_string( $content ) ) {
+        $content = trim( $content );
+    } else {
+        $content = '';
+    }
+
+    if ( '' !== $content && 'reusable' !== $raw_source && function_exists( 'do_shortcode' ) ) {
+        $content = do_shortcode( $content );
+    }
+
+    $content = apply_filters( 'visibloc_jlg_block_fallback_content', $content, $attrs, $resolved );
+
+    $resolved['content']     = is_string( $content ) ? $content : '';
+    $resolved['has_content'] = '' !== $resolved['content'];
+
+    return $resolved;
+}
+
 function visibloc_jlg_render_block_filter( $block_content, $block ) {
     if ( empty( $block['attrs'] ) ) { return $block_content; }
 
     $attrs = $block['attrs'];
+
+    $fallback_data = visibloc_jlg_resolve_block_fallback( $attrs );
+    $fallback_has_content = ! empty( $fallback_data['has_content'] );
+    $fallback_label_attr = $fallback_has_content
+        ? ' data-visibloc-fallback-label="' . esc_attr__( 'Repli actif', 'visi-bloc-jlg' ) . '"'
+        : '';
 
     $visibility_roles = [];
 
@@ -106,7 +210,8 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
     if ( $has_hidden_flag && $can_preview_hidden_blocks ) {
         $hidden_preview_label = esc_attr__( 'Hidden block', 'visi-bloc-jlg' );
         $hidden_preview_markup = sprintf(
-            '<div class="bloc-cache-apercu vb-label-top" data-visibloc-label="%s">%s</div>',
+            '<div class="bloc-cache-apercu vb-label-top"%s data-visibloc-label="%s">%s</div>',
+            $fallback_label_attr,
             $hidden_preview_label,
             $block_content
         );
@@ -150,9 +255,10 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
                         $start_date_fr,
                         $end_date_fr
                     );
-                    return '<div class="bloc-schedule-apercu vb-label-top" data-schedule-info="' . esc_attr( $info ) . '">' . $block_content . '</div>';
+                    return '<div class="bloc-schedule-apercu vb-label-top"' . $fallback_label_attr . ' data-schedule-info="' . esc_attr( $info ) . '">' . $block_content . '</div>';
                 }
-                return '';
+
+                return $fallback_has_content ? $fallback_data['content'] : '';
             }
         }
     }
@@ -221,12 +327,30 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         if ( ! $is_visible && in_array( 'logged-in', $visibility_roles, true ) && $is_logged_in ) $is_visible = true;
         if ( ! $is_visible && ! empty( $user_roles ) && count( array_intersect( $user_roles, $visibility_roles ) ) > 0 ) { $is_visible = true; }
         if ( ! $is_visible ) {
-            return $has_preview_markup ? $hidden_preview_markup : '';
+            if ( $can_preview_hidden_blocks ) {
+                if ( $has_preview_markup && null !== $hidden_preview_markup ) {
+                    return $hidden_preview_markup;
+                }
+
+                $restricted_label = esc_attr__( 'Restricted block', 'visi-bloc-jlg' );
+
+                if ( $fallback_has_content ) {
+                    return '<div class="bloc-cache-apercu vb-label-top"' . $fallback_label_attr . ' data-visibloc-label="' . $restricted_label . '">' . $block_content . '</div>';
+                }
+
+                return '<div class="bloc-cache-apercu vb-label-top" data-visibloc-label="' . $restricted_label . '">' . $block_content . '</div>';
+            }
+
+            return $fallback_has_content ? $fallback_data['content'] : '';
         }
     }
 
     if ( $has_hidden_flag ) {
-        return $has_preview_markup ? $hidden_preview_markup : '';
+        if ( $has_preview_markup ) {
+            return $hidden_preview_markup;
+        }
+
+        return $fallback_has_content ? $fallback_data['content'] : '';
     }
 
     if ( $has_preview_markup && null !== $hidden_preview_markup ) {
