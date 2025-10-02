@@ -3,6 +3,25 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 require_once __DIR__ . '/block-utils.php';
 
+function visibloc_jlg_update_supported_blocks( $block_names ) {
+    $normalized_blocks    = visibloc_jlg_normalize_block_names( $block_names );
+    $current_blocks_raw   = get_option( 'visibloc_supported_blocks', [] );
+    $current_blocks       = visibloc_jlg_normalize_block_names( $current_blocks_raw );
+    $current_without_new  = array_diff( $current_blocks, $normalized_blocks );
+    $new_without_current  = array_diff( $normalized_blocks, $current_blocks );
+    $has_list_changed     = count( $current_blocks ) !== count( $normalized_blocks )
+        || ! empty( $current_without_new )
+        || ! empty( $new_without_current );
+
+    update_option( 'visibloc_supported_blocks', $normalized_blocks );
+
+    if ( $has_list_changed ) {
+        visibloc_jlg_rebuild_group_block_summary_index();
+    }
+
+    return $normalized_blocks;
+}
+
 add_action( 'admin_init', 'visibloc_jlg_handle_options_save' );
 function visibloc_jlg_handle_options_save() {
     if ( ! current_user_can( 'manage_options' ) ) return;
@@ -53,8 +72,7 @@ function visibloc_jlg_handle_options_save() {
     }
 
     if ( wp_verify_nonce( $nonce, 'visibloc_save_supported_blocks' ) ) {
-        $normalized_blocks = visibloc_jlg_normalize_block_names( $submitted_supported_blocks );
-        update_option( 'visibloc_supported_blocks', $normalized_blocks );
+        visibloc_jlg_update_supported_blocks( $submitted_supported_blocks );
         visibloc_jlg_clear_caches();
         wp_safe_redirect( admin_url( 'admin.php?page=visi-bloc-jlg-help&status=updated' ) );
         exit;
