@@ -323,6 +323,49 @@ class VisibilityLogicTest extends TestCase {
         $this->assertStringContainsString( '<p>Scheduled content</p>', $output );
     }
 
+    public function test_invalid_schedule_returns_content_for_regular_users(): void {
+        $block = [
+            'blockName' => 'core/group',
+            'attrs'     => [
+                'isSchedulingEnabled' => true,
+                'publishStartDate'    => '2099-01-02 00:00:00',
+                'publishEndDate'      => '2099-01-01 00:00:00',
+            ],
+        ];
+
+        $this->assertSame(
+            '<p>Scheduled content</p>',
+            visibloc_jlg_render_block_filter( '<p>Scheduled content</p>', $block ),
+            'Invalid scheduling windows must not hide content for regular visitors.'
+        );
+    }
+
+    public function test_invalid_schedule_shows_error_badge_for_authorized_previewers(): void {
+        global $visibloc_test_state;
+
+        $visibloc_test_state['effective_user_id']       = 11;
+        $visibloc_test_state['current_user']            = new Visibloc_Test_User( 11, [ 'administrator' ] );
+        $visibloc_test_state['can_preview_users'][11]   = true;
+        $visibloc_test_state['allowed_preview_roles']   = [ 'administrator' ];
+        $visibloc_test_state['preview_role']            = '';
+
+        $block = [
+            'blockName' => 'core/group',
+            'attrs'     => [
+                'isSchedulingEnabled' => true,
+                'publishStartDate'    => '2099-01-02 00:00:00',
+                'publishEndDate'      => '2099-01-01 00:00:00',
+            ],
+        ];
+
+        $output = visibloc_jlg_render_block_filter( '<p>Scheduled content</p>', $block );
+
+        $this->assertStringContainsString( 'bloc-schedule-error', $output );
+        $this->assertStringContainsString( 'vb-label-top', $output );
+        $this->assertStringContainsString( 'Invalid schedule', $output );
+        $this->assertStringContainsString( '<p>Scheduled content</p>', $output );
+    }
+
     public function test_scheduled_block_remains_hidden_before_window_with_local_timezone(): void {
         visibloc_test_set_timezone( 'Europe/Paris' );
 

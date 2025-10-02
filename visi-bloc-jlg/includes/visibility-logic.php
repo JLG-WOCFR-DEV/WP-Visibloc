@@ -100,16 +100,17 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         ];
 
     $can_preview_hidden_blocks = ! empty( $preview_context['can_preview_hidden_blocks'] );
-    $should_show_hidden_preview = $has_hidden_flag && $can_preview_hidden_blocks;
     $hidden_preview_markup = null;
+    $has_preview_markup = false;
 
-    if ( $should_show_hidden_preview ) {
+    if ( $has_hidden_flag && $can_preview_hidden_blocks ) {
         $hidden_preview_label = esc_attr__( 'Hidden block', 'visi-bloc-jlg' );
         $hidden_preview_markup = sprintf(
             '<div class="bloc-cache-apercu vb-label-top" data-visibloc-label="%s">%s</div>',
             $hidden_preview_label,
             $block_content
         );
+        $has_preview_markup = true;
     }
 
     if ( $has_schedule_enabled ) {
@@ -118,22 +119,41 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         $start_time = visibloc_jlg_parse_schedule_datetime( $attrs['publishStartDate'] ?? null );
         $end_time   = visibloc_jlg_parse_schedule_datetime( $attrs['publishEndDate'] ?? null );
 
-        $is_before_start = null !== $start_time && $current_time < $start_time;
-        $is_after_end = null !== $end_time && $current_time > $end_time;
-        if ( $is_before_start || $is_after_end ) {
+        if ( null !== $start_time && null !== $end_time && $start_time > $end_time ) {
             if ( $can_preview_hidden_blocks ) {
-                $datetime_format = visibloc_jlg_get_wp_datetime_format();
-                $start_date_fr = $start_time ? wp_date( $datetime_format, $start_time ) : __( 'N/A', 'visi-bloc-jlg' );
-                $end_date_fr = $end_time ? wp_date( $datetime_format, $end_time ) : __( 'N/A', 'visi-bloc-jlg' );
-                $info = sprintf(
-                    /* translators: 1: start date, 2: end date. */
-                    __( 'Programmé (Début:%1$s | Fin:%2$s)', 'visi-bloc-jlg' ),
-                    $start_date_fr,
-                    $end_date_fr
+                $schedule_error_label = esc_attr__( 'Invalid schedule', 'visi-bloc-jlg' );
+                $schedule_error_markup = sprintf(
+                    '<div class="bloc-schedule-error vb-label-top" data-visibloc-label="%s">%s</div>',
+                    $schedule_error_label,
+                    $has_preview_markup && null !== $hidden_preview_markup
+                        ? $hidden_preview_markup
+                        : $block_content
                 );
-                return '<div class="bloc-schedule-apercu vb-label-top" data-schedule-info="' . esc_attr( $info ) . '">' . $block_content . '</div>';
+                $hidden_preview_markup = $schedule_error_markup;
+                $has_preview_markup    = true;
             }
-            return '';
+
+            $has_schedule_enabled = false;
+        }
+
+        if ( $has_schedule_enabled ) {
+            $is_before_start = null !== $start_time && $current_time < $start_time;
+            $is_after_end = null !== $end_time && $current_time > $end_time;
+            if ( $is_before_start || $is_after_end ) {
+                if ( $can_preview_hidden_blocks ) {
+                    $datetime_format = visibloc_jlg_get_wp_datetime_format();
+                    $start_date_fr = $start_time ? wp_date( $datetime_format, $start_time ) : __( 'N/A', 'visi-bloc-jlg' );
+                    $end_date_fr = $end_time ? wp_date( $datetime_format, $end_time ) : __( 'N/A', 'visi-bloc-jlg' );
+                    $info = sprintf(
+                        /* translators: 1: start date, 2: end date. */
+                        __( 'Programmé (Début:%1$s | Fin:%2$s)', 'visi-bloc-jlg' ),
+                        $start_date_fr,
+                        $end_date_fr
+                    );
+                    return '<div class="bloc-schedule-apercu vb-label-top" data-schedule-info="' . esc_attr( $info ) . '">' . $block_content . '</div>';
+                }
+                return '';
+            }
         }
     }
 
@@ -201,12 +221,16 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         if ( ! $is_visible && in_array( 'logged-in', $visibility_roles, true ) && $is_logged_in ) $is_visible = true;
         if ( ! $is_visible && ! empty( $user_roles ) && count( array_intersect( $user_roles, $visibility_roles ) ) > 0 ) { $is_visible = true; }
         if ( ! $is_visible ) {
-            return $should_show_hidden_preview ? $hidden_preview_markup : '';
+            return $has_preview_markup ? $hidden_preview_markup : '';
         }
     }
 
     if ( $has_hidden_flag ) {
-        return $should_show_hidden_preview ? $hidden_preview_markup : '';
+        return $has_preview_markup ? $hidden_preview_markup : '';
+    }
+
+    if ( $has_preview_markup && null !== $hidden_preview_markup ) {
+        return $hidden_preview_markup;
     }
 
     return $block_content;
