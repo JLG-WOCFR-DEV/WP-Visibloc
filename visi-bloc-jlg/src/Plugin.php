@@ -53,7 +53,6 @@ class Plugin {
         $this->register_settings_hooks();
         $this->register_assets_hooks();
         $this->register_visibility_hooks();
-        $this->register_inline_i18n_hooks();
         $this->register_role_switcher_hooks();
         $this->register_cli_commands();
         $this->load_textdomain();
@@ -82,13 +81,6 @@ class Plugin {
     protected function register_visibility_hooks() {
         require_once $this->plugin_dir . '/includes/datetime-utils.php';
         require_once $this->plugin_dir . '/includes/visibility-logic.php';
-    }
-
-    /**
-     * Register hooks for inline internationalisation helpers.
-     */
-    protected function register_inline_i18n_hooks() {
-        require_once $this->plugin_dir . '/includes/i18n-inline.php';
     }
 
     /**
