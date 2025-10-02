@@ -1,13 +1,18 @@
 <?php
 
 use PHPUnit\Framework\TestCase;
+use Visibloc\Tests\Support\PluginFacade;
+use Visibloc\Tests\Support\TestServices;
 
 require_once __DIR__ . '/../role-switcher-test-loader.php';
 
 class RoleSwitcherCapabilitiesTest extends TestCase {
+    private PluginFacade $plugin;
+
     protected function setUp(): void {
         visibloc_test_reset_state();
-        visibloc_jlg_store_real_user_id( null );
+        $this->plugin = TestServices::plugin();
+        $this->plugin->storeRealUserId( null );
     }
 
     public function test_guest_preview_only_applies_to_current_request_user(): void {
@@ -21,7 +26,7 @@ class RoleSwitcherCapabilitiesTest extends TestCase {
         $visibloc_test_state['preview_role']                = 'guest';
         $visibloc_test_state['current_user']                = new Visibloc_Test_User( 0, [] );
 
-        visibloc_jlg_store_real_user_id( $real_user_id );
+        $this->plugin->storeRealUserId( $real_user_id );
 
         $allcaps = [
             'read'         => true,
@@ -33,11 +38,11 @@ class RoleSwitcherCapabilitiesTest extends TestCase {
         $other_user = new Visibloc_Test_User( 99, [ 'administrator' ] );
         $this->assertSame(
             $allcaps,
-            visibloc_jlg_filter_user_capabilities( $allcaps, [], [], $other_user ),
+            $this->plugin->filterUserCapabilities( $allcaps, [], [], $other_user ),
             'Capabilities for unrelated users should remain unchanged during a guest preview.'
         );
 
-        $guest_user_caps = visibloc_jlg_filter_user_capabilities( $allcaps, [], [], new Visibloc_Test_User( 0, [] ) );
+        $guest_user_caps = $this->plugin->filterUserCapabilities( $allcaps, [], [], new Visibloc_Test_User( 0, [] ) );
 
         $this->assertArrayHasKey( 'exist', $guest_user_caps );
         $this->assertArrayHasKey( 'read', $guest_user_caps );

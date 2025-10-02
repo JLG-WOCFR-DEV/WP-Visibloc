@@ -1,6 +1,8 @@
 <?php
 
 use PHPUnit\Framework\TestCase;
+use Visibloc\Tests\Support\PluginFacade;
+use Visibloc\Tests\Support\TestServices;
 
 require_once __DIR__ . '/../../../includes/assets.php';
 
@@ -9,6 +11,7 @@ class EditorAssetsTest extends TestCase {
     private string $assetBackup;
     private $previousUser;
     private array $previousRoles;
+    private PluginFacade $plugin;
 
     protected function setUp(): void {
         parent::setUp();
@@ -21,6 +24,8 @@ class EditorAssetsTest extends TestCase {
         if ( isset( $GLOBALS['visibloc_test_transients'][ VISIBLOC_JLG_MISSING_EDITOR_ASSETS_TRANSIENT ] ) ) {
             unset( $GLOBALS['visibloc_test_transients'][ VISIBLOC_JLG_MISSING_EDITOR_ASSETS_TRANSIENT ] );
         }
+
+        $this->plugin = TestServices::plugin();
     }
 
     protected function tearDown(): void {
@@ -45,7 +50,7 @@ class EditorAssetsTest extends TestCase {
         try {
             $this->assertFalse( get_transient( VISIBLOC_JLG_MISSING_EDITOR_ASSETS_TRANSIENT ) );
 
-            visibloc_jlg_enqueue_editor_assets();
+            $this->plugin->enqueueEditorAssets();
 
             $this->assertNotFalse( get_transient( VISIBLOC_JLG_MISSING_EDITOR_ASSETS_TRANSIENT ) );
         } finally {
@@ -65,7 +70,7 @@ class EditorAssetsTest extends TestCase {
         $GLOBALS['visibloc_test_state']['current_user']            = new Visibloc_Test_User( 1, [ 'administrator' ] );
 
         ob_start();
-        visibloc_jlg_render_missing_editor_assets_notice();
+        $this->plugin->renderMissingEditorAssetsNotice();
         $output = ob_get_clean();
 
         $this->assertStringContainsString( 'notice notice-error', $output );
@@ -84,7 +89,7 @@ class EditorAssetsTest extends TestCase {
         $GLOBALS['visibloc_test_state']['roles']['editor'] = $editor;
 
         ob_start();
-        visibloc_jlg_render_missing_editor_assets_notice();
+        $this->plugin->renderMissingEditorAssetsNotice();
         $output = ob_get_clean();
 
         $this->assertSame( '', trim( $output ) );

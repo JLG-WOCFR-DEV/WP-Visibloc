@@ -3,6 +3,18 @@
  * Bootstrap for integration tests.
  */
 
+use Visibloc\Tests\Support\TestServices;
+
+$autoloader = dirname(__DIR__, 3) . '/vendor/autoload.php';
+
+if ( ! file_exists( $autoloader ) ) {
+    throw new RuntimeException( 'Composer autoloader not found. Please run `composer install` before executing the tests.' );
+}
+
+require_once $autoloader;
+
+TestServices::bootstrap();
+
 if ( ! defined( 'ABSPATH' ) ) {
     define( 'ABSPATH', __DIR__ . '/../../' );
 }

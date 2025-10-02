@@ -1,14 +1,19 @@
 <?php
 
 use PHPUnit\Framework\TestCase;
+use Visibloc\Tests\Support\PluginFacade;
+use Visibloc\Tests\Support\TestServices;
 
 require_once __DIR__ . '/../role-switcher-test-loader.php';
 
 class AdminRequestGuardsTest extends TestCase {
+    private PluginFacade $plugin;
+
     protected function setUp(): void {
         parent::setUp();
 
         visibloc_test_reset_state();
+        $this->plugin = TestServices::plugin();
     }
 
     protected function tearDown(): void {
@@ -40,7 +45,7 @@ class AdminRequestGuardsTest extends TestCase {
             ]
         );
 
-        $this->assertTrue( visibloc_jlg_is_admin_or_technical_request() );
+        $this->assertTrue( $this->plugin->isAdminOrTechnicalRequest() );
     }
 
     public function test_dashboard_ajax_request_is_detected(): void {
@@ -52,7 +57,7 @@ class AdminRequestGuardsTest extends TestCase {
             ]
         );
 
-        $this->assertTrue( visibloc_jlg_is_admin_or_technical_request() );
+        $this->assertTrue( $this->plugin->isAdminOrTechnicalRequest() );
     }
 
     /**
@@ -78,7 +83,7 @@ class AdminRequestGuardsTest extends TestCase {
             define( 'REST_REQUEST', true );
         }
 
-        $this->assertTrue( visibloc_jlg_is_admin_or_technical_request() );
+        $this->assertTrue( $this->plugin->isAdminOrTechnicalRequest() );
     }
 
     public function test_cron_execution_is_detected(): void {
@@ -88,7 +93,7 @@ class AdminRequestGuardsTest extends TestCase {
             ]
         );
 
-        $this->assertTrue( visibloc_jlg_is_admin_or_technical_request() );
+        $this->assertTrue( $this->plugin->isAdminOrTechnicalRequest() );
     }
 
     public function test_front_end_request_is_not_detected(): void {
@@ -99,6 +104,6 @@ class AdminRequestGuardsTest extends TestCase {
             ]
         );
 
-        $this->assertFalse( visibloc_jlg_is_admin_or_technical_request() );
+        $this->assertFalse( $this->plugin->isAdminOrTechnicalRequest() );
     }
 }

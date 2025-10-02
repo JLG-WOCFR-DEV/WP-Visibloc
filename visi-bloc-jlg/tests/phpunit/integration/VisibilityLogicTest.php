@@ -1,16 +1,22 @@
 <?php
 
 use PHPUnit\Framework\TestCase;
+use Visibloc\Tests\Support\PluginFacade;
+use Visibloc\Tests\Support\TestServices;
 
 require_once __DIR__ . '/../../../includes/assets.php';
 
 class VisibilityLogicTest extends TestCase {
+    private PluginFacade $plugin;
+
     protected function setUp(): void {
         visibloc_test_reset_state();
         remove_all_filters( 'visibloc_supported_blocks' );
         if ( isset( $GLOBALS['visibloc_test_options']['visibloc_supported_blocks'] ) ) {
             unset( $GLOBALS['visibloc_test_options']['visibloc_supported_blocks'] );
         }
+
+        $this->plugin = TestServices::plugin();
     }
 
     public function test_administrator_impersonating_editor_sees_editor_view_without_hidden_blocks(): void {
@@ -32,7 +38,7 @@ class VisibilityLogicTest extends TestCase {
 
         $this->assertSame(
             '<p>Editor content</p>',
-            visibloc_jlg_render_block_filter( '<p>Editor content</p>', $visible_for_editors ),
+            $this->plugin->renderBlockFilter( '<p>Editor content</p>', $visible_for_editors ),
             'Blocks targeted to editors should remain visible during editor preview.'
         );
 
@@ -45,7 +51,7 @@ class VisibilityLogicTest extends TestCase {
 
         $this->assertSame(
             '',
-            visibloc_jlg_render_block_filter( '<p>Administrator only</p>', $admin_only_block ),
+            $this->plugin->renderBlockFilter( '<p>Administrator only</p>', $admin_only_block ),
             'Administrator-only blocks must be hidden when previewing as an editor.'
         );
 
@@ -58,7 +64,7 @@ class VisibilityLogicTest extends TestCase {
 
         $this->assertSame(
             '',
-            visibloc_jlg_render_block_filter( '<p>Hidden content</p>', $hidden_block ),
+            $this->plugin->renderBlockFilter( '<p>Hidden content</p>', $hidden_block ),
             'Hidden blocks should not appear without preview permission for the simulated role.'
         );
     }
@@ -81,7 +87,7 @@ class VisibilityLogicTest extends TestCase {
             ],
         ];
 
-        $output = visibloc_jlg_render_block_filter( '<p>Hidden admin content</p>', $block );
+        $output = $this->plugin->renderBlockFilter( '<p>Hidden admin content</p>', $block );
 
         $this->assertStringContainsString( 'bloc-cache-apercu', $output );
         $this->assertStringContainsString( 'vb-label-top', $output );
@@ -101,7 +107,7 @@ class VisibilityLogicTest extends TestCase {
 
         $this->assertSame(
             '<p>Visible content</p>',
-            visibloc_jlg_render_block_filter( '<p>Visible content</p>', $block ),
+            $this->plugin->renderBlockFilter( '<p>Visible content</p>', $block ),
             'False-like attribute values should not hide the block.'
         );
     }
@@ -121,7 +127,7 @@ class VisibilityLogicTest extends TestCase {
 
         $this->assertSame(
             '<p>Future content</p>',
-            visibloc_jlg_render_block_filter( '<p>Future content</p>', $block ),
+            $this->plugin->renderBlockFilter( '<p>Future content</p>', $block ),
             'Scheduling should be skipped when the flag is stored as a false-like value.'
         );
     }
@@ -140,7 +146,7 @@ class VisibilityLogicTest extends TestCase {
 
         $this->assertSame(
             '<p>Visible content</p>',
-            visibloc_jlg_render_block_filter( '<p>Visible content</p>', $block ),
+            $this->plugin->renderBlockFilter( '<p>Visible content</p>', $block ),
             'A scalar string value should be treated as a single role entry.'
         );
     }
@@ -158,7 +164,7 @@ class VisibilityLogicTest extends TestCase {
 
         $this->assertSame(
             '<p>Visible content</p>',
-            visibloc_jlg_render_block_filter( '<p>Visible content</p>', $block ),
+            $this->plugin->renderBlockFilter( '<p>Visible content</p>', $block ),
             'Non-scalar visibility role values should be ignored without affecting rendering.'
         );
     }
@@ -173,7 +179,7 @@ class VisibilityLogicTest extends TestCase {
 
         $this->assertSame(
             '<p>Guest content</p>',
-            visibloc_jlg_render_block_filter( '<p>Guest content</p>', $block ),
+            $this->plugin->renderBlockFilter( '<p>Guest content</p>', $block ),
             'The logged-out marker should work when passed as a scalar value.'
         );
     }
@@ -197,7 +203,7 @@ class VisibilityLogicTest extends TestCase {
 
         $this->assertSame(
             '',
-            visibloc_jlg_render_block_filter( '<p>Members content</p>', $logged_in_block ),
+            $this->plugin->renderBlockFilter( '<p>Members content</p>', $logged_in_block ),
             'Previewing as a guest should hide blocks reserved for logged-in users even without impersonation rights.'
         );
 
@@ -210,7 +216,7 @@ class VisibilityLogicTest extends TestCase {
 
         $this->assertSame(
             '<p>Guest view</p>',
-            visibloc_jlg_render_block_filter( '<p>Guest view</p>', $logged_out_block ),
+            $this->plugin->renderBlockFilter( '<p>Guest view</p>', $logged_out_block ),
             'Previewing as a guest should expose content intended for visitors.'
         );
     }
@@ -262,7 +268,7 @@ class VisibilityLogicTest extends TestCase {
             ]
         );
 
-        $supported = visibloc_jlg_get_supported_blocks();
+        $supported = $this->plugin->getSupportedBlocks();
 
         $this->assertContains( 'core/group', $supported );
         $this->assertContains( 'core/columns', $supported );
@@ -292,7 +298,7 @@ class VisibilityLogicTest extends TestCase {
 
         $this->assertSame(
             '',
-            visibloc_jlg_render_block_filter( '<p>Scheduled content</p>', $block ),
+            $this->plugin->renderBlockFilter( '<p>Scheduled content</p>', $block ),
             'Scheduled blocks must remain hidden outside their window when no preview privilege is granted.'
         );
     }
@@ -315,7 +321,7 @@ class VisibilityLogicTest extends TestCase {
             ],
         ];
 
-        $output = visibloc_jlg_render_block_filter( '<p>Scheduled content</p>', $block );
+        $output = $this->plugin->renderBlockFilter( '<p>Scheduled content</p>', $block );
 
         $this->assertStringContainsString( 'bloc-schedule-apercu', $output );
         $this->assertStringContainsString( 'vb-label-top', $output );
@@ -339,7 +345,7 @@ class VisibilityLogicTest extends TestCase {
 
         $this->assertSame(
             '',
-            visibloc_jlg_render_block_filter( '<p>Scheduled content</p>', $block ),
+            $this->plugin->renderBlockFilter( '<p>Scheduled content</p>', $block ),
             'Blocks should remain hidden before the scheduled start when the site timezone is ahead of UTC.'
         );
     }
@@ -360,7 +366,7 @@ class VisibilityLogicTest extends TestCase {
 
         $this->assertSame(
             '',
-            visibloc_jlg_render_block_filter( '<p>Scheduled content</p>', $block ),
+            $this->plugin->renderBlockFilter( '<p>Scheduled content</p>', $block ),
             'Blocks should remain hidden before the scheduled start in the configured site timezone.'
         );
 
@@ -368,7 +374,7 @@ class VisibilityLogicTest extends TestCase {
 
         $this->assertSame(
             '<p>Scheduled content</p>',
-            visibloc_jlg_render_block_filter( '<p>Scheduled content</p>', $block ),
+            $this->plugin->renderBlockFilter( '<p>Scheduled content</p>', $block ),
             'Blocks should become visible once the local start time has passed.'
         );
     }
@@ -389,7 +395,7 @@ class VisibilityLogicTest extends TestCase {
 
         $this->assertSame(
             '',
-            visibloc_jlg_render_block_filter( '<p>Scheduled content</p>', $block ),
+            $this->plugin->renderBlockFilter( '<p>Scheduled content</p>', $block ),
             'Blocks should remain hidden before the start window in a timezone west of UTC.'
         );
 
@@ -397,13 +403,13 @@ class VisibilityLogicTest extends TestCase {
 
         $this->assertSame(
             '<p>Scheduled content</p>',
-            visibloc_jlg_render_block_filter( '<p>Scheduled content</p>', $block ),
+            $this->plugin->renderBlockFilter( '<p>Scheduled content</p>', $block ),
             'Blocks should become visible once the local start time has passed in a timezone west of UTC.'
         );
     }
 
     private function setCurrentTimeForSiteTimezone( string $datetime ): void {
-        $timestamp = visibloc_jlg_parse_schedule_datetime( $datetime );
+        $timestamp = $this->plugin->parseScheduleDatetime( $datetime );
 
         if ( null === $timestamp ) {
             $this->fail( sprintf( 'Failed to parse datetime string "%s" for test setup.', $datetime ) );
@@ -413,7 +419,7 @@ class VisibilityLogicTest extends TestCase {
     }
 
     public function test_generate_device_visibility_css_respects_preview_context(): void {
-        $css_without_preview = visibloc_jlg_generate_device_visibility_css( false, 781, 1024 );
+        $css_without_preview = $this->plugin->generateDeviceVisibilityCss( false, 781, 1024 );
         $expected_default_css = <<<CSS
 @media (max-width: 781px) {
     .vb-hide-on-mobile,
@@ -439,12 +445,12 @@ class VisibilityLogicTest extends TestCase {
 CSS;
         $this->assertSame( $expected_default_css, trim( $css_without_preview ) );
 
-        $css_with_custom_breakpoints = visibloc_jlg_generate_device_visibility_css( false, 700, 900 );
+        $css_with_custom_breakpoints = $this->plugin->generateDeviceVisibilityCss( false, 700, 900 );
         $this->assertStringContainsString( '@media (max-width: 700px)', $css_with_custom_breakpoints );
         $this->assertStringContainsString( '@media (min-width: 901px)', $css_with_custom_breakpoints );
         $this->assertStringNotContainsString( 'outline: 2px dashed', $css_with_custom_breakpoints );
 
-        $css_with_preview = visibloc_jlg_generate_device_visibility_css( true, 781, 1024 );
+        $css_with_preview = $this->plugin->generateDeviceVisibilityCss( true, 781, 1024 );
         $this->assertStringContainsString( 'outline: 2px dashed #0073aa', $css_with_preview );
         $this->assertStringContainsString( 'Visible sur Desktop Uniquement', $css_with_preview );
     }

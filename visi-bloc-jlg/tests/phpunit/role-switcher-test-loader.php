@@ -1,5 +1,17 @@
 <?php
 
+use Visibloc\Tests\Support\TestServices;
+
+if ( ! class_exists( TestServices::class, false ) ) {
+    $autoloader = dirname( __DIR__, 3 ) . '/vendor/autoload.php';
+
+    if ( file_exists( $autoloader ) ) {
+        require_once $autoloader;
+    }
+}
+
+TestServices::bootstrap();
+
 if ( isset( $GLOBALS['visibloc_role_switcher_loaded'] ) && $GLOBALS['visibloc_role_switcher_loaded'] ) {
     return;
 }

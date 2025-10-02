@@ -1,11 +1,15 @@
 <?php
 
 use PHPUnit\Framework\TestCase;
+use Visibloc\Tests\Support\PluginFacade;
+use Visibloc\Tests\Support\TestServices;
 
 require_once __DIR__ . '/../../../includes/assets.php';
 require_once __DIR__ . '/../../../includes/admin-settings.php';
 
 class DeviceVisibilityCssTest extends TestCase {
+    private PluginFacade $plugin;
+
     protected function setUp(): void {
         parent::setUp();
 
@@ -13,13 +17,12 @@ class DeviceVisibilityCssTest extends TestCase {
             $GLOBALS['visibloc_test_object_cache'] = [];
         }
 
-        if ( function_exists( 'visibloc_jlg_clear_caches' ) ) {
-            visibloc_jlg_clear_caches();
-        }
+        $this->plugin = TestServices::plugin();
+        $this->plugin->clearCaches();
     }
 
     public function test_mobile_breakpoint_lower_than_default_unhides_tablet_classes(): void {
-        $css = visibloc_jlg_generate_device_visibility_css( false, 600, 1024 );
+        $css = $this->plugin->generateDeviceVisibilityCss( false, 600, 1024 );
 
         $this->assertStringContainsString('@media (max-width: 600px)', $css);
         $this->assertStringNotContainsString('@media (max-width: 781px)', $css);
@@ -34,7 +37,7 @@ class DeviceVisibilityCssTest extends TestCase {
     }
 
     public function test_mobile_breakpoint_lower_than_default_does_not_hide_classes_above_new_threshold(): void {
-        $css   = visibloc_jlg_generate_device_visibility_css( false, 600, 1024 );
+        $css   = $this->plugin->generateDeviceVisibilityCss( false, 600, 1024 );
         $block = $this->extractMediaQueryBlock( $css, '@media (min-width: 601px) and (max-width: 781px)' );
 
         $this->assertNotNull( $block );
@@ -47,19 +50,19 @@ class DeviceVisibilityCssTest extends TestCase {
     public function test_hide_on_selectors_use_block_fallback(): void {
         $this->assertSame(
             'display: block !important;',
-            visibloc_jlg_get_display_fallback_for_selector( '.vb-hide-on-desktop' )
+            $this->plugin->getDisplayFallbackForSelector( '.vb-hide-on-desktop' )
         );
     }
 
     public function test_only_selectors_keep_block_fallback(): void {
         $this->assertSame(
             'display: block !important;',
-            visibloc_jlg_get_display_fallback_for_selector( '.vb-tablet-only' )
+            $this->plugin->getDisplayFallbackForSelector( '.vb-tablet-only' )
         );
     }
 
     public function test_default_breakpoints_generate_expected_media_queries(): void {
-        $css = visibloc_jlg_generate_device_visibility_css( false, 781, 1024 );
+        $css = $this->plugin->generateDeviceVisibilityCss( false, 781, 1024 );
 
         $this->assertStringContainsString('@media (max-width: 781px)', $css);
         $this->assertStringContainsString('@media (min-width: 782px) and (max-width: 1024px)', $css);
@@ -67,7 +70,7 @@ class DeviceVisibilityCssTest extends TestCase {
     }
 
     public function test_custom_breakpoints_generate_expected_media_queries(): void {
-        $css = visibloc_jlg_generate_device_visibility_css( false, 900, 1200 );
+        $css = $this->plugin->generateDeviceVisibilityCss( false, 900, 1200 );
 
         $this->assertStringContainsString('@media (max-width: 900px)', $css);
         $this->assertStringContainsString('@media (min-width: 901px) and (max-width: 1200px)', $css);
@@ -77,7 +80,7 @@ class DeviceVisibilityCssTest extends TestCase {
     }
 
     public function test_custom_breakpoints_use_block_fallback_for_hide_on_selectors(): void {
-        $css   = visibloc_jlg_generate_device_visibility_css( false, 900, 1200 );
+        $css   = $this->plugin->generateDeviceVisibilityCss( false, 900, 1200 );
         $block = $this->extractMediaQueryBlock( $css, '@media (min-width: 1025px) and (max-width: 1200px)' );
 
         $this->assertNotNull( $block );
@@ -87,7 +90,7 @@ class DeviceVisibilityCssTest extends TestCase {
     }
 
     public function test_normalize_block_declarations_adds_single_block_fallback_inline(): void {
-        $declarations = visibloc_jlg_normalize_block_declarations(
+        $declarations = $this->plugin->normalizeBlockDeclarations(
             '.vb-tablet-only',
             [
                 'display: revert !important',
@@ -106,7 +109,7 @@ class DeviceVisibilityCssTest extends TestCase {
     }
 
     public function test_normalize_block_declarations_keeps_existing_block_fallback_only_once(): void {
-        $declarations = visibloc_jlg_normalize_block_declarations(
+        $declarations = $this->plugin->normalizeBlockDeclarations(
             '.vb-tablet-only',
             [
                 'display: block !important;',
@@ -124,7 +127,7 @@ class DeviceVisibilityCssTest extends TestCase {
     }
 
     public function test_normalize_block_declarations_handles_block_with_whitespace(): void {
-        $declarations = visibloc_jlg_normalize_block_declarations(
+        $declarations = $this->plugin->normalizeBlockDeclarations(
             '.vb-tablet-only',
             [
                 "  display: block !important;   ",
@@ -151,13 +154,13 @@ class DeviceVisibilityCssTest extends TestCase {
             'visibloc_jlg'
         );
 
-        $css = visibloc_jlg_generate_device_visibility_css( false, 600, 1024 );
+        $css = $this->plugin->generateDeviceVisibilityCss( false, 600, 1024 );
 
         $this->assertSame( $expected, $css );
     }
 
     public function test_clear_caches_removes_cached_device_css(): void {
-        $initial = visibloc_jlg_generate_device_visibility_css( false, 600, 1024 );
+        $initial = $this->plugin->generateDeviceVisibilityCss( false, 600, 1024 );
 
         $cache = wp_cache_get( 'visibloc_device_css_cache', 'visibloc_jlg' );
         $this->assertIsArray( $cache );
@@ -165,7 +168,7 @@ class DeviceVisibilityCssTest extends TestCase {
         $this->assertArrayHasKey( $cache_key, $cache );
         $this->assertSame( $initial, $cache[ $cache_key ] );
 
-        visibloc_jlg_clear_caches();
+        $this->plugin->clearCaches();
 
         $cache_after_clear = wp_cache_get( 'visibloc_device_css_cache', 'visibloc_jlg' );
         $this->assertFalse( $cache_after_clear );

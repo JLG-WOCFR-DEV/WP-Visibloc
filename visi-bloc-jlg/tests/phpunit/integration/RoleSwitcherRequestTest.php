@@ -1,6 +1,8 @@
 <?php
 
 use PHPUnit\Framework\TestCase;
+use Visibloc\Tests\Support\PluginFacade;
+use Visibloc\Tests\Support\TestServices;
 
 if ( ! defined( 'HOUR_IN_SECONDS' ) ) {
     define( 'HOUR_IN_SECONDS', 3600 );
@@ -278,9 +280,12 @@ class Visibloc_Test_Admin_Bar {
 }
 
 class RoleSwitcherRequestTest extends TestCase {
+    private PluginFacade $plugin;
+
     protected function setUp(): void {
+        $this->plugin = TestServices::plugin();
         visibloc_test_reset_state();
-        visibloc_jlg_store_real_user_id( null );
+        $this->plugin->storeRealUserId( null );
 
         $_GET    = [];
         $_COOKIE = [];
@@ -321,17 +326,17 @@ class RoleSwitcherRequestTest extends TestCase {
 
         $_COOKIE['visibloc_preview_role'] = 'guest';
 
-        $initial_context = visibloc_jlg_get_preview_runtime_context( true );
+        $initial_context = $this->plugin->getPreviewRuntimeContext( true );
 
         $this->assertSame( 'guest', $initial_context['preview_role'], 'Guest preview should be recognized before purge.' );
         $this->assertTrue( $initial_context['should_apply_preview_role'], 'Guest preview should apply before purge.' );
 
-        visibloc_jlg_purge_preview_cookie();
+        $this->plugin->purgePreviewCookie();
 
         $this->assertArrayNotHasKey( 'visibloc_preview_role', $_COOKIE, 'Preview cookie should be removed from the request.' );
-        $this->assertSame( '', visibloc_jlg_get_preview_role_from_cookie(), 'Preview cookie helper should return an empty string after purge.' );
+        $this->assertSame( '', $this->plugin->getPreviewRoleFromCookie(), 'Preview cookie helper should return an empty string after purge.' );
 
-        $refreshed_context = visibloc_jlg_get_preview_runtime_context( true );
+        $refreshed_context = $this->plugin->getPreviewRuntimeContext( true );
 
         $this->assertSame( '', $refreshed_context['preview_role'], 'Runtime context should no longer report an active preview role.' );
         $this->assertFalse( $refreshed_context['should_apply_preview_role'], 'Runtime context should not apply any preview role after purge.' );
@@ -361,10 +366,10 @@ class RoleSwitcherRequestTest extends TestCase {
 
         $_SERVER['REQUEST_URI'] = '/page/?preview_role=editor&_wpnonce=nonce-visibloc_switch_role_editor&foo=bar';
 
-        $expected_expiration = visibloc_jlg_get_preview_cookie_expiration_time();
+        $expected_expiration = $this->plugin->getPreviewCookieExpirationTime();
 
         try {
-            visibloc_jlg_handle_role_switching();
+            $this->plugin->handleRoleSwitching();
             $this->fail( 'Expected redirect exception was not thrown.' );
         } catch ( Visibloc_Test_Redirect_Exception $exception ) {
             // Expected path.
@@ -387,7 +392,7 @@ class RoleSwitcherRequestTest extends TestCase {
         $this->emulateRedirectRequest( $visibloc_test_redirect_state['location'] );
 
         $admin_bar = new Visibloc_Test_Admin_Bar();
-        visibloc_jlg_add_role_switcher_menu( $admin_bar );
+        $this->plugin->addRoleSwitcherMenu( $admin_bar );
 
         $this->assertArrayHasKey( 'visibloc-alert', $admin_bar->nodes, 'Active preview should inject alert node.' );
         $this->assertStringContainsString( 'Aperçu : Editor', $admin_bar->nodes['visibloc-alert']['title'] );
@@ -428,7 +433,7 @@ class RoleSwitcherRequestTest extends TestCase {
         $_SERVER['REQUEST_URI'] = '/page/?preview_role=editor&_wpnonce=nonce-visibloc_switch_role_editor';
 
         try {
-            visibloc_jlg_handle_role_switching();
+            $this->plugin->handleRoleSwitching();
             $this->fail( 'Expected redirect exception was not thrown.' );
         } catch ( Visibloc_Test_Redirect_Exception $exception ) {
             // Expected path.
@@ -462,7 +467,7 @@ class RoleSwitcherRequestTest extends TestCase {
         $_SERVER['REQUEST_URI'] = '/page/?preview_role=subscriber&_wpnonce=nonce-visibloc_switch_role_subscriber&foo=bar';
 
         try {
-            visibloc_jlg_handle_role_switching();
+            $this->plugin->handleRoleSwitching();
             $this->fail( 'Expected redirect exception was not thrown.' );
         } catch ( Visibloc_Test_Redirect_Exception $exception ) {
             // Expected.
@@ -485,7 +490,7 @@ class RoleSwitcherRequestTest extends TestCase {
         $this->emulateRedirectRequest( $visibloc_test_redirect_state['location'] );
 
         $admin_bar = new Visibloc_Test_Admin_Bar();
-        visibloc_jlg_add_role_switcher_menu( $admin_bar );
+        $this->plugin->addRoleSwitcherMenu( $admin_bar );
 
         $this->assertArrayHasKey( 'visibloc-preview-error', $admin_bar->nodes, 'Invalid role redirect should surface an error notice.' );
         $this->assertStringContainsString( 'rôle demandé', $admin_bar->nodes['visibloc-preview-error']['title'] );
@@ -511,7 +516,7 @@ class RoleSwitcherRequestTest extends TestCase {
         $_SERVER['REQUEST_URI'] = '/page/?foo=bar';
 
         $admin_bar = new Visibloc_Test_Admin_Bar();
-        visibloc_jlg_add_role_switcher_menu( $admin_bar );
+        $this->plugin->addRoleSwitcherMenu( $admin_bar );
 
         $this->assertArrayHasKey( 'visibloc-alert', $admin_bar->nodes, 'Guest preview should display alert in toolbar.' );
         $this->assertStringContainsString( 'Visiteur (Déconnecté)', $admin_bar->nodes['visibloc-alert']['title'] );
@@ -526,7 +531,7 @@ class RoleSwitcherRequestTest extends TestCase {
         $_SERVER['REQUEST_URI'] = '/page/?stop_preview_role=true&_wpnonce=nonce-visibloc_switch_role_stop&foo=bar';
 
         try {
-            visibloc_jlg_handle_role_switching();
+            $this->plugin->handleRoleSwitching();
             $this->fail( 'Expected redirect exception was not thrown.' );
         } catch ( Visibloc_Test_Redirect_Exception $exception ) {
             // Expected.
@@ -543,7 +548,7 @@ class RoleSwitcherRequestTest extends TestCase {
         $this->emulateRedirectRequest( $visibloc_test_redirect_state['location'] );
 
         $admin_bar_after = new Visibloc_Test_Admin_Bar();
-        visibloc_jlg_add_role_switcher_menu( $admin_bar_after );
+        $this->plugin->addRoleSwitcherMenu( $admin_bar_after );
 
         $this->assertArrayNotHasKey( 'visibloc-alert', $admin_bar_after->nodes, 'Toolbar alert should disappear once preview stops.' );
     }
@@ -551,7 +556,7 @@ class RoleSwitcherRequestTest extends TestCase {
     public function test_external_absolute_request_uri_is_neutralized(): void {
         $_SERVER['REQUEST_URI'] = 'https://malicious.test/suspicious/?preview_role=guest&_wpnonce=fake';
 
-        $base_url = visibloc_jlg_get_preview_switch_base_url();
+        $base_url = $this->plugin->getPreviewSwitchBaseUrl();
 
         $this->assertSame( 'https://example.test/', $base_url );
     }

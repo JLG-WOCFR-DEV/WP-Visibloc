@@ -1,11 +1,15 @@
 <?php
 
 use PHPUnit\Framework\TestCase;
+use Visibloc\Tests\Support\PluginFacade;
+use Visibloc\Tests\Support\TestServices;
 
 /**
  * @runTestsInSeparateProcesses
  */
 class CliRebuildIndexTest extends TestCase {
+    private PluginFacade $plugin;
+
     protected function setUp(): void {
         parent::setUp();
 
@@ -46,12 +50,14 @@ class CliRebuildIndexTest extends TestCase {
         $GLOBALS['visibloc_test_options']    = [];
         $GLOBALS['visibloc_test_transients'] = [];
 
+        $this->plugin = TestServices::plugin();
+
         if ( function_exists( 'visibloc_jlg_store_group_block_summary_index' ) ) {
-            visibloc_jlg_store_group_block_summary_index( [] );
+            $this->plugin->storeGroupBlockSummaryIndex( [] );
         }
 
         if ( function_exists( 'visibloc_jlg_clear_caches' ) ) {
-            visibloc_jlg_clear_caches();
+            $this->plugin->clearCaches();
         }
 
         WP_CLI::$log_messages     = [];
@@ -60,11 +66,11 @@ class CliRebuildIndexTest extends TestCase {
 
     protected function tearDown(): void {
         if ( function_exists( 'visibloc_jlg_store_group_block_summary_index' ) ) {
-            visibloc_jlg_store_group_block_summary_index( [] );
+            $this->plugin->storeGroupBlockSummaryIndex( [] );
         }
 
         if ( function_exists( 'visibloc_jlg_clear_caches' ) ) {
-            visibloc_jlg_clear_caches();
+            $this->plugin->clearCaches();
         }
 
         $GLOBALS['visibloc_posts']           = [];
@@ -121,7 +127,7 @@ HTML;
 
         call_user_func( $command );
 
-        $summaries = visibloc_jlg_get_group_block_summary_index();
+        $summaries = $this->plugin->getGroupBlockSummaryIndex();
 
         $this->assertSame( 2, count( $summaries ) );
         $this->assertArrayHasKey( 101, $summaries );

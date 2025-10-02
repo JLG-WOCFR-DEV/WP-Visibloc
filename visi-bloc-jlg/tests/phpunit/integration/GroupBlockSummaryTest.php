@@ -1,11 +1,15 @@
 <?php
 
 use PHPUnit\Framework\TestCase;
+use Visibloc\Tests\Support\PluginFacade;
+use Visibloc\Tests\Support\TestServices;
 
 require_once __DIR__ . '/../../../includes/admin-settings.php';
 require_once __DIR__ . '/../../../includes/visibility-logic.php';
 
 class GroupBlockSummaryTest extends TestCase {
+    private PluginFacade $plugin;
+
     protected function setUp(): void {
         parent::setUp();
 
@@ -14,15 +18,12 @@ class GroupBlockSummaryTest extends TestCase {
         $GLOBALS['visibloc_test_options']    = [];
         $GLOBALS['visibloc_test_transients'] = [];
 
-        if ( function_exists( 'visibloc_jlg_clear_caches' ) ) {
-            visibloc_jlg_clear_caches();
-        }
+        $this->plugin = TestServices::plugin();
+        $this->plugin->clearCaches();
     }
 
     protected function tearDown(): void {
-        if ( function_exists( 'visibloc_jlg_clear_caches' ) ) {
-            visibloc_jlg_clear_caches();
-        }
+        $this->plugin->clearCaches();
 
         $GLOBALS['visibloc_posts']           = [];
         $GLOBALS['visibloc_test_options']    = [];
@@ -54,7 +55,7 @@ class GroupBlockSummaryTest extends TestCase {
 <!-- /wp:core/paragraph -->
 HTML;
 
-        $summary = visibloc_jlg_generate_group_block_summary_from_content( 101, $sample_content );
+        $summary = $this->plugin->generateGroupBlockSummaryFromContent( 101, $sample_content );
 
         $this->assertSame( 2, $summary['hidden'] );
         $this->assertSame( 1, $summary['device'] );
@@ -99,7 +100,7 @@ HTML;
 <!-- /wp:core/group -->
 HTML;
 
-        $summary = visibloc_jlg_generate_group_block_summary_from_content( 202, $sample_content );
+        $summary = $this->plugin->generateGroupBlockSummaryFromContent( 202, $sample_content );
 
         $this->assertSame( 0, $summary['hidden'] );
         $this->assertSame( 0, $summary['device'] );
@@ -139,7 +140,7 @@ HTML;
 <!-- /wp:myplugin/customblock -->
 HTML;
 
-            $summary = visibloc_jlg_generate_group_block_summary_from_content( 303, $sample_content );
+            $summary = $this->plugin->generateGroupBlockSummaryFromContent( 303, $sample_content );
 
             $this->assertSame( 2, $summary['hidden'] );
             $this->assertSame( 1, $summary['device'] );
@@ -175,7 +176,7 @@ HTML;
 <!-- /wp:myplugin/customblock -->
 HTML;
 
-            $summary = visibloc_jlg_generate_group_block_summary_from_content( 404, $sample_content );
+            $summary = $this->plugin->generateGroupBlockSummaryFromContent( 404, $sample_content );
 
             $this->assertSame( 1, $summary['hidden'] );
             $this->assertSame( 1, $summary['device'] );
@@ -248,7 +249,7 @@ HTML;
             ],
         ];
 
-        $summaries = visibloc_jlg_rebuild_group_block_summary_index();
+        $summaries = $this->plugin->rebuildGroupBlockSummaryIndex();
 
         $this->assertArrayHasKey( 101, $summaries );
         $this->assertArrayHasKey( 102, $summaries );
@@ -259,7 +260,7 @@ HTML;
         $this->assertSame( 1, $summaries[102]['device'] );
         $this->assertCount( 3, $summaries[102]['scheduled'] );
 
-        $metadata = visibloc_jlg_collect_group_block_metadata();
+        $metadata = $this->plugin->collectGroupBlockMetadata();
 
         $this->assertSame( $metadata, get_transient( 'visibloc_group_block_metadata' ) );
 
@@ -319,13 +320,13 @@ HTML;
             'Scheduled entries should be sorted chronologically by their start then end dates, with open starts last.'
         );
 
-        $grouped_hidden = visibloc_jlg_group_posts_by_id( $metadata['hidden'] );
+        $grouped_hidden = $this->plugin->groupPostsById( $metadata['hidden'] );
         $this->assertCount( 1, $grouped_hidden );
         $this->assertSame( 2, $grouped_hidden[0]['block_count'] );
 
         $GLOBALS['visibloc_test_options']['visibloc_group_block_summary'] = [];
 
-        $cached_metadata = visibloc_jlg_collect_group_block_metadata();
+        $cached_metadata = $this->plugin->collectGroupBlockMetadata();
         $this->assertSame( $metadata, $cached_metadata );
 
         $cached_scheduled_windows = array_map(
