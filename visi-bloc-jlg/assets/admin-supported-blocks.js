@@ -1,6 +1,20 @@
 (function () {
     'use strict';
 
+    var normalizeText = function (value) {
+        if (value === null || value === undefined) {
+            return '';
+        }
+
+        var normalized = String(value).trim().toLowerCase();
+
+        if (normalized && typeof normalized.normalize === 'function') {
+            normalized = normalized.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        }
+
+        return normalized;
+    };
+
     var initSearch = function (input) {
         var targetId = input.getAttribute('data-visibloc-blocks-target');
         if (!targetId) {
@@ -23,14 +37,27 @@
         var countMessage = container.querySelector('[data-visibloc-blocks-count]');
         var countTemplate = countMessage ? countMessage.getAttribute('data-visibloc-count-template') : '';
 
+        var getNormalizedSearchValue = function (item) {
+            var cached = item.getAttribute('data-visibloc-search-cache');
+
+            if (cached !== null) {
+                return cached;
+            }
+
+            var normalized = normalizeText(item.getAttribute('data-visibloc-search-value') || '');
+            item.setAttribute('data-visibloc-search-cache', normalized);
+
+            return normalized;
+        };
+
         var toggleItems = function () {
-            var query = input.value || '';
-            var normalizedQuery = query.trim().toLowerCase();
+            var normalizedQuery = normalizeText(input.value || '');
+            var hasQuery = normalizedQuery.length > 0;
             var visibleCount = 0;
 
             items.forEach(function (item) {
-                var searchValue = item.getAttribute('data-visibloc-search-value') || '';
-                var isVisible = !normalizedQuery || searchValue.indexOf(normalizedQuery) !== -1;
+                var searchValue = getNormalizedSearchValue(item);
+                var isVisible = !hasQuery || searchValue.indexOf(normalizedQuery) !== -1;
 
                 item.style.display = isVisible ? '' : 'none';
 
