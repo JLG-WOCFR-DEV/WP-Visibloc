@@ -17,6 +17,7 @@ import {
     Flex,
     FlexBlock,
     FlexItem,
+    TextareaControl,
 } from '@wordpress/components';
 import { __, sprintf } from '@wordpress/i18n';
 import { __experimentalGetSettings, dateI18n, format as formatDate } from '@wordpress/date';
@@ -255,6 +256,47 @@ const getVisiBlocArray = (key) => {
     return Array.isArray(value) ? value : [];
 };
 
+const getVisiBlocObject = (key) => {
+    if (typeof VisiBlocData !== 'object' || VisiBlocData === null) {
+        return null;
+    }
+
+    const value = VisiBlocData[key];
+
+    if (!value || typeof value !== 'object') {
+        return null;
+    }
+
+    return value;
+};
+
+const getBlockHasFallback = (attrs) => {
+    if (!attrs || typeof attrs !== 'object') {
+        return false;
+    }
+
+    const fallbackEnabled = typeof attrs.fallbackEnabled === 'undefined' ? true : Boolean(attrs.fallbackEnabled);
+    const fallbackBehavior = typeof attrs.fallbackBehavior === 'string' ? attrs.fallbackBehavior : 'inherit';
+
+    if (!fallbackEnabled) {
+        return false;
+    }
+
+    if (fallbackBehavior === 'text') {
+        const fallbackCustomText = typeof attrs.fallbackCustomText === 'string' ? attrs.fallbackCustomText : '';
+
+        return fallbackCustomText.trim().length > 0;
+    }
+
+    if (fallbackBehavior === 'block') {
+        return Boolean(attrs.fallbackBlockId);
+    }
+
+    const fallbackSettings = getVisiBlocObject('fallbackSettings') || {};
+
+    return Boolean(fallbackSettings && fallbackSettings.hasContent);
+};
+
 const DAY_OF_WEEK_LOOKUP = (() => {
     const entries = getVisiBlocArray('daysOfWeek');
 
@@ -455,6 +497,21 @@ function addVisibilityAttributesToGroup(settings, name) {
             type: 'object',
             default: DEFAULT_ADVANCED_VISIBILITY,
         },
+        fallbackEnabled: {
+            type: 'boolean',
+            default: true,
+        },
+        fallbackBehavior: {
+            type: 'string',
+            default: 'inherit',
+        },
+        fallbackCustomText: {
+            type: 'string',
+            default: '',
+        },
+        fallbackBlockId: {
+            type: 'number',
+        },
     };
 
     return settings;
@@ -475,9 +532,37 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             publishEndDate,
             visibilityRoles,
             advancedVisibility: rawAdvancedVisibility,
+            fallbackEnabled = true,
+            fallbackBehavior = 'inherit',
+            fallbackCustomText = '',
+            fallbackBlockId,
         } = attributes;
 
         const advancedVisibility = normalizeAdvancedVisibility(rawAdvancedVisibility);
+        const fallbackSettings = getVisiBlocObject('fallbackSettings') || {};
+        const hasGlobalFallback = Boolean(fallbackSettings && fallbackSettings.hasContent);
+        const globalFallbackSummary = fallbackSettings && typeof fallbackSettings.summary === 'string'
+            ? fallbackSettings.summary
+            : '';
+        const fallbackBlocks = getVisiBlocArray('fallbackBlocks');
+        const fallbackBlockOptions = fallbackBlocks
+            .filter((item) => item && typeof item === 'object')
+            .map((item) => {
+                const rawValue = typeof item.value === 'number' ? item.value : parseInt(item.value, 10);
+                const numericValue = Number.isNaN(rawValue) ? 0 : rawValue;
+
+                return {
+                    value: String(numericValue),
+                    label: typeof item.label === 'string' && item.label.trim()
+                        ? item.label
+                        : `#${numericValue}`,
+                };
+            });
+        const fallbackBehaviorOptions = [
+            { value: 'inherit', label: __('Utiliser le repli global', 'visi-bloc-jlg') },
+            { value: 'text', label: __('Texte personnalisé', 'visi-bloc-jlg') },
+            { value: 'block', label: __('Bloc réutilisable', 'visi-bloc-jlg') },
+        ];
 
         const updateAdvancedVisibility = (updater) => {
             const current = normalizeAdvancedVisibility({ ...advancedVisibility });
@@ -1012,6 +1097,97 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                     )}
                                 </p>
                             </PanelBody>
+                            <PanelBody
+                                title={__('Contenu de repli', 'visi-bloc-jlg')}
+                                initialOpen={false}
+                            >
+                                <ToggleControl
+                                    label={__('Activer le repli pour ce bloc', 'visi-bloc-jlg')}
+                                    checked={fallbackEnabled}
+                                    onChange={() =>
+                                        setAttributes({ fallbackEnabled: !fallbackEnabled })
+                                    }
+                                />
+                                {!fallbackEnabled && (
+                                    <Notice status="info" isDismissible={false}>
+                                        {__('Aucun contenu de repli ne sera affiché si ce bloc est masqué.', 'visi-bloc-jlg')}
+                                    </Notice>
+                                )}
+                                {fallbackEnabled && (
+                                    <Fragment>
+                                        <SelectControl
+                                            label={__('Source du repli', 'visi-bloc-jlg')}
+                                            value={fallbackBehavior}
+                                            options={fallbackBehaviorOptions}
+                                            onChange={(newBehavior) =>
+                                                setAttributes({
+                                                    fallbackBehavior: fallbackBehaviorOptions.some(
+                                                        (option) => option.value === newBehavior,
+                                                    )
+                                                        ? newBehavior
+                                                        : 'inherit',
+                                                })
+                                            }
+                                        />
+                                        {fallbackBehavior === 'inherit' && (
+                                            hasGlobalFallback ? (
+                                                <Notice status="info" isDismissible={false}>
+                                                    {globalFallbackSummary
+                                                        ? sprintf(
+                                                              __('Repli global : %s', 'visi-bloc-jlg'),
+                                                              globalFallbackSummary,
+                                                          )
+                                                        : __('Un repli global est configuré.', 'visi-bloc-jlg')}
+                                                </Notice>
+                                            ) : (
+                                                <Notice status="warning" isDismissible={false}>
+                                                    {__('Aucun repli global n’est actuellement défini.', 'visi-bloc-jlg')}
+                                                </Notice>
+                                            )
+                                        )}
+                                        {fallbackBehavior === 'text' && (
+                                            <TextareaControl
+                                                label={__('Texte affiché en repli', 'visi-bloc-jlg')}
+                                                help={__('Ce texte remplace le bloc lorsque les visiteurs n’y ont pas accès.', 'visi-bloc-jlg')}
+                                                value={fallbackCustomText}
+                                                onChange={(value) =>
+                                                    setAttributes({ fallbackCustomText: value })
+                                                }
+                                            />
+                                        )}
+                                        {fallbackBehavior === 'block' && (
+                                            <Fragment>
+                                                <SelectControl
+                                                    label={__('Bloc réutilisable à afficher', 'visi-bloc-jlg')}
+                                                    value={fallbackBlockId ? String(fallbackBlockId) : ''}
+                                                    options={[
+                                                        {
+                                                            value: '',
+                                                            label: __('— Sélectionnez un bloc —', 'visi-bloc-jlg'),
+                                                        },
+                                                        ...fallbackBlockOptions,
+                                                    ]}
+                                                    onChange={(newValue) => {
+                                                        const parsedValue = parseInt(newValue, 10);
+
+                                                        setAttributes({
+                                                            fallbackBlockId: Number.isNaN(parsedValue)
+                                                                ? 0
+                                                                : parsedValue,
+                                                        });
+                                                    }}
+                                                    disabled={!fallbackBlockOptions.length}
+                                                />
+                                                {!fallbackBlockOptions.length && (
+                                                    <Notice status="warning" isDismissible={false}>
+                                                        {__('Aucun bloc réutilisable publié n’est disponible.', 'visi-bloc-jlg')}
+                                                    </Notice>
+                                                )}
+                                            </Fragment>
+                                        )}
+                                    </Fragment>
+                                )}
+                            </PanelBody>
                         </InspectorControls>
                     </Fragment>
                 )}
@@ -1026,7 +1202,13 @@ function addEditorCanvasClasses(props, block) {
     }
 
     const { isHidden } = block.attributes;
-    const newClasses = [props.className, isHidden ? 'bloc-editeur-cache' : '']
+    const hasFallbackIndicator = getBlockHasFallback(block.attributes);
+
+    const newClasses = [
+        props.className,
+        isHidden ? 'bloc-editeur-cache' : '',
+        hasFallbackIndicator ? 'bloc-editeur-repli' : '',
+    ]
         .filter(Boolean)
         .join(' ');
 
@@ -1093,8 +1275,8 @@ function replayPendingListViewUpdates() {
         listViewRafHandle = null;
     }
 
-    updates.forEach(([clientId, isHidden]) => {
-        queueListViewUpdate(clientId, isHidden);
+    updates.forEach(([clientId, state]) => {
+        queueListViewUpdate(clientId, state);
     });
 }
 
@@ -1107,21 +1289,27 @@ function flushListViewUpdates() {
 
     const unresolvedUpdates = new Map();
 
-    pendingListViewUpdates.forEach((isHidden, clientId) => {
+    pendingListViewUpdates.forEach((state, clientId) => {
         const row = document.querySelector(
             `.block-editor-list-view__block[data-block="${clientId}"]`,
         );
 
         if (!row) {
-            unresolvedUpdates.set(clientId, isHidden);
+            unresolvedUpdates.set(clientId, state);
 
             return;
         }
 
-        if (isHidden) {
+        if (state.isHidden) {
             row.classList.add('bloc-editeur-cache');
         } else {
             row.classList.remove('bloc-editeur-cache');
+        }
+
+        if (state.hasFallback) {
+            row.classList.add('bloc-editeur-repli');
+        } else {
+            row.classList.remove('bloc-editeur-repli');
         }
     });
 
@@ -1144,12 +1332,18 @@ function flushListViewUpdates() {
     listViewRafHandle = null;
 }
 
-function queueListViewUpdate(clientId, isHidden) {
-    if (pendingListViewUpdates.get(clientId) === isHidden) {
+function queueListViewUpdate(clientId, state) {
+    const pendingState = pendingListViewUpdates.get(clientId);
+
+    if (
+        pendingState &&
+        pendingState.isHidden === state.isHidden &&
+        pendingState.hasFallback === state.hasFallback
+    ) {
         return;
     }
 
-    pendingListViewUpdates.set(clientId, isHidden);
+    pendingListViewUpdates.set(clientId, state);
 
     if (listViewRafHandle) {
         return;
@@ -1186,13 +1380,17 @@ function syncListView() {
 
         if (isSupportedBlockName(block.name)) {
             const isHidden = Boolean(block.attributes.isHidden);
-            const previousState = blockVisibilityState.get(clientId);
+            const hasFallback = getBlockHasFallback(block.attributes);
+            const previousState = blockVisibilityState.get(clientId) || {};
 
-            if (previousState !== isHidden) {
-                queueListViewUpdate(clientId, isHidden);
+            if (
+                previousState.isHidden !== isHidden ||
+                previousState.hasFallback !== hasFallback
+            ) {
+                queueListViewUpdate(clientId, { isHidden, hasFallback });
             }
 
-            blockVisibilityState.set(clientId, isHidden);
+            blockVisibilityState.set(clientId, { isHidden, hasFallback });
             seenSupportedBlocks.add(clientId);
         }
 
