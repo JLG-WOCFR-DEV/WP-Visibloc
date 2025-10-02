@@ -73,6 +73,76 @@ const WP_DATETIME_FORMAT =
         ? DATE_FORMATS.datetime
         : `${WP_DATE_FORMAT} ${WP_TIME_FORMAT}`.trim();
 
+const is12Hour = (() => {
+    if (!DATE_SETTINGS || typeof DATE_SETTINGS !== 'object') {
+        return false;
+    }
+
+    if (typeof DATE_SETTINGS.twelveHourTime === 'boolean') {
+        return DATE_SETTINGS.twelveHourTime;
+    }
+
+    if (typeof WP_TIME_FORMAT === 'string' && WP_TIME_FORMAT) {
+        return /a(?!\\)/i.test(WP_TIME_FORMAT);
+    }
+
+    return false;
+})();
+
+const formatGmtOffset = (offset) => {
+    if (typeof offset !== 'number' || Number.isNaN(offset)) {
+        return '';
+    }
+
+    if (offset === 0) {
+        return 'UTC';
+    }
+
+    const sign = offset > 0 ? '+' : '-';
+    const absoluteOffset = Math.abs(offset);
+    const totalMinutes = Math.round(absoluteOffset * 60);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    const paddedHours = String(hours).padStart(2, '0');
+    const paddedMinutes = String(minutes).padStart(2, '0');
+
+    return `UTC${sign}${paddedHours}:${paddedMinutes}`;
+};
+
+const TIMEZONE_LABEL = (() => {
+    if (!DATE_SETTINGS || typeof DATE_SETTINGS !== 'object') {
+        return 'UTC';
+    }
+
+    const { timezone, timezoneAbbr, gmt_offset: gmtOffset } = DATE_SETTINGS;
+
+    if (timezone && typeof timezone === 'object') {
+        if (typeof timezone.string === 'string' && timezone.string.trim()) {
+            return timezone.string.trim();
+        }
+
+        if (typeof timezone.abbr === 'string' && timezone.abbr.trim()) {
+            return timezone.abbr.trim();
+        }
+    }
+
+    if (typeof timezone === 'string' && timezone.trim()) {
+        return timezone.trim();
+    }
+
+    if (typeof timezoneAbbr === 'string' && timezoneAbbr.trim()) {
+        return timezoneAbbr.trim();
+    }
+
+    const offsetLabel = formatGmtOffset(gmtOffset);
+
+    if (offsetLabel) {
+        return offsetLabel;
+    }
+
+    return 'UTC';
+})();
+
 const formatScheduleDate = (value) => {
     if (!value) {
         return null;
@@ -190,6 +260,11 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
 
         let scheduleSummary = __('Aucune programmation.', 'visi-bloc-jlg');
 
+        const timezoneSummary = sprintf(
+            __('Fuseau horaire : %s', 'visi-bloc-jlg'),
+            TIMEZONE_LABEL,
+        );
+
         if (isSchedulingEnabled) {
             const startDate = formatScheduleDate(publishStartDate);
             const endDate = formatScheduleDate(publishEndDate);
@@ -277,6 +352,14 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                         >
                                             {scheduleSummary}
                                         </p>
+                                        <p
+                                            style={{
+                                                fontStyle: 'italic',
+                                                color: '#555',
+                                            }}
+                                        >
+                                            {timezoneSummary}
+                                        </p>
                                         <CheckboxControl
                                             label={__('Définir une date de début', 'visi-bloc-jlg')}
                                             checked={!!publishStartDate}
@@ -297,7 +380,7 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                                             publishStartDate: newDate,
                                                         })
                                                     }
-                                                    is12Hour={false}
+                                                    is12Hour={is12Hour}
                                                 />
                                             </div>
                                         )}
@@ -321,7 +404,7 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                                             publishEndDate: newDate,
                                                         })
                                                     }
-                                                    is12Hour={false}
+                                                    is12Hour={is12Hour}
                                                 />
                                             </div>
                                         )}
