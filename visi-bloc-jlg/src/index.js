@@ -83,8 +83,17 @@ const is12Hour = (() => {
         return DATE_SETTINGS.twelveHourTime;
     }
 
-    if (typeof WP_TIME_FORMAT === 'string' && WP_TIME_FORMAT) {
-        return /a(?!\\)/i.test(WP_TIME_FORMAT);
+    const timeFormat =
+        DATE_SETTINGS &&
+        typeof DATE_SETTINGS === 'object' &&
+        DATE_SETTINGS.formats &&
+        typeof DATE_SETTINGS.formats === 'object' &&
+        typeof DATE_SETTINGS.formats.time === 'string'
+            ? DATE_SETTINGS.formats.time
+            : '';
+
+    if (timeFormat.trim()) {
+        return /a(?!\\)/i.test(timeFormat);
     }
 
     return false;
