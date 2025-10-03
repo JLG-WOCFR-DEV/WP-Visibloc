@@ -128,6 +128,9 @@ function visibloc_test_reset_state() {
     ];
 
     visibloc_test_reset_request_environment();
+
+    $GLOBALS['visibloc_test_object_cache'] = [];
+    $GLOBALS['visibloc_test_transients']   = [];
 }
 
 function visibloc_test_set_timezone( $timezone_string ) {
@@ -360,6 +363,12 @@ function sanitize_key( $key ) {
 
 function wp_unslash( $value ) {
     return $value;
+}
+
+if ( ! function_exists( 'wp_strip_all_tags' ) ) {
+    function wp_strip_all_tags( $string ) {
+        return trim( strip_tags( (string) $string ) );
+    }
 }
 
 function current_time( $type, $gmt = 0 ) {

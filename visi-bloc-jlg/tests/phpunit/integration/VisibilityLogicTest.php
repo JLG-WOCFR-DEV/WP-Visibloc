@@ -455,6 +455,117 @@ class VisibilityLogicTest extends TestCase {
         visibloc_test_set_current_time( $timestamp );
     }
 
+    public function test_recurring_schedule_matches_additional_intervals(): void {
+        visibloc_test_set_current_time( strtotime( '2024-05-01 09:30:00 UTC' ) );
+
+        $rule = [
+            'frequency' => 'daily',
+            'intervals' => [
+                [ 'startTime' => '06:00', 'endTime' => '07:00' ],
+                [ 'startTime' => '09:00', 'endTime' => '11:00' ],
+            ],
+        ];
+
+        $this->assertTrue(
+            visibloc_jlg_match_recurring_schedule_rule( $rule ),
+            'The current time should match one of the configured intervals.'
+        );
+
+        visibloc_test_set_current_time( strtotime( '2024-05-01 07:30:00 UTC' ) );
+
+        $this->assertFalse(
+            visibloc_jlg_match_recurring_schedule_rule( $rule ),
+            'When no interval matches the current time the rule must fail.'
+        );
+    }
+
+    public function test_recurring_schedule_weekly_requires_matching_day(): void {
+        $rule = [
+            'frequency' => 'weekly',
+            'days'      => [ 'mon', 'fri' ],
+            'intervals' => [ [ 'startTime' => '08:00', 'endTime' => '12:00' ] ],
+        ];
+
+        visibloc_test_set_current_time( strtotime( '2024-04-01 10:00:00 UTC' ) ); // Monday.
+
+        $this->assertTrue(
+            visibloc_jlg_match_recurring_schedule_rule( $rule ),
+            'Monday should be allowed when explicitly configured.'
+        );
+
+        visibloc_test_set_current_time( strtotime( '2024-04-03 10:00:00 UTC' ) ); // Wednesday.
+
+        $this->assertFalse(
+            visibloc_jlg_match_recurring_schedule_rule( $rule ),
+            'Days that are not selected must not match the rule.'
+        );
+    }
+
+    public function test_recurring_schedule_monthly_requires_matching_day(): void {
+        $rule = [
+            'frequency' => 'monthly',
+            'monthDays' => [ 15, 30 ],
+            'intervals' => [ [ 'startTime' => '08:00', 'endTime' => '18:00' ] ],
+        ];
+
+        visibloc_test_set_current_time( strtotime( '2024-05-15 09:00:00 UTC' ) );
+
+        $this->assertTrue(
+            visibloc_jlg_match_recurring_schedule_rule( $rule ),
+            'The rule should match when the current day of month is included.'
+        );
+
+        visibloc_test_set_current_time( strtotime( '2024-05-16 09:00:00 UTC' ) );
+
+        $this->assertFalse(
+            visibloc_jlg_match_recurring_schedule_rule( $rule ),
+            'A different day of the month should not match the rule.'
+        );
+    }
+
+    public function test_recurring_schedule_custom_dates_requires_match(): void {
+        $rule = [
+            'frequency' => 'customDates',
+            'dates'     => [ '2024-05-20', '2024-05-21' ],
+            'intervals' => [ [ 'startTime' => '07:00', 'endTime' => '19:00' ] ],
+        ];
+
+        visibloc_test_set_current_time( strtotime( '2024-05-20 12:00:00 UTC' ) );
+
+        $this->assertTrue(
+            visibloc_jlg_match_recurring_schedule_rule( $rule ),
+            'The configured custom date should allow visibility.'
+        );
+
+        visibloc_test_set_current_time( strtotime( '2024-05-19 12:00:00 UTC' ) );
+
+        $this->assertFalse(
+            visibloc_jlg_match_recurring_schedule_rule( $rule ),
+            'Dates outside the configured list must not match.'
+        );
+    }
+
+    public function test_recurring_schedule_overnight_interval_covers_midnight(): void {
+        $rule = [
+            'frequency' => 'daily',
+            'intervals' => [ [ 'startTime' => '22:00', 'endTime' => '02:00' ] ],
+        ];
+
+        visibloc_test_set_current_time( strtotime( '2024-05-02 01:00:00 UTC' ) );
+
+        $this->assertTrue(
+            visibloc_jlg_match_recurring_schedule_rule( $rule ),
+            'Overnight intervals should match times after midnight.'
+        );
+
+        visibloc_test_set_current_time( strtotime( '2024-05-02 03:00:00 UTC' ) );
+
+        $this->assertFalse(
+            visibloc_jlg_match_recurring_schedule_rule( $rule ),
+            'Times outside the overnight interval should not match.'
+        );
+    }
+
     public function test_generate_device_visibility_css_respects_preview_context(): void {
         $css_without_preview = visibloc_jlg_generate_device_visibility_css( false, 781, 1024 );
         $expected_default_css = <<<CSS
@@ -489,6 +600,6 @@ CSS;
 
         $css_with_preview = visibloc_jlg_generate_device_visibility_css( true, 781, 1024 );
         $this->assertStringContainsString( 'outline: 2px dashed #0073aa', $css_with_preview );
-        $this->assertStringContainsString( 'Visible sur Desktop Uniquement', $css_with_preview );
+        $this->assertStringContainsString( 'visibloc-status-badge--hidden', $css_with_preview );
     }
 }

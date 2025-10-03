@@ -19,6 +19,7 @@ import {
     FlexBlock,
     FlexItem,
     TextareaControl,
+    SelectControl,
 } from '@wordpress/components';
 import { __, sprintf, _n } from '@wordpress/i18n';
 import { __experimentalGetSettings, dateI18n, format as formatDate } from '@wordpress/date';
@@ -260,11 +261,32 @@ const DEFAULT_ADVANCED_VISIBILITY = Object.freeze({
     rules: [],
 });
 
-const DEFAULT_RECURRING_SCHEDULE = Object.freeze({
-    frequency: 'daily',
-    days: [],
+const DEFAULT_RECURRING_INTERVAL = Object.freeze({
     startTime: '08:00',
     endTime: '17:00',
+});
+
+const DEFAULT_RECURRING_SCHEDULE = Object.freeze({
+    frequency: 'daily',
+    days: Object.freeze([]),
+    monthDays: Object.freeze([]),
+    dates: Object.freeze([]),
+    intervals: Object.freeze([DEFAULT_RECURRING_INTERVAL]),
+});
+
+const SUPPORTED_RECURRING_FREQUENCIES = ['daily', 'weekly', 'monthly', 'customDates'];
+
+const getDefaultRecurringSchedule = () => ({
+    frequency: DEFAULT_RECURRING_SCHEDULE.frequency,
+    days: [],
+    monthDays: [],
+    dates: [],
+    intervals: [
+        {
+            startTime: DEFAULT_RECURRING_INTERVAL.startTime,
+            endTime: DEFAULT_RECURRING_INTERVAL.endTime,
+        },
+    ],
 });
 
 const getVisiBlocArray = (key) => {
@@ -394,7 +416,7 @@ const getDefaultRecurringRule = () => ({
     id: createRuleId(),
     type: 'recurring_schedule',
     operator: 'matches',
-    ...DEFAULT_RECURRING_SCHEDULE,
+    ...getDefaultRecurringSchedule(),
 });
 
 const createDefaultRuleForType = (type) => {
@@ -409,6 +431,59 @@ const createDefaultRuleForType = (type) => {
         default:
             return getDefaultPostTypeRule();
     }
+};
+
+const isValidIsoDateString = (value) =>
+    typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.trim());
+
+const normalizeRecurringIntervals = (rule) => {
+    const intervals = Array.isArray(rule.intervals)
+        ? rule.intervals
+              .map((interval) => {
+                  if (!interval || typeof interval !== 'object') {
+                      return null;
+                  }
+
+                  const startTime =
+                      typeof interval.startTime === 'string' && interval.startTime.trim()
+                          ? interval.startTime
+                          : '';
+                  const endTime =
+                      typeof interval.endTime === 'string' && interval.endTime.trim()
+                          ? interval.endTime
+                          : '';
+
+                  if (!startTime || !endTime) {
+                      return null;
+                  }
+
+                  return {
+                      startTime,
+                      endTime,
+                  };
+              })
+              .filter(Boolean)
+        : [];
+
+    if (intervals.length > 0) {
+        return intervals;
+    }
+
+    const fallbackStart =
+        typeof rule.startTime === 'string' && rule.startTime.trim()
+            ? rule.startTime
+            : DEFAULT_RECURRING_INTERVAL.startTime;
+    const fallbackEnd =
+        typeof rule.endTime === 'string' && rule.endTime.trim()
+            ? rule.endTime
+            : DEFAULT_RECURRING_INTERVAL.endTime;
+
+    return [
+        {
+            startTime: fallbackStart,
+            endTime: fallbackEnd,
+        },
+    ];
 };
 
 const normalizeRule = (rule) => {
@@ -455,14 +530,56 @@ const normalizeRule = (rule) => {
 
     // Recurring schedule
     normalized.operator = 'matches';
-    normalized.frequency = rule.frequency === 'weekly' ? 'weekly' : 'daily';
-    normalized.days = Array.isArray(rule.days)
-        ? rule.days
-              .map((day) => (typeof day === 'string' ? day : ''))
-              .filter((day) => DAY_OF_WEEK_LOOKUP.has(day))
-        : [];
-    normalized.startTime = typeof rule.startTime === 'string' ? rule.startTime : DEFAULT_RECURRING_SCHEDULE.startTime;
-    normalized.endTime = typeof rule.endTime === 'string' ? rule.endTime : DEFAULT_RECURRING_SCHEDULE.endTime;
+    const frequency = SUPPORTED_RECURRING_FREQUENCIES.includes(rule.frequency)
+        ? rule.frequency
+        : DEFAULT_RECURRING_SCHEDULE.frequency;
+    const normalizedIntervals = normalizeRecurringIntervals(rule);
+    const firstInterval = normalizedIntervals[0] || DEFAULT_RECURRING_INTERVAL;
+
+    normalized.frequency = frequency;
+    normalized.intervals = normalizedIntervals;
+    normalized.startTime = firstInterval.startTime;
+    normalized.endTime = firstInterval.endTime;
+    normalized.days =
+        frequency === 'weekly'
+            ? Array.isArray(rule.days)
+                  ? rule.days
+                        .map((day) => (typeof day === 'string' ? day : ''))
+                        .filter((day) => DAY_OF_WEEK_LOOKUP.has(day))
+                  : []
+            : [];
+    normalized.monthDays =
+        frequency === 'monthly'
+            ? Array.isArray(rule.monthDays)
+                  ? Array.from(
+                        new Set(
+                            rule.monthDays
+                                .map((day) => {
+                                    const parsed = parseInt(day, 10);
+
+                                    if (Number.isNaN(parsed)) {
+                                        return '';
+                                    }
+
+                                    if (parsed < 1 || parsed > 31) {
+                                        return '';
+                                    }
+
+                                    return String(parsed);
+                                })
+                                .filter(Boolean),
+                        ),
+                  )
+                  : []
+            : [];
+    normalized.dates =
+        frequency === 'customDates'
+            ? Array.isArray(rule.dates)
+                  ? Array.from(
+                        new Set(rule.dates.map((date) => (isValidIsoDateString(date) ? date.trim() : '')).filter(Boolean)),
+                  )
+                  : []
+            : [];
 
     return normalized;
 };
@@ -839,18 +956,88 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             }
 
             // Recurring schedule rule
-            const onTimeChange = (field) => (event) => {
+            const intervals =
+                Array.isArray(rule.intervals) && rule.intervals.length > 0
+                    ? rule.intervals
+                    : getDefaultRecurringSchedule().intervals;
+            const activeDays = Array.isArray(rule.days) ? rule.days : [];
+            const activeMonthDays = Array.isArray(rule.monthDays) ? rule.monthDays : [];
+            const activeDates = Array.isArray(rule.dates) ? rule.dates : [];
+
+            const onIntervalChange = (intervalIndex, field) => (event) => {
                 const rawValue = event && event.target ? event.target.value : '';
                 const newValue = typeof rawValue === 'string' ? rawValue : '';
-                onUpdateRule({ [field]: newValue });
+                const nextIntervals = intervals.map((interval, currentIndex) =>
+                    currentIndex === intervalIndex ? { ...interval, [field]: newValue } : interval,
+                );
+                onUpdateRule({ intervals: nextIntervals });
+            };
+
+            const onAddInterval = () => {
+                const nextIntervals = [
+                    ...intervals,
+                    {
+                        startTime: DEFAULT_RECURRING_INTERVAL.startTime,
+                        endTime: DEFAULT_RECURRING_INTERVAL.endTime,
+                    },
+                ];
+                onUpdateRule({ intervals: nextIntervals });
+            };
+
+            const onRemoveInterval = (intervalIndex) => {
+                const nextIntervals = intervals.filter((_, currentIndex) => currentIndex !== intervalIndex);
+                onUpdateRule({
+                    intervals:
+                        nextIntervals.length > 0
+                            ? nextIntervals
+                            : [
+                                  {
+                                      startTime: DEFAULT_RECURRING_INTERVAL.startTime,
+                                      endTime: DEFAULT_RECURRING_INTERVAL.endTime,
+                                  },
+                              ],
+                });
             };
 
             const onToggleDay = (isChecked, day) => {
                 const newDays = isChecked
-                    ? [...new Set([...rule.days, day])]
-                    : rule.days.filter((currentDay) => currentDay !== day);
+                    ? [...new Set([...activeDays, day])]
+                    : activeDays.filter((currentDay) => currentDay !== day);
                 onUpdateRule({ days: newDays });
             };
+
+            const onToggleMonthDay = (isChecked, day) => {
+                const stringDay = String(day);
+                const newDays = isChecked
+                    ? [...new Set([...activeMonthDays, stringDay])]
+                    : activeMonthDays.filter((currentDay) => currentDay !== stringDay);
+                onUpdateRule({ monthDays: newDays });
+            };
+
+            const onChangeCustomDate = (dateIndex) => (event) => {
+                const rawValue = event && event.target ? event.target.value : '';
+                const newValue = typeof rawValue === 'string' ? rawValue : '';
+                const nextDates = activeDates.map((date, currentIndex) =>
+                    currentIndex === dateIndex ? newValue : date,
+                );
+                onUpdateRule({ dates: nextDates });
+            };
+
+            const onAddCustomDate = () => {
+                const today = formatDate('Y-m-d', new Date());
+                const nextDates = activeDates.includes(today) ? activeDates : [...activeDates, today];
+                onUpdateRule({ dates: nextDates });
+            };
+
+            const onRemoveCustomDate = (dateIndex) => {
+                const nextDates = activeDates.filter((_, currentIndex) => currentIndex !== dateIndex);
+                onUpdateRule({ dates: nextDates });
+            };
+
+            const hasIntervals = Array.isArray(rule.intervals) && rule.intervals.length > 0;
+            const requiresDays = rule.frequency === 'weekly' && DAY_OF_WEEK_LOOKUP.size > 0;
+            const requiresMonthDays = rule.frequency === 'monthly';
+            const requiresDates = rule.frequency === 'customDates';
 
             return (
                 <div key={rule.id} className="visibloc-advanced-rule">
@@ -861,37 +1048,76 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                         options={[
                             { value: 'daily', label: __('Quotidien', 'visi-bloc-jlg') },
                             { value: 'weekly', label: __('Hebdomadaire', 'visi-bloc-jlg') },
+                            { value: 'monthly', label: __('Mensuel', 'visi-bloc-jlg') },
+                            { value: 'customDates', label: __('Dates personnalisées', 'visi-bloc-jlg') },
                         ]}
                         onChange={(newFrequency) =>
                             onUpdateRule({
                                 frequency: newFrequency,
-                                days: newFrequency === 'weekly' ? rule.days : [],
+                                days: newFrequency === 'weekly' ? activeDays : [],
+                                monthDays: newFrequency === 'monthly' ? activeMonthDays : [],
+                                dates: newFrequency === 'customDates' ? activeDates : [],
                             })
                         }
                     />
-                    <Flex gap="small">
-                        <FlexBlock>
-                            <BaseControl label={__('Heure de début', 'visi-bloc-jlg')}>
-                                <input
-                                    type="time"
-                                    value={rule.startTime || ''}
-                                    onChange={onTimeChange('startTime')}
-                                    className="components-text-control__input"
-                                />
-                            </BaseControl>
-                        </FlexBlock>
-                        <FlexBlock>
-                            <BaseControl label={__('Heure de fin', 'visi-bloc-jlg')}>
-                                <input
-                                    type="time"
-                                    value={rule.endTime || ''}
-                                    onChange={onTimeChange('endTime')}
-                                    className="components-text-control__input"
-                                />
-                            </BaseControl>
-                        </FlexBlock>
-                    </Flex>
-                    {rule.frequency === 'weekly' && DAY_OF_WEEK_LOOKUP.size > 0 && (
+                    <BaseControl label={__('Intervalles horaires', 'visi-bloc-jlg')}>
+                        <div className="visibloc-advanced-rule__intervals">
+                            {intervals.map((interval, intervalIndex) => (
+                                <Flex key={`interval-${intervalIndex}`} gap="small" align="flex-end">
+                                    <FlexBlock>
+                                        <BaseControl
+                                            label={sprintf(
+                                                /* translators: %d: Interval index. */
+                                                __('Début %d', 'visi-bloc-jlg'),
+                                                intervalIndex + 1,
+                                            )}
+                                        >
+                                            <input
+                                                type="time"
+                                                value={interval.startTime || ''}
+                                                onChange={onIntervalChange(intervalIndex, 'startTime')}
+                                                className="components-text-control__input"
+                                            />
+                                        </BaseControl>
+                                    </FlexBlock>
+                                    <FlexBlock>
+                                        <BaseControl
+                                            label={sprintf(
+                                                /* translators: %d: Interval index. */
+                                                __('Fin %d', 'visi-bloc-jlg'),
+                                                intervalIndex + 1,
+                                            )}
+                                        >
+                                            <input
+                                                type="time"
+                                                value={interval.endTime || ''}
+                                                onChange={onIntervalChange(intervalIndex, 'endTime')}
+                                                className="components-text-control__input"
+                                            />
+                                        </BaseControl>
+                                    </FlexBlock>
+                                    <FlexItem>
+                                        <Button
+                                            isDestructive
+                                            variant="tertiary"
+                                            onClick={() => onRemoveInterval(intervalIndex)}
+                                        >
+                                            {__('Supprimer l’intervalle', 'visi-bloc-jlg')}
+                                        </Button>
+                                    </FlexItem>
+                                </Flex>
+                            ))}
+                        </div>
+                        <Button variant="secondary" onClick={onAddInterval}>
+                            {__('Ajouter un intervalle', 'visi-bloc-jlg')}
+                        </Button>
+                    </BaseControl>
+                    {!hasIntervals && (
+                        <Notice status="error" isDismissible={false}>
+                            {__('Veuillez ajouter au moins un intervalle valide.', 'visi-bloc-jlg')}
+                        </Notice>
+                    )}
+                    {requiresDays && (
                         <div className="visibloc-advanced-rule__days">
                             <p className="components-base-control__label">
                                 {__('Jours actifs', 'visi-bloc-jlg')}
@@ -900,10 +1126,86 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                 <CheckboxControl
                                     key={value}
                                     label={label}
-                                    checked={rule.days.includes(value)}
+                                    checked={activeDays.includes(value)}
                                     onChange={(isChecked) => onToggleDay(isChecked, value)}
                                 />
                             ))}
+                            {activeDays.length === 0 && (
+                                <Notice status="error" isDismissible={false}>
+                                    {__('Sélectionnez au moins un jour de la semaine.', 'visi-bloc-jlg')}
+                                </Notice>
+                            )}
+                        </div>
+                    )}
+                    {requiresMonthDays && (
+                        <div className="visibloc-advanced-rule__month-days">
+                            <p className="components-base-control__label">
+                                {__('Jours du mois actifs', 'visi-bloc-jlg')}
+                            </p>
+                            <Flex wrap gap="small">
+                                {Array.from({ length: 31 }, (_, index) => {
+                                    const dayNumber = index + 1;
+                                    const value = String(dayNumber);
+
+                                    return (
+                                        <CheckboxControl
+                                            key={value}
+                                            label={value}
+                                            checked={activeMonthDays.includes(value)}
+                                            onChange={(isChecked) => onToggleMonthDay(isChecked, value)}
+                                        />
+                                    );
+                                })}
+                            </Flex>
+                            {activeMonthDays.length === 0 && (
+                                <Notice status="error" isDismissible={false}>
+                                    {__('Sélectionnez au moins un jour du mois.', 'visi-bloc-jlg')}
+                                </Notice>
+                            )}
+                        </div>
+                    )}
+                    {requiresDates && (
+                        <div className="visibloc-advanced-rule__custom-dates">
+                            <p className="components-base-control__label">
+                                {__('Dates ciblées', 'visi-bloc-jlg')}
+                            </p>
+                            {activeDates.map((dateValue, dateIndex) => (
+                                <Flex key={`custom-date-${dateIndex}`} gap="small" align="flex-end">
+                                    <FlexBlock>
+                                        <BaseControl
+                                            label={sprintf(
+                                                /* translators: %d: Date index. */
+                                                __('Date %d', 'visi-bloc-jlg'),
+                                                dateIndex + 1,
+                                            )}
+                                        >
+                                            <input
+                                                type="date"
+                                                value={dateValue || ''}
+                                                onChange={onChangeCustomDate(dateIndex)}
+                                                className="components-text-control__input"
+                                            />
+                                        </BaseControl>
+                                    </FlexBlock>
+                                    <FlexItem>
+                                        <Button
+                                            isDestructive
+                                            variant="tertiary"
+                                            onClick={() => onRemoveCustomDate(dateIndex)}
+                                        >
+                                            {__('Supprimer cette date', 'visi-bloc-jlg')}
+                                        </Button>
+                                    </FlexItem>
+                                </Flex>
+                            ))}
+                            <Button variant="secondary" onClick={onAddCustomDate}>
+                                {__('Ajouter une date', 'visi-bloc-jlg')}
+                            </Button>
+                            {activeDates.length === 0 && (
+                                <Notice status="error" isDismissible={false}>
+                                    {__('Ajoutez au moins une date ciblée.', 'visi-bloc-jlg')}
+                                </Notice>
+                            )}
                         </div>
                     )}
                 </div>

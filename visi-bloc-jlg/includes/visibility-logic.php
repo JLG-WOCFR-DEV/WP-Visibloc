@@ -416,19 +416,68 @@ function visibloc_jlg_normalize_advanced_rule( $rule ) {
             break;
         case 'recurring_schedule':
             $normalized['operator']  = 'matches';
-            $normalized['frequency'] = isset( $rule['frequency'] ) && 'weekly' === $rule['frequency'] ? 'weekly' : 'daily';
-            $normalized['days']      = [];
+            $allowed_frequencies     = [ 'daily', 'weekly', 'monthly', 'customDates' ];
+            $frequency               = isset( $rule['frequency'] ) && in_array( $rule['frequency'], $allowed_frequencies, true )
+                ? $rule['frequency']
+                : 'daily';
 
-            if ( isset( $rule['days'] ) && is_array( $rule['days'] ) ) {
-                foreach ( $rule['days'] as $day ) {
-                    if ( is_string( $day ) && '' !== $day ) {
-                        $normalized['days'][] = $day;
-                    }
-                }
+            $intervals = visibloc_jlg_normalize_recurring_intervals_from_rule( $rule );
+            $first_interval = reset( $intervals );
+
+            if ( ! is_array( $first_interval ) ) {
+                $first_interval = [
+                    'startTime' => '08:00',
+                    'endTime'   => '17:00',
+                ];
             }
 
-            $normalized['startTime'] = isset( $rule['startTime'] ) && is_string( $rule['startTime'] ) ? $rule['startTime'] : '08:00';
-            $normalized['endTime']   = isset( $rule['endTime'] ) && is_string( $rule['endTime'] ) ? $rule['endTime'] : '17:00';
+            $normalized['frequency']  = $frequency;
+            $normalized['intervals']  = $intervals;
+            $normalized['startTime']  = isset( $first_interval['startTime'] ) ? $first_interval['startTime'] : '08:00';
+            $normalized['endTime']    = isset( $first_interval['endTime'] ) ? $first_interval['endTime'] : '17:00';
+            $normalized['days']       = [];
+            $normalized['monthDays']  = [];
+            $normalized['dates']      = [];
+
+            if ( 'weekly' === $frequency && isset( $rule['days'] ) && is_array( $rule['days'] ) ) {
+                foreach ( $rule['days'] as $day ) {
+                    if ( ! is_scalar( $day ) ) {
+                        continue;
+                    }
+
+                    $sanitized_day = sanitize_key( (string) $day );
+
+                    if ( '' !== $sanitized_day ) {
+                        $normalized['days'][] = $sanitized_day;
+                    }
+                }
+
+                $normalized['days'] = array_values( array_unique( $normalized['days'] ) );
+            }
+
+            if ( 'monthly' === $frequency && isset( $rule['monthDays'] ) && is_array( $rule['monthDays'] ) ) {
+                foreach ( $rule['monthDays'] as $day ) {
+                    if ( is_numeric( $day ) || ( is_string( $day ) && preg_match( '/^\d+$/', $day ) ) ) {
+                        $int_day = (int) $day;
+
+                        if ( $int_day >= 1 && $int_day <= 31 ) {
+                            $normalized['monthDays'][] = $int_day;
+                        }
+                    }
+                }
+
+                $normalized['monthDays'] = array_values( array_unique( $normalized['monthDays'] ) );
+            }
+
+            if ( 'customDates' === $frequency && isset( $rule['dates'] ) && is_array( $rule['dates'] ) ) {
+                foreach ( $rule['dates'] as $date_value ) {
+                    if ( is_string( $date_value ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date_value ) ) {
+                        $normalized['dates'][] = $date_value;
+                    }
+                }
+
+                $normalized['dates'] = array_values( array_unique( $normalized['dates'] ) );
+            }
             break;
     }
 
@@ -570,10 +619,9 @@ function visibloc_jlg_match_template_rule( $rule, $post ) {
 }
 
 function visibloc_jlg_match_recurring_schedule_rule( $rule ) {
-    $start_minutes = visibloc_jlg_parse_time_to_minutes( $rule['startTime'] ?? '' );
-    $end_minutes   = visibloc_jlg_parse_time_to_minutes( $rule['endTime'] ?? '' );
+    $intervals = visibloc_jlg_normalize_recurring_intervals_from_rule( $rule );
 
-    if ( null === $start_minutes || null === $end_minutes ) {
+    if ( empty( $intervals ) ) {
         return false;
     }
 
@@ -584,32 +632,155 @@ function visibloc_jlg_match_recurring_schedule_rule( $rule ) {
     }
 
     $current_minutes = ( (int) $current_datetime->format( 'H' ) * 60 ) + (int) $current_datetime->format( 'i' );
+    $matches_interval = false;
 
-    if ( ! visibloc_jlg_is_time_within_range( $current_minutes, $start_minutes, $end_minutes ) ) {
+    foreach ( $intervals as $interval ) {
+        $start_minutes = visibloc_jlg_parse_time_to_minutes( $interval['startTime'] ?? '' );
+        $end_minutes   = visibloc_jlg_parse_time_to_minutes( $interval['endTime'] ?? '' );
+
+        if ( null === $start_minutes || null === $end_minutes ) {
+            continue;
+        }
+
+        if ( visibloc_jlg_is_time_within_range( $current_minutes, $start_minutes, $end_minutes ) ) {
+            $matches_interval = true;
+            break;
+        }
+    }
+
+    if ( ! $matches_interval ) {
         return false;
     }
 
-    if ( isset( $rule['frequency'] ) && 'weekly' === $rule['frequency'] ) {
-        $days = isset( $rule['days'] ) && is_array( $rule['days'] ) ? array_values( array_unique( array_filter( array_map( 'strval', $rule['days'] ) ) ) ) : [];
+    $frequency = isset( $rule['frequency'] ) ? $rule['frequency'] : 'daily';
 
-        if ( empty( $days ) ) {
-            return false;
-        }
+    switch ( $frequency ) {
+        case 'weekly':
+            $days = isset( $rule['days'] ) && is_array( $rule['days'] ) ? $rule['days'] : [];
+            $days = array_values(
+                array_unique(
+                    array_filter(
+                        array_map(
+                            static function ( $day ) {
+                                if ( ! is_scalar( $day ) ) {
+                                    return null;
+                                }
 
-        $current_day = strtolower( $current_datetime->format( 'D' ) );
-        $day_map     = [
-            'mon' => 'mon',
-            'tue' => 'tue',
-            'wed' => 'wed',
-            'thu' => 'thu',
-            'fri' => 'fri',
-            'sat' => 'sat',
-            'sun' => 'sun',
-        ];
+                                $sanitized = sanitize_key( (string) $day );
 
-        $current_day_slug = isset( $day_map[ $current_day ] ) ? $day_map[ $current_day ] : strtolower( $current_day );
+                                if ( '' === $sanitized ) {
+                                    return null;
+                                }
 
-        return in_array( $current_day_slug, $days, true );
+                                $map = [
+                                    'mon' => 'mon',
+                                    'monday' => 'mon',
+                                    'tue' => 'tue',
+                                    'tues' => 'tue',
+                                    'tuesday' => 'tue',
+                                    'wed' => 'wed',
+                                    'weds' => 'wed',
+                                    'wednesday' => 'wed',
+                                    'thu' => 'thu',
+                                    'thur' => 'thu',
+                                    'thurs' => 'thu',
+                                    'thursday' => 'thu',
+                                    'fri' => 'fri',
+                                    'friday' => 'fri',
+                                    'sat' => 'sat',
+                                    'saturday' => 'sat',
+                                    'sun' => 'sun',
+                                    'sunday' => 'sun',
+                                ];
+
+                                return $map[ $sanitized ] ?? $sanitized;
+                            },
+                            $days
+                        )
+                    )
+                )
+            );
+
+            if ( empty( $days ) ) {
+                return false;
+            }
+
+            $current_day = strtolower( $current_datetime->format( 'D' ) );
+            $current_map = [
+                'mon' => 'mon',
+                'tue' => 'tue',
+                'wed' => 'wed',
+                'thu' => 'thu',
+                'fri' => 'fri',
+                'sat' => 'sat',
+                'sun' => 'sun',
+            ];
+
+            $current_slug = $current_map[ $current_day ] ?? $current_day;
+
+            return in_array( $current_slug, $days, true );
+        case 'monthly':
+            $month_days = isset( $rule['monthDays'] ) && is_array( $rule['monthDays'] ) ? $rule['monthDays'] : [];
+            $month_days = array_values(
+                array_unique(
+                    array_filter(
+                        array_map(
+                            static function ( $day ) {
+                                if ( is_numeric( $day ) ) {
+                                    $int_day = (int) $day;
+
+                                    return ( $int_day >= 1 && $int_day <= 31 ) ? $int_day : null;
+                                }
+
+                                if ( is_string( $day ) && preg_match( '/^\d+$/', $day ) ) {
+                                    $int_day = (int) $day;
+
+                                    return ( $int_day >= 1 && $int_day <= 31 ) ? $int_day : null;
+                                }
+
+                                return null;
+                            },
+                            $month_days
+                        )
+                    )
+                )
+            );
+
+            if ( empty( $month_days ) ) {
+                return false;
+            }
+
+            $current_day_of_month = (int) $current_datetime->format( 'j' );
+
+            return in_array( $current_day_of_month, $month_days, true );
+        case 'customDates':
+            $dates = isset( $rule['dates'] ) && is_array( $rule['dates'] ) ? $rule['dates'] : [];
+            $dates = array_values(
+                array_unique(
+                    array_filter(
+                        array_map(
+                            static function ( $date_value ) {
+                                if ( ! is_string( $date_value ) ) {
+                                    return null;
+                                }
+
+                                $sanitized = trim( $date_value );
+
+                                return preg_match( '/^\d{4}-\d{2}-\d{2}$/', $sanitized ) ? $sanitized : null;
+                            },
+                            $dates
+                        )
+                    )
+                )
+            );
+
+            if ( empty( $dates ) ) {
+                return false;
+            }
+
+            $current_date = $current_datetime->format( 'Y-m-d' );
+
+            return in_array( $current_date, $dates, true );
     }
 
     return true;
@@ -641,4 +812,51 @@ function visibloc_jlg_is_time_within_range( $current, $start, $end ) {
 
     // Overnight range (e.g., 22:00 - 02:00).
     return $current >= $start || $current <= $end;
+}
+
+function visibloc_jlg_normalize_recurring_intervals_from_rule( $rule ) {
+    $intervals = [];
+
+    if ( isset( $rule['intervals'] ) && is_array( $rule['intervals'] ) ) {
+        foreach ( $rule['intervals'] as $interval ) {
+            if ( ! is_array( $interval ) ) {
+                continue;
+            }
+
+            $start = isset( $interval['startTime'] ) ? $interval['startTime'] : '';
+            $end   = isset( $interval['endTime'] ) ? $interval['endTime'] : '';
+
+            if ( ! is_string( $start ) || '' === trim( $start ) ) {
+                continue;
+            }
+
+            if ( ! is_string( $end ) || '' === trim( $end ) ) {
+                continue;
+            }
+
+            $intervals[] = [
+                'startTime' => trim( $start ),
+                'endTime'   => trim( $end ),
+            ];
+        }
+    }
+
+    if ( ! empty( $intervals ) ) {
+        return $intervals;
+    }
+
+    $start = isset( $rule['startTime'] ) && is_string( $rule['startTime'] ) ? trim( $rule['startTime'] ) : '';
+    $end   = isset( $rule['endTime'] ) && is_string( $rule['endTime'] ) ? trim( $rule['endTime'] ) : '';
+
+    if ( '' === $start || '' === $end ) {
+        $start = '08:00';
+        $end   = '17:00';
+    }
+
+    return [
+        [
+            'startTime' => $start,
+            'endTime'   => $end,
+        ],
+    ];
 }
