@@ -180,4 +180,61 @@ test.describe( 'Visi-Bloc group visibility controls', () => {
 
         await exerciseVisibilityControls( { admin, editor, page }, 'core/columns' );
     } );
+
+    test( 'inspector panels display configuration summaries', async ( { admin, editor, page } ) => {
+        await admin.createNewPost();
+        await editor.insertBlock( { name: 'core/group' } );
+
+        const clientId = await selectBlockInEditor( page, 'core/group' );
+        expect( clientId ).toBeTruthy();
+
+        await page.getByRole( 'button', { name: 'Settings' } ).click();
+
+        const getPanelButton = ( label ) =>
+            page
+                .locator( 'button.components-panel__body-toggle' )
+                .filter( { hasText: label } );
+
+        const expectSummary = async ( label, text ) => {
+            const button = getPanelButton( label );
+            await expect( button.locator( '.components-panel__summary' ) ).toHaveText( text );
+        };
+
+        await expectSummary( 'Contrôles de Visibilité', 'Inactif' );
+        await expectSummary( 'Programmation', 'Inactif' );
+        await expectSummary( 'Visibilité par Rôle', 'Inactif' );
+        await expectSummary( 'Règles de visibilité avancées', 'Inactif' );
+
+        const fallbackButton = getPanelButton( 'Contenu de repli' );
+        await expect( fallbackButton.locator( '.components-panel__summary' ) ).not.toHaveText( 'Inactif' );
+
+        await page.getByLabel( 'Visibilité par Appareil' ).selectOption( 'desktop-only' );
+        await expectSummary( 'Contrôles de Visibilité', 'Desktop Uniquement' );
+
+        const schedulingToggle = page.getByRole( 'checkbox', { name: 'Activer la programmation' } );
+        await schedulingToggle.check();
+        await expectSummary( 'Programmation', 'Programmation active' );
+
+        await page.getByRole( 'checkbox', { name: 'Définir une date de début' } ).check();
+        await expectSummary( 'Programmation', 'Date définie' );
+
+        await page.getByRole( 'checkbox', { name: 'Définir une date de fin' } ).check();
+        await expectSummary( 'Programmation', 'Plage définie' );
+
+        await page.getByRole( 'button', { name: 'Visibilité par Rôle' } ).click();
+        await page.getByRole( 'checkbox', { name: 'Visiteurs Déconnectés' } ).check();
+        await page.getByRole( 'checkbox', { name: 'Utilisateurs Connectés (tous)' } ).check();
+        await expectSummary( 'Visibilité par Rôle', '2 rôles' );
+
+        const advancedPanelButton = page.getByRole( 'button', { name: 'Règles de visibilité avancées' } );
+        await advancedPanelButton.click();
+        await page.getByRole( 'button', { name: 'Ajouter une règle' } ).click();
+        await expectSummary( 'Règles de visibilité avancées', '1 règle ET' );
+
+        const fallbackPanelButton = page.getByRole( 'button', { name: 'Contenu de repli' } );
+        await fallbackPanelButton.click();
+        const fallbackToggle = page.getByRole( 'checkbox', { name: 'Activer le repli pour ce bloc' } );
+        await fallbackToggle.uncheck();
+        await expectSummary( 'Contenu de repli', 'Inactif' );
+    } );
 } );
