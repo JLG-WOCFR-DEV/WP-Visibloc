@@ -770,11 +770,18 @@ function visibloc_jlg_render_scheduled_blocks_section( $scheduled_posts ) {
                             $end_display   = null !== $end_datetime ? wp_date( $datetime_format, $end_datetime->getTimestamp() ) : '–';
                             ?>
                             <tr>
-                                <td data-label="<?php echo esc_attr( $title_column_label ); ?>">
+                                <td>
+                                    <span class="visibloc-table-label"><?php echo esc_html( $title_column_label ); ?></span>
                                     <a href="<?php echo esc_url( $scheduled_block['link'] ); ?>"><?php echo esc_html( $scheduled_block['title'] ); ?></a>
                                 </td>
-                                <td data-label="<?php echo esc_attr( $start_column_label ); ?>"><?php echo esc_html( $start_display ); ?></td>
-                                <td data-label="<?php echo esc_attr( $end_column_label ); ?>"><?php echo esc_html( $end_display ); ?></td>
+                                <td>
+                                    <span class="visibloc-table-label"><?php echo esc_html( $start_column_label ); ?></span>
+                                    <?php echo esc_html( $start_display ); ?>
+                                </td>
+                                <td>
+                                    <span class="visibloc-table-label"><?php echo esc_html( $end_column_label ); ?></span>
+                                    <?php echo esc_html( $end_display ); ?>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                         </tbody>
