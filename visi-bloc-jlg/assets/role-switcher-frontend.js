@@ -341,6 +341,9 @@
 
             if (!container.contains(event.target)) {
                 closePanel();
+                if (toggle && typeof toggle.focus === 'function') {
+                    toggle.focus();
+                }
             }
         });
 
