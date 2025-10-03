@@ -111,9 +111,12 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
     if ( $has_hidden_flag && $can_preview_hidden_blocks ) {
         $hidden_preview_label = __( 'Hidden block', 'visi-bloc-jlg' );
         $hidden_preview_markup = sprintf(
-            '<div class="bloc-cache-apercu vb-label-top" data-visibloc-label="%s">%s%s</div>',
-            esc_attr( $hidden_preview_label ),
-            visibloc_jlg_render_status_badge( $hidden_preview_label, 'hidden' ),
+            '<div class="bloc-cache-apercu vb-label-top">%s%s</div>',
+            visibloc_jlg_render_status_badge(
+                $hidden_preview_label,
+                'hidden',
+                __( 'Ce bloc est masqué pour les visiteurs du site.', 'visi-bloc-jlg' )
+            ),
             $block_content
         );
         $has_preview_markup = true;
@@ -129,9 +132,12 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
             if ( $can_preview_hidden_blocks ) {
                 $schedule_error_label = __( 'Invalid schedule', 'visi-bloc-jlg' );
                 $schedule_error_markup = sprintf(
-                    '<div class="bloc-schedule-error vb-label-top" data-visibloc-label="%s">%s%s</div>',
-                    esc_attr( $schedule_error_label ),
-                    visibloc_jlg_render_status_badge( $schedule_error_label, 'schedule-error' ),
+                    '<div class="bloc-schedule-error vb-label-top">%s%s</div>',
+                    visibloc_jlg_render_status_badge(
+                        $schedule_error_label,
+                        'schedule-error',
+                        __( 'La programmation actuelle empêche l’affichage de ce bloc.', 'visi-bloc-jlg' )
+                    ),
                     $has_preview_markup && null !== $hidden_preview_markup
                         ? $hidden_preview_markup
                         : $block_content
@@ -157,8 +163,16 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
                         $start_date_fr,
                         $end_date_fr
                     );
-                    $schedule_preview_markup = '<div class="bloc-schedule-apercu vb-label-top" data-schedule-info="' . esc_attr( $info ) . '">' .
-                        visibloc_jlg_render_status_badge( $info, 'schedule' ) . (
+                    $schedule_preview_markup = '<div class="bloc-schedule-apercu vb-label-top">' .
+                        visibloc_jlg_render_status_badge(
+                            $info,
+                            'schedule',
+                            sprintf(
+                                /* translators: %s: scheduling information. */
+                                __( 'Ce bloc est programmé : %s', 'visi-bloc-jlg' ),
+                                $info
+                            )
+                        ) . (
                             $has_preview_markup && null !== $hidden_preview_markup
                                 ? $hidden_preview_markup
                                 : $block_content
@@ -179,9 +193,12 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
             if ( $can_preview_hidden_blocks ) {
                 $advanced_label = __( 'Règles avancées actives', 'visi-bloc-jlg' );
                 $advanced_markup = sprintf(
-                    '<div class="bloc-advanced-apercu vb-label-top" data-visibloc-label="%s">%s%s</div>',
-                    esc_attr( $advanced_label ),
-                    visibloc_jlg_render_status_badge( $advanced_label, 'advanced' ),
+                    '<div class="bloc-advanced-apercu vb-label-top">%s%s</div>',
+                    visibloc_jlg_render_status_badge(
+                        $advanced_label,
+                        'advanced',
+                        __( 'Des règles avancées masquent ce bloc pour les visiteurs.', 'visi-bloc-jlg' )
+                    ),
                     $has_preview_markup && null !== $hidden_preview_markup
                         ? $hidden_preview_markup
                         : $block_content
@@ -290,16 +307,25 @@ function visibloc_jlg_wrap_preview_with_fallback_notice( $preview_markup, $fallb
     $label = __( 'Contenu de repli actif', 'visi-bloc-jlg' );
 
     return sprintf(
-        '<div class="bloc-fallback-apercu vb-label-top" data-visibloc-fallback="1" data-visibloc-label="%s">%s%s<div class="bloc-fallback-apercu__replacement">%s</div></div>',
-        esc_attr( $label ),
-        visibloc_jlg_render_status_badge( $label, 'fallback' ),
+        '<div class="bloc-fallback-apercu vb-label-top" data-visibloc-fallback="1">%s%s<div class="bloc-fallback-apercu__replacement">%s</div></div>',
+        visibloc_jlg_render_status_badge(
+            $label,
+            'fallback',
+            __( 'Le contenu de repli est affiché à la place du bloc original.', 'visi-bloc-jlg' )
+        ),
         $preview_markup,
         $fallback_markup
     );
 }
 
 function visibloc_jlg_render_status_badge( $label, $variant = '', $screen_reader_text = '' ) {
-    $label_text = trim( wp_strip_all_tags( (string) $label ) );
+    $label_value = (string) $label;
+
+    if ( function_exists( 'wp_strip_all_tags' ) ) {
+        $label_text = trim( wp_strip_all_tags( $label_value ) );
+    } else {
+        $label_text = trim( strip_tags( $label_value ) );
+    }
 
     if ( '' === $label_text ) {
         return '';
