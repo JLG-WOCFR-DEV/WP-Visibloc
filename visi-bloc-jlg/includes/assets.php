@@ -474,7 +474,22 @@ function visibloc_jlg_generate_device_visibility_css( $can_preview, $mobile_bp =
         ];
 
         $selectors_without_pseudo = implode( ', ', $preview_selectors );
-        $selectors_with_pseudo    = implode( '::before, ', $preview_selectors ) . '::before';
+        $badge_selectors          = implode(
+            ', ',
+            array_map(
+                static function ( $selector ) {
+                    return $selector . ' > .visibloc-status-badge';
+                },
+                $preview_selectors
+            )
+        );
+
+        $css_lines[] = '.visibloc-status-badge { display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-family: var(--wp-admin-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif); font-weight: 600; letter-spacing: 0.02em; line-height: 1.4; text-transform: uppercase; color: #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15); background-color: rgba(0, 115, 170, 0.9); }';
+        $css_lines[] = '.visibloc-status-badge--hidden { background-color: rgba(220, 20, 60, 0.85); box-shadow: 0 2px 6px rgba(220, 20, 60, 0.25); }';
+        $css_lines[] = '.visibloc-status-badge--schedule { background-color: #2E7D32; }';
+        $css_lines[] = '.visibloc-status-badge--schedule-error { background-color: #c62828; }';
+        $css_lines[] = '.visibloc-status-badge--advanced { background-color: #6b21a8; }';
+        $css_lines[] = '.visibloc-status-badge--fallback { background-color: rgba(30, 64, 175, 0.85); }';
 
         $css_lines[] = sprintf(
             '%s { position: relative; outline: 2px dashed #0073aa; outline-offset: 2px; }',
@@ -482,36 +497,18 @@ function visibloc_jlg_generate_device_visibility_css( $can_preview, $mobile_bp =
         );
 
         $css_lines[] = sprintf(
-            '%s { content: attr(data-visibloc-label); position: absolute; bottom: -2px; right: -2px; background-color: #0073aa; color: white; padding: 2px 8px; font-size: 11px; font-family: sans-serif; font-weight: bold; z-index: 99; border-radius: 3px 0 3px 0; line-height: 1.4; text-align: left; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15); }',
-            $selectors_with_pseudo
+            '%s { position: absolute; bottom: -2px; right: -2px; padding: 2px 8px; }',
+            $badge_selectors
         );
-
-        $css_lines[] = '.vb-label-top::before { bottom: auto; top: -2px; transform: translateY(-100%); border-radius: 3px 3px 0 0; }';
+        $css_lines[] = '.vb-label-top > .visibloc-status-badge { bottom: auto; top: -2px; transform: translateY(-100%); border-radius: 3px 3px 0 0; }';
 
         $css_lines[] = '@media (max-width: 782px) {';
         $css_lines[] = sprintf(
-            '    %s::before { position: static; display: inline-flex; align-items: center; justify-content: flex-start; gap: 4px; margin: 0 0 8px; right: auto; bottom: auto; left: auto; top: auto; transform: none; border-radius: 999px; padding: 4px 12px; box-shadow: none; }',
-            $selectors_without_pseudo
+            '    %s { position: static; display: inline-flex; margin: 0 0 8px; right: auto; bottom: auto; left: auto; top: auto; transform: none; border-radius: 999px; padding: 4px 12px; box-shadow: none; }',
+            $badge_selectors
         );
-        $css_lines[] = '    .vb-label-top::before { margin-bottom: 8px; }';
+        $css_lines[] = '    .vb-label-top > .visibloc-status-badge { margin-bottom: 8px; }';
         $css_lines[] = '}';
-
-        $labels = [
-            '.vb-hide-on-mobile::before'   => __( 'Caché sur Mobile', 'visi-bloc-jlg' ),
-            '.vb-hide-on-tablet::before'   => __( 'Caché sur Tablette', 'visi-bloc-jlg' ),
-            '.vb-hide-on-desktop::before'  => __( 'Caché sur Desktop', 'visi-bloc-jlg' ),
-            '.vb-mobile-only::before'      => __( 'Visible sur Mobile Uniquement', 'visi-bloc-jlg' ),
-            '.vb-tablet-only::before'      => __( 'Visible sur Tablette Uniquement', 'visi-bloc-jlg' ),
-            '.vb-desktop-only::before'     => __( 'Visible sur Desktop Uniquement', 'visi-bloc-jlg' ),
-        ];
-
-        foreach ( $labels as $selector => $label ) {
-            $css_lines[] = sprintf(
-                '%s { content: %s; }',
-                $selector,
-                wp_json_encode( $label )
-            );
-        }
     }
 
     $css = implode( "\n", $css_lines );
