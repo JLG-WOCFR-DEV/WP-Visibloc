@@ -91,8 +91,12 @@ async function exerciseVisibilityControls( { admin, editor, page }, blockName ) 
 
     await page.getByRole( 'button', { name: 'Settings' } ).click();
 
-    const deviceSelect = page.getByLabel( 'Visibilité par Appareil' );
-    await deviceSelect.selectOption( 'desktop-only' );
+    const deviceToggleGroups = page.locator( '.visi-bloc-device-toggle-group' );
+    await expect( deviceToggleGroups.first() ).toBeVisible();
+    await deviceToggleGroups
+        .first()
+        .getByRole( 'button', { name: 'Desktop' } )
+        .click();
 
     await page.getByRole( 'button', { name: 'Programmation' } ).click();
 
@@ -208,8 +212,12 @@ test.describe( 'Visi-Bloc group visibility controls', () => {
         const fallbackButton = getPanelButton( 'Contenu de repli' );
         await expect( fallbackButton.locator( '.components-panel__summary' ) ).not.toHaveText( 'Inactif' );
 
-        await page.getByLabel( 'Visibilité par Appareil' ).selectOption( 'desktop-only' );
-        await expectSummary( 'Contrôles de Visibilité', 'Desktop Uniquement' );
+        const visibilityGroups = page.locator( '.visi-bloc-device-toggle-group' );
+        await visibilityGroups
+            .first()
+            .getByRole( 'button', { name: 'Desktop' } )
+            .click();
+        await expectSummary( 'Contrôles de Visibilité', 'Afficher uniquement – Desktop' );
 
         const schedulingToggle = page.getByRole( 'checkbox', { name: 'Activer la programmation' } );
         await schedulingToggle.check();

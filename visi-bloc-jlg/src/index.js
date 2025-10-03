@@ -7,7 +7,8 @@ import {
     ToolbarGroup,
     ToolbarButton,
     PanelBody,
-    SelectControl,
+    ToggleGroupControl,
+    ToggleGroupControlOptionIcon,
     ToggleControl,
     CheckboxControl,
     DateTimePicker,
@@ -186,46 +187,66 @@ const parseDateValue = (value) => {
     return date;
 };
 
+const DEVICE_VISIBILITY_DEFAULT_OPTION = {
+    id: 'all',
+    label: __('Visible sur tous les appareils', 'visi-bloc-jlg'),
+};
+
 const DEVICE_VISIBILITY_OPTIONS = [
     {
-        label: __('Visible sur tous les appareils', 'visi-bloc-jlg'),
-        value: 'all',
+        id: 'show-only',
+        label: __('Afficher uniquement', 'visi-bloc-jlg'),
+        options: [
+            {
+                id: 'desktop-only',
+                label: __('Desktop', 'visi-bloc-jlg'),
+                icon: 'desktop',
+            },
+            {
+                id: 'tablet-only',
+                label: __('Tablette', 'visi-bloc-jlg'),
+                icon: 'tablet',
+            },
+            {
+                id: 'mobile-only',
+                label: __('Mobile', 'visi-bloc-jlg'),
+                icon: 'smartphone',
+            },
+        ],
     },
     {
-        label: __('--- Afficher uniquement sur ---', 'visi-bloc-jlg'),
-        value: 'separator-show',
-        disabled: true,
-    },
-    {
-        label: __('Desktop Uniquement', 'visi-bloc-jlg'),
-        value: 'desktop-only',
-    },
-    {
-        label: __('Tablette Uniquement', 'visi-bloc-jlg'),
-        value: 'tablet-only',
-    },
-    {
-        label: __('Mobile Uniquement', 'visi-bloc-jlg'),
-        value: 'mobile-only',
-    },
-    {
-        label: __('--- Cacher sur ---', 'visi-bloc-jlg'),
-        value: 'separator-hide',
-        disabled: true,
-    },
-    {
-        label: __('Caché sur Desktop', 'visi-bloc-jlg'),
-        value: 'hide-on-desktop',
-    },
-    {
-        label: __('Caché sur Tablette', 'visi-bloc-jlg'),
-        value: 'hide-on-tablet',
-    },
-    {
-        label: __('Caché sur Mobile', 'visi-bloc-jlg'),
-        value: 'hide-on-mobile',
+        id: 'hide-on',
+        label: __('Masquer sur', 'visi-bloc-jlg'),
+        options: [
+            {
+                id: 'hide-on-desktop',
+                label: __('Desktop', 'visi-bloc-jlg'),
+                icon: 'desktop',
+            },
+            {
+                id: 'hide-on-tablet',
+                label: __('Tablette', 'visi-bloc-jlg'),
+                icon: 'tablet',
+            },
+            {
+                id: 'hide-on-mobile',
+                label: __('Mobile', 'visi-bloc-jlg'),
+                icon: 'smartphone',
+            },
+        ],
     },
 ];
+
+const DEVICE_VISIBILITY_FLAT_OPTIONS = DEVICE_VISIBILITY_OPTIONS.reduce(
+    (accumulator, group) => {
+        if (group && Array.isArray(group.options)) {
+            return accumulator.concat(group.options);
+        }
+
+        return accumulator;
+    },
+    [],
+);
 
 const SUPPORTED_ADVANCED_RULE_TYPES = [
     'post_type',
@@ -901,15 +922,25 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
         );
 
         const deviceVisibilitySummary = (() => {
-            const option = DEVICE_VISIBILITY_OPTIONS.find(
-                (item) => item.value === deviceVisibility && !item.disabled,
-            );
-
-            if (!option || option.value === 'all') {
+            if (!deviceVisibility || deviceVisibility === DEVICE_VISIBILITY_DEFAULT_OPTION.id) {
                 return '';
             }
 
-            return option.label;
+            const group = DEVICE_VISIBILITY_OPTIONS.find((item) =>
+                Array.isArray(item.options)
+                    ? item.options.some((option) => option.id === deviceVisibility)
+                    : false,
+            );
+
+            const option = DEVICE_VISIBILITY_FLAT_OPTIONS.find(
+                (item) => item.id === deviceVisibility,
+            );
+
+            if (!option) {
+                return '';
+            }
+
+            return group ? `${group.label} – ${option.label}` : option.label;
         })();
 
         const schedulingSummaryLabel = (() => {
@@ -1014,14 +1045,65 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                 )}
                                 initialOpen={true}
                             >
-                                <SelectControl
-                                    label={__('Visibilité par Appareil', 'visi-bloc-jlg')}
-                                    value={deviceVisibility}
-                                    options={DEVICE_VISIBILITY_OPTIONS}
-                                    onChange={(newValue) =>
-                                        setAttributes({ deviceVisibility: newValue })
-                                    }
-                                />
+                                <BaseControl label={__('Visibilité par Appareil', 'visi-bloc-jlg')}>
+                                    <div className="visi-bloc-device-toggle-groups">
+                                        {DEVICE_VISIBILITY_OPTIONS.map((group) => {
+                                            const isGroupActive = group.options.some(
+                                                (option) => option.id === deviceVisibility,
+                                            );
+
+                                            return (
+                                                <div
+                                                    key={group.id}
+                                                    className="visi-bloc-device-toggle-group"
+                                                >
+                                                    <BaseControl.VisualLabel>
+                                                        {group.label}
+                                                    </BaseControl.VisualLabel>
+                                                    <ToggleGroupControl
+                                                        className="visi-bloc-device-toggle"
+                                                        isBlock
+                                                        isDeselectable
+                                                        value={isGroupActive ? deviceVisibility : undefined}
+                                                        onChange={(newValue) =>
+                                                            setAttributes({
+                                                                deviceVisibility:
+                                                                    newValue ||
+                                                                    DEVICE_VISIBILITY_DEFAULT_OPTION.id,
+                                                            })
+                                                        }
+                                                    >
+                                                        {group.options.map((option) => (
+                                                            <ToggleGroupControlOptionIcon
+                                                                key={option.id}
+                                                                value={option.id}
+                                                                icon={option.icon}
+                                                                label={option.label}
+                                                            />
+                                                        ))}
+                                                    </ToggleGroupControl>
+                                                </div>
+                                            );
+                                        })}
+                                        <Button
+                                            className="visi-bloc-device-toggle-reset"
+                                            variant="link"
+                                            isLink
+                                            onClick={() =>
+                                                setAttributes({
+                                                    deviceVisibility:
+                                                        DEVICE_VISIBILITY_DEFAULT_OPTION.id,
+                                                })
+                                            }
+                                            disabled={
+                                                deviceVisibility ===
+                                                DEVICE_VISIBILITY_DEFAULT_OPTION.id
+                                            }
+                                        >
+                                            {DEVICE_VISIBILITY_DEFAULT_OPTION.label}
+                                        </Button>
+                                    </div>
+                                </BaseControl>
                             </PanelBody>
                             <PanelBody
                                 title={panelTitleWithSummary(

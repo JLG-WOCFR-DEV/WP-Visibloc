@@ -2,6 +2,22 @@
     margin-bottom: 16px;
 }
 
+.visi-bloc-device-toggle-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.visi-bloc-device-toggle-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.visi-bloc-device-toggle-reset {
+    align-self: flex-start;
+}
+
 .visi-bloc-datepicker-wrapper {
     margin-bottom: 16px;
     padding-left: 20px;
