@@ -175,7 +175,16 @@
     }
 
     .visibloc-admin-scheduled-table thead {
-        display: none;
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        clip-path: inset(50%);
+        border: 0;
+        white-space: nowrap;
     }
 
     .visibloc-admin-scheduled-table tbody {
@@ -205,8 +214,7 @@
         margin-bottom: 0;
     }
 
-    .visibloc-admin-scheduled-table td::before {
-        content: attr(data-label);
+    .visibloc-table-label {
         display: block;
         font-weight: 600;
         margin-bottom: 4px;
@@ -240,5 +248,9 @@
     .visibloc-help-nav__link {
         min-width: unset;
         width: 100%;
+    }
+
+    .visibloc-table-label {
+        display: none;
     }
 }
