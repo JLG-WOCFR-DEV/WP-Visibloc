@@ -19,7 +19,7 @@ import {
     FlexItem,
     TextareaControl,
 } from '@wordpress/components';
-import { __, sprintf } from '@wordpress/i18n';
+import { __, sprintf, _n } from '@wordpress/i18n';
 import { __experimentalGetSettings, dateI18n, format as formatDate } from '@wordpress/date';
 import { subscribe, select } from '@wordpress/data';
 
@@ -889,6 +889,102 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             );
         };
 
+        const inactiveSummaryLabel = __('Inactif', 'visi-bloc-jlg');
+
+        const panelTitleWithSummary = (label, summary) => (
+            <Fragment>
+                <span>{label}</span>
+                <span className="components-panel__summary">
+                    {summary && String(summary).trim() ? summary : inactiveSummaryLabel}
+                </span>
+            </Fragment>
+        );
+
+        const deviceVisibilitySummary = (() => {
+            const option = DEVICE_VISIBILITY_OPTIONS.find(
+                (item) => item.value === deviceVisibility && !item.disabled,
+            );
+
+            if (!option || option.value === 'all') {
+                return '';
+            }
+
+            return option.label;
+        })();
+
+        const schedulingSummaryLabel = (() => {
+            if (!isSchedulingEnabled) {
+                return '';
+            }
+
+            if (hasScheduleRangeError) {
+                return __('Erreur de dates', 'visi-bloc-jlg');
+            }
+
+            if (publishStartDate && publishEndDate) {
+                return __('Plage définie', 'visi-bloc-jlg');
+            }
+
+            if (publishStartDate || publishEndDate) {
+                return __('Date définie', 'visi-bloc-jlg');
+            }
+
+            return __('Programmation active', 'visi-bloc-jlg');
+        })();
+
+        const rolesSummary = (() => {
+            const uniqueRoles = Array.from(new Set((visibilityRoles || []).filter(Boolean)));
+            const count = uniqueRoles.length;
+
+            if (!count) {
+                return '';
+            }
+
+            return sprintf(
+                _n('%d rôle', '%d rôles', count, 'visi-bloc-jlg'),
+                count,
+            );
+        })();
+
+        const advancedRulesSummary = (() => {
+            const rulesCount = Array.isArray(advancedVisibility.rules)
+                ? advancedVisibility.rules.length
+                : 0;
+
+            if (!rulesCount) {
+                return '';
+            }
+
+            const logicLabel =
+                advancedVisibility.logic === 'OR'
+                    ? __('OU', 'visi-bloc-jlg')
+                    : __('ET', 'visi-bloc-jlg');
+
+            return sprintf(
+                _n('%1$d règle %2$s', '%1$d règles %2$s', rulesCount, 'visi-bloc-jlg'),
+                rulesCount,
+                logicLabel,
+            );
+        })();
+
+        const fallbackSummary = (() => {
+            if (!fallbackEnabled) {
+                return '';
+            }
+
+            const summaries = {
+                inherit: __('Global', 'visi-bloc-jlg'),
+                text: __('Texte', 'visi-bloc-jlg'),
+                block: __('Bloc', 'visi-bloc-jlg'),
+            };
+
+            if (fallbackBehavior === 'block' && !fallbackBlockId) {
+                return __('Bloc', 'visi-bloc-jlg');
+            }
+
+            return summaries[fallbackBehavior] || summaries.inherit;
+        })();
+
         return (
             <Fragment>
                 <BlockEdit {...props} />
@@ -912,7 +1008,10 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                         </BlockControls>
                         <InspectorControls>
                             <PanelBody
-                                title={__('Contrôles de Visibilité', 'visi-bloc-jlg')}
+                                title={panelTitleWithSummary(
+                                    __('Contrôles de Visibilité', 'visi-bloc-jlg'),
+                                    deviceVisibilitySummary,
+                                )}
                                 initialOpen={true}
                             >
                                 <SelectControl
@@ -925,7 +1024,10 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                 />
                             </PanelBody>
                             <PanelBody
-                                title={__('Programmation', 'visi-bloc-jlg')}
+                                title={panelTitleWithSummary(
+                                    __('Programmation', 'visi-bloc-jlg'),
+                                    schedulingSummaryLabel,
+                                )}
                                 initialOpen={false}
                                 className="visi-bloc-panel-schedule"
                             >
@@ -1016,7 +1118,10 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                 )}
                             </PanelBody>
                             <PanelBody
-                                title={__('Visibilité par Rôle', 'visi-bloc-jlg')}
+                                title={panelTitleWithSummary(
+                                    __('Visibilité par Rôle', 'visi-bloc-jlg'),
+                                    rolesSummary,
+                                )}
                                 initialOpen={false}
                             >
                                 <p>
@@ -1056,7 +1161,10 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                     ))}
                             </PanelBody>
                             <PanelBody
-                                title={__('Règles de visibilité avancées', 'visi-bloc-jlg')}
+                                title={panelTitleWithSummary(
+                                    __('Règles de visibilité avancées', 'visi-bloc-jlg'),
+                                    advancedRulesSummary,
+                                )}
                                 initialOpen={false}
                             >
                                 <SelectControl
@@ -1098,7 +1206,10 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                 </p>
                             </PanelBody>
                             <PanelBody
-                                title={__('Contenu de repli', 'visi-bloc-jlg')}
+                                title={panelTitleWithSummary(
+                                    __('Contenu de repli', 'visi-bloc-jlg'),
+                                    fallbackSummary,
+                                )}
                                 initialOpen={false}
                             >
                                 <ToggleControl
