@@ -14,6 +14,10 @@
     gap: 8px;
 }
 
+.visi-bloc-device-toggle .components-segmented-control__button {
+    gap: 6px;
+}
+
 .visi-bloc-device-toggle-reset {
     align-self: flex-start;
 }
