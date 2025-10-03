@@ -875,6 +875,9 @@ function visibloc_jlg_render_fallback_section( $fallback_settings, $fallback_blo
     $fallback_text     = $fallback_settings['text'];
     $fallback_block_id = $fallback_settings['block_id'];
     $has_blocks        = ! empty( $fallback_blocks );
+    $fallback_mode_help_id  = 'visibloc_fallback_mode_help';
+    $fallback_text_help_id  = 'visibloc_fallback_text_help';
+    $fallback_block_help_id = 'visibloc_fallback_block_help';
 
     ?>
     <div id="visibloc-section-fallback" class="postbox">
@@ -888,12 +891,16 @@ function visibloc_jlg_render_fallback_section( $fallback_settings, $fallback_blo
                             <label for="visibloc_fallback_mode"><?php esc_html_e( 'Type de repli', 'visi-bloc-jlg' ); ?></label>
                         </th>
                         <td>
-                            <select name="visibloc_fallback_mode" id="visibloc_fallback_mode">
+                            <select
+                                name="visibloc_fallback_mode"
+                                id="visibloc_fallback_mode"
+                                aria-describedby="<?php echo esc_attr( $fallback_mode_help_id ); ?>"
+                            >
                                 <option value="none" <?php selected( 'none', $fallback_mode ); ?>><?php esc_html_e( 'Aucun', 'visi-bloc-jlg' ); ?></option>
                                 <option value="text" <?php selected( 'text', $fallback_mode ); ?>><?php esc_html_e( 'Texte personnalisé', 'visi-bloc-jlg' ); ?></option>
                                 <option value="block" <?php selected( 'block', $fallback_mode ); ?>><?php esc_html_e( 'Bloc réutilisable', 'visi-bloc-jlg' ); ?></option>
                             </select>
-                            <p class="description"><?php esc_html_e( 'Ce paramètre peut être surchargé bloc par bloc dans l’éditeur.', 'visi-bloc-jlg' ); ?></p>
+                            <p id="<?php echo esc_attr( $fallback_mode_help_id ); ?>" class="description"><?php esc_html_e( 'Ce paramètre peut être surchargé bloc par bloc dans l’éditeur.', 'visi-bloc-jlg' ); ?></p>
                         </td>
                     </tr>
                     <tr>
@@ -906,8 +913,9 @@ function visibloc_jlg_render_fallback_section( $fallback_settings, $fallback_blo
                                 id="visibloc_fallback_text"
                                 rows="5"
                                 class="large-text"
+                                aria-describedby="<?php echo esc_attr( $fallback_text_help_id ); ?>"
                             ><?php echo esc_textarea( $fallback_text ); ?></textarea>
-                            <p class="description"><?php esc_html_e( 'Ce contenu est utilisé lorsque le type « Texte personnalisé » est sélectionné.', 'visi-bloc-jlg' ); ?></p>
+                            <p id="<?php echo esc_attr( $fallback_text_help_id ); ?>" class="description"><?php esc_html_e( 'Ce contenu est utilisé lorsque le type « Texte personnalisé » est sélectionné.', 'visi-bloc-jlg' ); ?></p>
                         </td>
                     </tr>
                     <tr>
@@ -915,7 +923,12 @@ function visibloc_jlg_render_fallback_section( $fallback_settings, $fallback_blo
                             <label for="visibloc_fallback_block_id"><?php esc_html_e( 'Bloc de substitution', 'visi-bloc-jlg' ); ?></label>
                         </th>
                         <td>
-                            <select name="visibloc_fallback_block_id" id="visibloc_fallback_block_id" class="regular-text">
+                            <select
+                                name="visibloc_fallback_block_id"
+                                id="visibloc_fallback_block_id"
+                                class="regular-text"
+                                aria-describedby="<?php echo esc_attr( $fallback_block_help_id ); ?>"
+                            >
                                 <option value="0" <?php selected( 0, $fallback_block_id ); ?>><?php esc_html_e( '— Sélectionnez un bloc —', 'visi-bloc-jlg' ); ?></option>
                                 <?php foreach ( $fallback_blocks as $block ) :
                                     $value = isset( $block['value'] ) ? (int) $block['value'] : 0;
@@ -929,9 +942,9 @@ function visibloc_jlg_render_fallback_section( $fallback_settings, $fallback_blo
                                 <?php endforeach; ?>
                             </select>
                             <?php if ( ! $has_blocks ) : ?>
-                                <p class="description"><?php esc_html_e( 'Aucun bloc réutilisable publié n’a été trouvé.', 'visi-bloc-jlg' ); ?></p>
+                                <p id="<?php echo esc_attr( $fallback_block_help_id ); ?>" class="description"><?php esc_html_e( 'Aucun bloc réutilisable publié n’a été trouvé.', 'visi-bloc-jlg' ); ?></p>
                             <?php else : ?>
-                                <p class="description"><?php esc_html_e( 'Utilisé lorsque le type « Bloc réutilisable » est sélectionné.', 'visi-bloc-jlg' ); ?></p>
+                                <p id="<?php echo esc_attr( $fallback_block_help_id ); ?>" class="description"><?php esc_html_e( 'Utilisé lorsque le type « Bloc réutilisable » est sélectionné.', 'visi-bloc-jlg' ); ?></p>
                             <?php endif; ?>
                         </td>
                     </tr>
