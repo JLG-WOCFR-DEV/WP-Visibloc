@@ -7,6 +7,7 @@ import {
     ToolbarGroup,
     ToolbarButton,
     PanelBody,
+    SelectControl,
     ToggleGroupControl,
     ToggleGroupControlOptionIcon,
     ToggleControl,
