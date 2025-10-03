@@ -227,12 +227,14 @@ const DEVICE_VISIBILITY_OPTIONS = [
     },
 ];
 
-const SUPPORTED_ADVANCED_RULE_TYPES = [
-    'post_type',
-    'taxonomy',
-    'template',
-    'recurring_schedule',
-];
+const ADVANCED_RULE_TYPE_OPTIONS = Object.freeze([
+    { value: 'post_type', label: __('Type de contenu', 'visi-bloc-jlg') },
+    { value: 'taxonomy', label: __('Taxonomie', 'visi-bloc-jlg') },
+    { value: 'template', label: __('Modèle (PHP ou FSE)', 'visi-bloc-jlg') },
+    { value: 'recurring_schedule', label: __('Horaire récurrent', 'visi-bloc-jlg') },
+]);
+
+const SUPPORTED_ADVANCED_RULE_TYPES = ADVANCED_RULE_TYPE_OPTIONS.map((option) => option.value);
 
 const DEFAULT_ADVANCED_VISIBILITY = Object.freeze({
     logic: 'AND',
@@ -318,20 +320,106 @@ const getDefaultAdvancedVisibility = () => ({
 
 const createRuleId = () => `rule-${Math.random().toString(36).slice(2)}-${Date.now()}`;
 
-const getFirstOptionValue = (options) => {
+const normalizeSelectOptions = (options) => {
+    if (!Array.isArray(options)) {
+        return [];
+    }
+
+    return options
+        .map((option) => {
+            if (!option || typeof option !== 'object') {
+                return null;
+            }
+
+            if (Array.isArray(option.options)) {
+                const normalizedChildren = normalizeSelectOptions(option.options);
+
+                if (!normalizedChildren.length) {
+                    return null;
+                }
+
+                const label =
+                    typeof option.label === 'string' && option.label.trim()
+                        ? option.label
+                        : '';
+
+                const group = {
+                    label,
+                    options: normalizedChildren,
+                };
+
+                if (typeof option.disabled === 'boolean') {
+                    group.disabled = option.disabled;
+                }
+
+                return group;
+            }
+
+            if (!Object.prototype.hasOwnProperty.call(option, 'value')) {
+                return null;
+            }
+
+            const rawValue = option.value;
+            const value =
+                rawValue === null || typeof rawValue === 'undefined'
+                    ? ''
+                    : String(rawValue);
+            const label =
+                typeof option.label === 'string' && option.label.trim()
+                    ? option.label
+                    : value;
+
+            const normalized = {
+                value,
+                label,
+            };
+
+            if (typeof option.disabled === 'boolean') {
+                normalized.disabled = option.disabled;
+            }
+
+            return normalized;
+        })
+        .filter(Boolean);
+};
+
+const flattenSelectOptions = (options) => {
     if (!Array.isArray(options) || !options.length) {
+        return [];
+    }
+
+    const flattened = [];
+
+    options.forEach((option) => {
+        if (!option || typeof option !== 'object') {
+            return;
+        }
+
+        if (Array.isArray(option.options)) {
+            flattened.push(...flattenSelectOptions(option.options));
+
+            return;
+        }
+
+        if (typeof option.value !== 'undefined') {
+            flattened.push(option);
+        }
+    });
+
+    return flattened;
+};
+
+const getFirstOptionValue = (options) => {
+    const normalized = normalizeSelectOptions(options);
+    const flattened = flattenSelectOptions(normalized);
+
+    if (!flattened.length) {
         return '';
     }
 
-    const first = options.find((option) => option && typeof option.value !== 'undefined');
+    const first = flattened.find((option) => option && typeof option.value === 'string');
 
-    if (!first) {
-        return '';
-    }
-
-    const firstValue = typeof first.value === 'undefined' || first.value === null ? '' : first.value;
-
-    return String(firstValue);
+    return first ? first.value : '';
 };
 
 const getDefaultPostTypeRule = () => {
@@ -674,12 +762,7 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                         <SelectControl
                             label={__('Type de règle', 'visi-bloc-jlg')}
                             value={rule.type}
-                            options={[
-                                { value: 'post_type', label: __('Type de contenu', 'visi-bloc-jlg') },
-                                { value: 'taxonomy', label: __('Taxonomie', 'visi-bloc-jlg') },
-                                { value: 'template', label: __('Modèle de page', 'visi-bloc-jlg') },
-                                { value: 'recurring_schedule', label: __('Horaire récurrent', 'visi-bloc-jlg') },
-                            ]}
+                            options={ADVANCED_RULE_TYPE_OPTIONS}
                             onChange={onChangeType}
                         />
                     </FlexBlock>
@@ -692,11 +775,7 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             );
 
             if (rule.type === 'post_type') {
-                const options = getVisiBlocArray('postTypes')
-                    .map((item) => ({
-                          value: item.value,
-                          label: item.label,
-                      }));
+                const options = normalizeSelectOptions(getVisiBlocArray('postTypes'));
 
                 return (
                     <div key={rule.id} className="visibloc-advanced-rule">
@@ -789,11 +868,7 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             }
 
             if (rule.type === 'template') {
-                const templates = getVisiBlocArray('templates')
-                    .map((item) => ({
-                          value: item.value,
-                          label: item.label,
-                      }));
+                const templates = normalizeSelectOptions(getVisiBlocArray('templates'));
 
                 return (
                     <div key={rule.id} className="visibloc-advanced-rule">

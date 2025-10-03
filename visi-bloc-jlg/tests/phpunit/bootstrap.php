@@ -14,6 +14,17 @@ if ( ! defined( 'WPINC' ) ) {
 $GLOBALS['visibloc_posts']            = [];
 $GLOBALS['visibloc_test_options']     = [];
 $GLOBALS['visibloc_test_transients']  = [];
+$GLOBALS['visibloc_test_post_types']           = [];
+$GLOBALS['visibloc_test_block_templates']      = [];
+$GLOBALS['visibloc_test_block_template_parts'] = [];
+$GLOBALS['visibloc_test_theme']                = null;
+
+function visibloc_test_reset_block_editor_data() {
+    $GLOBALS['visibloc_test_post_types']           = [];
+    $GLOBALS['visibloc_test_block_templates']      = [];
+    $GLOBALS['visibloc_test_block_template_parts'] = [];
+    $GLOBALS['visibloc_test_theme']                = null;
+}
 
 $GLOBALS['visibloc_test_request_environment'] = [
     'is_admin'    => false,
@@ -127,6 +138,7 @@ function visibloc_test_reset_state() {
         'current_time'            => null,
     ];
 
+    visibloc_test_reset_block_editor_data();
     visibloc_test_reset_request_environment();
 }
 
@@ -195,6 +207,232 @@ function add_filter( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
         'callback'      => $callback,
         'accepted_args' => $accepted_args,
     ];
+}
+
+if ( ! class_exists( 'WP_Error' ) ) {
+    class WP_Error {
+        public $errors = [];
+        public $error_data = [];
+
+        public function __construct( $code = '', $message = '', $data = '' ) {
+            if ( '' !== $code ) {
+                $this->errors[ $code ] = [ $message ];
+
+                if ( '' !== $data ) {
+                    $this->error_data[ $code ] = $data;
+                }
+            }
+        }
+
+        public function get_error_message( $code = '' ) {
+            if ( '' === $code ) {
+                $code = array_key_first( $this->errors );
+            }
+
+            if ( null === $code ) {
+                return '';
+            }
+
+            $messages = $this->errors[ $code ] ?? [];
+
+            return is_array( $messages ) && ! empty( $messages ) ? (string) reset( $messages ) : '';
+        }
+    }
+}
+
+if ( ! function_exists( 'is_wp_error' ) ) {
+    function is_wp_error( $thing ) {
+        return $thing instanceof WP_Error;
+    }
+}
+
+if ( ! class_exists( 'WP_Block_Template' ) ) {
+    class WP_Block_Template {
+        public $id = '';
+        public $slug = '';
+        public $theme = '';
+        public $title = '';
+        public $type = '';
+    }
+}
+
+if ( ! class_exists( 'WP_Theme' ) ) {
+    class WP_Theme {
+        private $page_templates = [];
+
+        public function __construct( array $page_templates = [] ) {
+            $this->page_templates = $page_templates;
+        }
+
+        public function get_page_templates() {
+            return $this->page_templates;
+        }
+
+        public function set_page_templates( array $page_templates ) {
+            $this->page_templates = $page_templates;
+        }
+    }
+}
+
+function visibloc_test_normalize_block_template( $data, $default_type = 'wp_template' ) {
+    $template = new WP_Block_Template();
+
+    if ( is_object( $data ) ) {
+        foreach ( get_object_vars( $data ) as $property => $value ) {
+            $template->$property = $value;
+        }
+    } elseif ( is_array( $data ) ) {
+        foreach ( $data as $property => $value ) {
+            $template->$property = $value;
+        }
+    }
+
+    $template->type  = isset( $template->type ) && is_string( $template->type ) ? $template->type : $default_type;
+    $template->slug  = isset( $template->slug ) && is_string( $template->slug ) ? $template->slug : '';
+    $template->theme = isset( $template->theme ) && is_string( $template->theme ) ? $template->theme : 'test-theme';
+    $template->title = isset( $template->title ) ? $template->title : '';
+    $template->id    = isset( $template->id ) && is_string( $template->id ) ? $template->id : '';
+
+    if ( '' === $template->id ) {
+        $identifier_parts = [
+            $template->theme,
+            $template->type,
+            '' !== $template->slug ? $template->slug : uniqid( 'template_', true ),
+        ];
+
+        $template->id = implode( '//', $identifier_parts );
+    }
+
+    return $template;
+}
+
+function visibloc_test_set_post_types( array $post_types ) {
+    $normalized = [];
+
+    foreach ( $post_types as $slug => $args ) {
+        if ( is_int( $slug ) ) {
+            continue;
+        }
+
+        $slug = (string) $slug;
+
+        if ( '' === $slug ) {
+            continue;
+        }
+
+        if ( is_object( $args ) ) {
+            $normalized[ $slug ] = $args;
+        } elseif ( is_array( $args ) ) {
+            if ( ! isset( $args['name'] ) ) {
+                $args['name'] = $slug;
+            }
+
+            $normalized[ $slug ] = (object) $args;
+        } else {
+            $normalized[ $slug ] = (object) [ 'name' => $slug ];
+        }
+    }
+
+    $GLOBALS['visibloc_test_post_types'] = $normalized;
+}
+
+function visibloc_test_set_block_templates( array $templates ) {
+    $GLOBALS['visibloc_test_block_templates'] = array_map(
+        static fn( $template ) => visibloc_test_normalize_block_template( $template, 'wp_template' ),
+        array_values( $templates )
+    );
+}
+
+function visibloc_test_set_block_template_parts( array $templates ) {
+    $GLOBALS['visibloc_test_block_template_parts'] = array_map(
+        static fn( $template ) => visibloc_test_normalize_block_template( $template, 'wp_template_part' ),
+        array_values( $templates )
+    );
+}
+
+function visibloc_test_set_theme_page_templates( array $templates ) {
+    if ( ! isset( $GLOBALS['visibloc_test_theme'] ) || ! ( $GLOBALS['visibloc_test_theme'] instanceof WP_Theme ) ) {
+        $GLOBALS['visibloc_test_theme'] = new WP_Theme();
+    }
+
+    $GLOBALS['visibloc_test_theme']->set_page_templates( $templates );
+}
+
+if ( ! function_exists( 'wp_get_theme' ) ) {
+    function wp_get_theme() {
+        if ( ! isset( $GLOBALS['visibloc_test_theme'] ) || ! ( $GLOBALS['visibloc_test_theme'] instanceof WP_Theme ) ) {
+            $GLOBALS['visibloc_test_theme'] = new WP_Theme();
+        }
+
+        return $GLOBALS['visibloc_test_theme'];
+    }
+}
+
+if ( ! function_exists( 'get_post_types' ) ) {
+    function get_post_types( $args = [], $output = 'names' ) {
+        $post_types = $GLOBALS['visibloc_test_post_types'] ?? [];
+
+        $filtered = [];
+
+        foreach ( $post_types as $slug => $post_type ) {
+            if ( ! is_object( $post_type ) ) {
+                continue;
+            }
+
+            $matches = true;
+
+            if ( is_array( $args ) && ! empty( $args ) ) {
+                foreach ( $args as $key => $expected ) {
+                    $value = $post_type->$key ?? null;
+
+                    if ( is_bool( $expected ) ) {
+                        if ( (bool) $value !== $expected ) {
+                            $matches = false;
+                            break;
+                        }
+                    } elseif ( is_array( $expected ) ) {
+                        if ( ! in_array( $value, $expected, true ) ) {
+                            $matches = false;
+                            break;
+                        }
+                    } else {
+                        if ( $value !== $expected ) {
+                            $matches = false;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if ( ! $matches ) {
+                continue;
+            }
+
+            $filtered[ $slug ] = $post_type;
+        }
+
+        if ( 'objects' === $output ) {
+            return $filtered;
+        }
+
+        return array_keys( $filtered );
+    }
+}
+
+if ( ! function_exists( 'get_block_templates' ) ) {
+    function get_block_templates( $query = [], $template_type = 'wp_template' ) {
+        if ( 'wp_template_part' === $template_type ) {
+            return $GLOBALS['visibloc_test_block_template_parts'] ?? [];
+        }
+
+        return $GLOBALS['visibloc_test_block_templates'] ?? [];
+    }
+}
+
+if ( ! function_exists( 'get_block_template_parts' ) ) {
+    function get_block_template_parts( $query = [] ) {
+        return $GLOBALS['visibloc_test_block_template_parts'] ?? [];
+    }
 }
 
 function wp_register_style( $handle, $src = '', $deps = [], $ver = false, $media = 'all' ) {

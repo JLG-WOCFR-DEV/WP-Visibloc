@@ -139,12 +139,7 @@ function visibloc_jlg_enqueue_editor_assets() {
 }
 
 function visibloc_jlg_get_editor_post_types() {
-    $post_types = get_post_types(
-        [
-            'public' => true,
-        ],
-        'objects'
-    );
+    $post_types = get_post_types( [], 'objects' );
 
     if ( empty( $post_types ) || ! is_array( $post_types ) ) {
         return [];
@@ -157,14 +152,24 @@ function visibloc_jlg_get_editor_post_types() {
             continue;
         }
 
+        if ( ! is_object( $post_type ) ) {
+            continue;
+        }
+
+        $is_public            = isset( $post_type->public ) ? (bool) $post_type->public : false;
+        $is_publicly_queryable = isset( $post_type->publicly_queryable ) ? (bool) $post_type->publicly_queryable : false;
+        $shows_in_rest        = isset( $post_type->show_in_rest ) ? (bool) $post_type->show_in_rest : false;
+
+        if ( ! $is_public && ! $is_publicly_queryable && ! $shows_in_rest ) {
+            continue;
+        }
+
         $label = $slug;
 
-        if ( is_object( $post_type ) ) {
-            if ( isset( $post_type->labels->singular_name ) && is_string( $post_type->labels->singular_name ) && '' !== $post_type->labels->singular_name ) {
-                $label = $post_type->labels->singular_name;
-            } elseif ( isset( $post_type->label ) && is_string( $post_type->label ) && '' !== $post_type->label ) {
-                $label = $post_type->label;
-            }
+        if ( isset( $post_type->labels->singular_name ) && is_string( $post_type->labels->singular_name ) && '' !== $post_type->labels->singular_name ) {
+            $label = $post_type->labels->singular_name;
+        } elseif ( isset( $post_type->label ) && is_string( $post_type->label ) && '' !== $post_type->label ) {
+            $label = $post_type->label;
         }
 
         $items[] = [
@@ -270,7 +275,15 @@ function visibloc_jlg_get_editor_taxonomies() {
 }
 
 function visibloc_jlg_get_editor_templates() {
-    $templates = [];
+    $default_label = __( 'Modèle par défaut', 'visi-bloc-jlg' );
+    $templates     = [
+        [
+            'value' => '',
+            'label' => $default_label,
+        ],
+    ];
+
+    $php_templates = [];
 
     if ( function_exists( 'wp_get_theme' ) ) {
         $theme = wp_get_theme();
@@ -280,7 +293,7 @@ function visibloc_jlg_get_editor_templates() {
 
             if ( is_array( $page_templates ) ) {
                 foreach ( $page_templates as $template_name => $template_file ) {
-                    if ( ! is_string( $template_file ) ) {
+                    if ( ! is_string( $template_file ) || '' === $template_file ) {
                         continue;
                     }
 
@@ -288,7 +301,7 @@ function visibloc_jlg_get_editor_templates() {
                         ? $template_name
                         : $template_file;
 
-                    $templates[] = [
+                    $php_templates[ $template_file ] = [
                         'value' => $template_file,
                         'label' => $label,
                     ];
@@ -297,19 +310,126 @@ function visibloc_jlg_get_editor_templates() {
         }
     }
 
-    $default_label = __( 'Modèle par défaut', 'visi-bloc-jlg' );
-
-    $templates[] = [
-        'value' => '',
-        'label' => $default_label,
-    ];
-
-    usort(
-        $templates,
-        static function ( $first, $second ) {
-            return strcasecmp( (string) ( $first['label'] ?? '' ), (string) ( $second['label'] ?? '' ) );
+    $normalize_block_template = static function ( $template, $type_label ) {
+        if ( ! is_object( $template ) ) {
+            return null;
         }
-    );
+
+        $identifier = isset( $template->id ) && is_string( $template->id ) ? trim( $template->id ) : '';
+
+        if ( '' === $identifier ) {
+            return null;
+        }
+
+        $label = '';
+
+        if ( isset( $template->title ) ) {
+            if ( is_string( $template->title ) ) {
+                $label = trim( $template->title );
+            } elseif ( is_object( $template->title ) && isset( $template->title->rendered ) && is_string( $template->title->rendered ) ) {
+                $label = trim( $template->title->rendered );
+            } elseif ( is_array( $template->title ) && isset( $template->title['rendered'] ) && is_string( $template->title['rendered'] ) ) {
+                $label = trim( $template->title['rendered'] );
+            }
+        }
+
+        if ( '' === $label && isset( $template->slug ) && is_string( $template->slug ) ) {
+            $label = trim( $template->slug );
+        }
+
+        if ( '' === $label ) {
+            $label = $identifier;
+        }
+
+        return [
+            'value' => $identifier,
+            'label' => sprintf(
+                /* translators: 1: Template type label, 2: Template title. */
+                __( '%1$s : %2$s', 'visi-bloc-jlg' ),
+                $type_label,
+                $label
+            ),
+        ];
+    };
+
+    $block_templates      = [];
+    $block_template_parts = [];
+
+    if ( function_exists( 'get_block_templates' ) ) {
+        $raw_block_templates = get_block_templates( [], 'wp_template' );
+
+        if ( is_array( $raw_block_templates ) && ! is_wp_error( $raw_block_templates ) ) {
+            foreach ( $raw_block_templates as $template ) {
+                $normalized = $normalize_block_template( $template, __( 'Modèle FSE', 'visi-bloc-jlg' ) );
+
+                if ( null === $normalized ) {
+                    continue;
+                }
+
+                $block_templates[ $normalized['value'] ] = $normalized;
+            }
+        }
+
+        $raw_template_parts = function_exists( 'get_block_template_parts' )
+            ? get_block_template_parts()
+            : get_block_templates( [], 'wp_template_part' );
+
+        if ( is_array( $raw_template_parts ) && ! is_wp_error( $raw_template_parts ) ) {
+            foreach ( $raw_template_parts as $template_part ) {
+                $normalized = $normalize_block_template( $template_part, __( 'Partie de modèle FSE', 'visi-bloc-jlg' ) );
+
+                if ( null === $normalized ) {
+                    continue;
+                }
+
+                $block_template_parts[ $normalized['value'] ] = $normalized;
+            }
+        }
+    }
+
+    $sort_options = static function ( &$options ) {
+        if ( empty( $options ) || ! is_array( $options ) ) {
+            $options = [];
+
+            return;
+        }
+
+        usort(
+            $options,
+            static function ( $first, $second ) {
+                return strcasecmp( (string) ( $first['label'] ?? '' ), (string) ( $second['label'] ?? '' ) );
+            }
+        );
+    };
+
+    $php_values                 = array_values( $php_templates );
+    $block_template_values      = array_values( $block_templates );
+    $block_template_part_values = array_values( $block_template_parts );
+
+    $sort_options( $php_values );
+    $sort_options( $block_template_values );
+    $sort_options( $block_template_part_values );
+
+    if ( ! empty( $block_template_values ) ) {
+        $templates[] = [
+            'label'   => __( 'Modèles du site (éditeur de site)', 'visi-bloc-jlg' ),
+            'options' => $block_template_values,
+        ];
+    }
+
+    if ( ! empty( $block_template_part_values ) ) {
+        $templates[] = [
+            'label'   => __( 'Parties de modèle (éditeur de site)', 'visi-bloc-jlg' ),
+            'options' => $block_template_part_values,
+        ];
+    }
+
+    if ( ! empty( $php_values ) ) {
+        $templates[] = [
+            'label'   => __( 'Modèles PHP', 'visi-bloc-jlg' ),
+            'options' => $php_values,
+        ];
+    }
 
     return $templates;
 }
