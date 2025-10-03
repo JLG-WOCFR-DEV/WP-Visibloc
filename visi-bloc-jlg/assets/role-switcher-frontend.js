@@ -319,6 +319,12 @@
             toggle.setAttribute('aria-expanded', 'false');
         }
 
+        function focusToggle() {
+            if (toggle && typeof toggle.focus === 'function') {
+                toggle.focus();
+            }
+        }
+
         toggle.addEventListener('click', function () {
             if (container.classList.contains(openClass)) {
                 closePanel();
@@ -330,7 +336,7 @@
         Array.prototype.forEach.call(closeButtons, function (button) {
             button.addEventListener('click', function () {
                 closePanel();
-                toggle.focus();
+                focusToggle();
             });
         });
 
@@ -341,16 +347,14 @@
 
             if (!container.contains(event.target)) {
                 closePanel();
-                if (toggle && typeof toggle.focus === 'function') {
-                    toggle.focus();
-                }
+                focusToggle();
             }
         });
 
         container.addEventListener('keydown', function (event) {
             if ('Escape' === event.key || 'Esc' === event.key) {
                 closePanel();
-                toggle.focus();
+                focusToggle();
 
                 return;
             }
