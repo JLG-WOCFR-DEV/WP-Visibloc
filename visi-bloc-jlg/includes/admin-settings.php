@@ -426,40 +426,58 @@ function visibloc_jlg_render_help_page_content() {
 
     $sections = [
         [
-            'id'    => 'visibloc-section-blocks',
-            'label' => __( 'Blocs compatibles', 'visi-bloc-jlg' ),
+            'id'      => 'visibloc-section-blocks',
+            'label'   => __( 'Blocs compatibles', 'visi-bloc-jlg' ),
+            'render'  => 'visibloc_jlg_render_supported_blocks_section',
+            'args'    => [ $registered_block_types, $configured_blocks ],
         ],
         [
-            'id'    => 'visibloc-section-permissions',
-            'label' => __( "Permissions d'Aperçu", 'visi-bloc-jlg' ),
+            'id'      => 'visibloc-section-permissions',
+            'label'   => __( "Permissions d'Aperçu", 'visi-bloc-jlg' ),
+            'render'  => 'visibloc_jlg_render_permissions_section',
+            'args'    => [ $allowed_roles ],
         ],
         [
-            'id'    => 'visibloc-section-hidden',
-            'label' => __( 'Tableau de bord des blocs masqués (via Œil)', 'visi-bloc-jlg' ),
+            'id'      => 'visibloc-section-hidden',
+            'label'   => __( 'Tableau de bord des blocs masqués (via Œil)', 'visi-bloc-jlg' ),
+            'render'  => 'visibloc_jlg_render_hidden_blocks_section',
+            'args'    => [ $hidden_posts ],
         ],
         [
-            'id'    => 'visibloc-section-device',
-            'label' => __( 'Tableau de bord des blocs avec visibilité par appareil', 'visi-bloc-jlg' ),
+            'id'      => 'visibloc-section-device',
+            'label'   => __( 'Tableau de bord des blocs avec visibilité par appareil', 'visi-bloc-jlg' ),
+            'render'  => 'visibloc_jlg_render_device_visibility_section',
+            'args'    => [ $device_posts ],
         ],
         [
-            'id'    => 'visibloc-section-scheduled',
-            'label' => __( 'Tableau de bord des blocs programmés', 'visi-bloc-jlg' ),
+            'id'      => 'visibloc-section-scheduled',
+            'label'   => __( 'Tableau de bord des blocs programmés', 'visi-bloc-jlg' ),
+            'render'  => 'visibloc_jlg_render_scheduled_blocks_section',
+            'args'    => [ $scheduled_posts ],
         ],
         [
-            'id'    => 'visibloc-section-debug',
-            'label' => __( 'Mode de débogage', 'visi-bloc-jlg' ),
+            'id'      => 'visibloc-section-debug',
+            'label'   => __( 'Mode de débogage', 'visi-bloc-jlg' ),
+            'render'  => 'visibloc_jlg_render_debug_mode_section',
+            'args'    => [ $debug_status ],
         ],
         [
-            'id'    => 'visibloc-section-backup',
-            'label' => __( 'Export & sauvegarde', 'visi-bloc-jlg' ),
+            'id'      => 'visibloc-section-breakpoints',
+            'label'   => __( 'Réglage des points de rupture', 'visi-bloc-jlg' ),
+            'render'  => 'visibloc_jlg_render_breakpoints_section',
+            'args'    => [ $mobile_bp, $tablet_bp ],
         ],
         [
-            'id'    => 'visibloc-section-breakpoints',
-            'label' => __( 'Réglage des points de rupture', 'visi-bloc-jlg' ),
+            'id'      => 'visibloc-section-fallback',
+            'label'   => __( 'Contenu de repli global', 'visi-bloc-jlg' ),
+            'render'  => 'visibloc_jlg_render_fallback_section',
+            'args'    => [ $fallback_settings, $fallback_blocks ],
         ],
         [
-            'id'    => 'visibloc-section-fallback',
-            'label' => __( 'Contenu de repli global', 'visi-bloc-jlg' ),
+            'id'      => 'visibloc-section-backup',
+            'label'   => __( 'Export & sauvegarde', 'visi-bloc-jlg' ),
+            'render'  => 'visibloc_jlg_render_settings_backup_section',
+            'args'    => [],
         ],
     ];
 
@@ -500,17 +518,19 @@ function visibloc_jlg_render_help_page_content() {
                 </ul>
             </nav>
             <div id="poststuff" class="visibloc-help-layout__content">
-                <?php
-                visibloc_jlg_render_supported_blocks_section( $registered_block_types, $configured_blocks );
-                visibloc_jlg_render_permissions_section( $allowed_roles );
-                visibloc_jlg_render_hidden_blocks_section( $hidden_posts );
-                visibloc_jlg_render_device_visibility_section( $device_posts );
-                visibloc_jlg_render_scheduled_blocks_section( $scheduled_posts );
-                visibloc_jlg_render_debug_mode_section( $debug_status );
-                visibloc_jlg_render_breakpoints_section( $mobile_bp, $tablet_bp );
-                visibloc_jlg_render_fallback_section( $fallback_settings, $fallback_blocks );
-                visibloc_jlg_render_settings_backup_section();
-                ?>
+                <?php foreach ( $sections as $section ) :
+                    $callback = $section['render'] ?? null;
+
+                    if ( empty( $callback ) || ! is_callable( $callback ) ) {
+                        continue;
+                    }
+
+                    $args = isset( $section['args'] ) && is_array( $section['args'] )
+                        ? $section['args']
+                        : [];
+
+                    call_user_func_array( $callback, $args );
+                endforeach; ?>
             </div>
         </div>
     </div>
