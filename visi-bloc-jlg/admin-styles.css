@@ -1,3 +1,43 @@
+/* Badges d'état */
+.visibloc-status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-family: sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1.4;
+    text-transform: uppercase;
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    background-color: rgba(0, 115, 170, 0.9);
+}
+
+.visibloc-status-badge--hidden {
+    background-color: rgba(220, 20, 60, 0.85);
+    box-shadow: 0 2px 6px rgba(220, 20, 60, 0.25);
+}
+
+.visibloc-status-badge--schedule {
+    background-color: #2E7D32;
+}
+
+.visibloc-status-badge--schedule-error {
+    background-color: #c62828;
+}
+
+.visibloc-status-badge--advanced {
+    background-color: #6b21a8;
+}
+
+.visibloc-status-badge--fallback {
+    background-color: rgba(30, 64, 175, 0.75);
+}
+
 /* Style pour l'aperçu des blocs cachés manuellement (œil) */
 .bloc-cache-apercu {
     border: 2px dashed rgba(220, 20, 60, 0.7); /* Rouge */
@@ -6,19 +46,23 @@
     margin-top: 10px;
     box-sizing: border-box;
 }
-.bloc-cache-apercu::before {
-    content: attr(data-visibloc-label);
+
+.bloc-cache-apercu > .visibloc-status-badge,
+.bloc-advanced-apercu > .visibloc-status-badge {
     position: absolute;
     top: -12px;
     left: 10px;
-    background-color: rgba(220, 20, 60, 0.7);
-    color: white;
-    padding: 2px 8px;
-    font-size: 12px;
-    border-radius: 4px;
-    font-family: sans-serif;
-    font-weight: bold;
+    transform: translateY(-50%);
     z-index: 100;
+}
+
+/* Style pour les règles avancées */
+.bloc-advanced-apercu {
+    border: 2px dashed rgba(107, 33, 168, 0.6);
+    position: relative;
+    padding-top: 10px;
+    margin-top: 10px;
+    box-sizing: border-box;
 }
 
 /* Style pour l'aperçu de la programmation */
@@ -27,25 +71,13 @@
     outline: 2px dashed #4CAF50; /* Vert */
     outline-offset: 2px;
 }
-.bloc-schedule-apercu::before {
-    content: attr(data-schedule-info);
+
+.bloc-schedule-apercu > .visibloc-status-badge {
     position: absolute;
     top: -12px;
     right: 10px;
-    background-color: #2E7D32;
-    color: #fff;
-    padding: 2px 8px;
-    font-size: 11px;
-    border-radius: 4px;
-    font-family: sans-serif;
-    font-weight: bold;
+    transform: translateY(-50%);
     z-index: 100;
-}
-
-.vb-label-top::before {
-    bottom: auto;
-    top: -12px;
-    transform: translateY(-100%);
 }
 
 /* Style pour les aperçus de repli */
@@ -56,19 +88,11 @@
     position: relative;
 }
 
-.bloc-fallback-apercu::before {
-    content: attr(data-visibloc-label);
+.bloc-fallback-apercu > .visibloc-status-badge {
     position: absolute;
     top: -12px;
     left: 10px;
-    background-color: rgba(30, 64, 175, 0.75);
-    color: #fff;
-    padding: 2px 10px;
-    font-size: 11px;
-    border-radius: 4px;
-    font-family: sans-serif;
-    font-weight: 600;
-    letter-spacing: 0.02em;
+    transform: translateY(-50%);
     z-index: 100;
 }
 
@@ -83,14 +107,15 @@
 @media (max-width: 782px) {
     .bloc-cache-apercu,
     .bloc-schedule-apercu,
-    .bloc-fallback-apercu {
+    .bloc-fallback-apercu,
+    .bloc-advanced-apercu {
         padding-top: 16px;
     }
 
-    .bloc-cache-apercu::before,
-    .bloc-schedule-apercu::before,
-    .bloc-fallback-apercu::before,
-    .vb-label-top::before {
+    .bloc-cache-apercu > .visibloc-status-badge,
+    .bloc-schedule-apercu > .visibloc-status-badge,
+    .bloc-fallback-apercu > .visibloc-status-badge,
+    .bloc-advanced-apercu > .visibloc-status-badge {
         position: static;
         display: inline-flex;
         align-items: center;

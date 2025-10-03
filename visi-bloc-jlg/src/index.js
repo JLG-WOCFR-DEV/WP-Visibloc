@@ -1,5 +1,5 @@
 /* global VisiBlocData */
-import { Fragment } from '@wordpress/element';
+import { Fragment, cloneElement, Children } from '@wordpress/element';
 import { addFilter, applyFilters } from '@wordpress/hooks';
 import { createHigherOrderComponent } from '@wordpress/compose';
 import { BlockControls, InspectorControls } from '@wordpress/block-editor';
@@ -1538,6 +1538,50 @@ addFilter(
     'blocks.getSaveContent.extraProps',
     'visi-bloc-jlg/add-save-classes',
     addSaveClasses,
+);
+addFilter(
+    'editor.BlockListBlock',
+    'visi-bloc-jlg/add-editor-status-badges',
+    createHigherOrderComponent(
+        (BlockListBlock) => (props) => {
+            const className = typeof props.className === 'string' ? props.className : '';
+            const hasHiddenBadge = className.includes('bloc-editeur-cache');
+            const hasFallbackBadge = className.includes('bloc-editeur-repli');
+
+            if (!hasHiddenBadge && !hasFallbackBadge) {
+                return <BlockListBlock {...props} />;
+            }
+
+            const element = <BlockListBlock {...props} />;
+            const existingChildren = Children.toArray(element.props.children);
+            const badges = [];
+
+            if (hasHiddenBadge) {
+                badges.push(
+                    <span
+                        key="visibloc-hidden-badge"
+                        className="visibloc-status-badge visibloc-status-badge--hidden"
+                    >
+                        {__('Bloc masqué', 'visi-bloc-jlg')}
+                    </span>,
+                );
+            }
+
+            if (hasFallbackBadge) {
+                badges.push(
+                    <span
+                        key="visibloc-fallback-badge"
+                        className="visibloc-status-badge visibloc-status-badge--fallback"
+                    >
+                        {__('Repli actif', 'visi-bloc-jlg')}
+                    </span>,
+                );
+            }
+
+            return cloneElement(element, element.props, [...badges, ...existingChildren]);
+        },
+        'withVisibilityStatusBadges',
+    ),
 );
 addFilter(
     'editor.BlockListBlock.props',
