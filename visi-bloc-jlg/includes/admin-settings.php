@@ -424,6 +424,45 @@ function visibloc_jlg_render_help_page_content() {
 
     $breakpoints_requirement_message = visibloc_jlg_get_breakpoints_requirement_message();
 
+    $sections = [
+        [
+            'id'    => 'visibloc-section-blocks',
+            'label' => __( 'Blocs compatibles', 'visi-bloc-jlg' ),
+        ],
+        [
+            'id'    => 'visibloc-section-permissions',
+            'label' => __( "Permissions d'Aperçu", 'visi-bloc-jlg' ),
+        ],
+        [
+            'id'    => 'visibloc-section-hidden',
+            'label' => __( 'Tableau de bord des blocs masqués (via Œil)', 'visi-bloc-jlg' ),
+        ],
+        [
+            'id'    => 'visibloc-section-device',
+            'label' => __( 'Tableau de bord des blocs avec visibilité par appareil', 'visi-bloc-jlg' ),
+        ],
+        [
+            'id'    => 'visibloc-section-scheduled',
+            'label' => __( 'Tableau de bord des blocs programmés', 'visi-bloc-jlg' ),
+        ],
+        [
+            'id'    => 'visibloc-section-debug',
+            'label' => __( 'Mode de débogage', 'visi-bloc-jlg' ),
+        ],
+        [
+            'id'    => 'visibloc-section-backup',
+            'label' => __( 'Export & sauvegarde', 'visi-bloc-jlg' ),
+        ],
+        [
+            'id'    => 'visibloc-section-breakpoints',
+            'label' => __( 'Réglage des points de rupture', 'visi-bloc-jlg' ),
+        ],
+        [
+            'id'    => 'visibloc-section-fallback',
+            'label' => __( 'Contenu de repli global', 'visi-bloc-jlg' ),
+        ],
+    ];
+
     ?>
     <div class="wrap">
         <h1><?php esc_html_e( 'Visi-Bloc - JLG - Aide et Réglages', 'visi-bloc-jlg' ); ?></h1>
@@ -441,18 +480,38 @@ function visibloc_jlg_render_help_page_content() {
             ?>
             <div id="message" class="notice notice-error is-dismissible"><p><?php echo esc_html( $error_message ?: $fallback_error ); ?></p></div>
         <?php endif; ?>
-        <div id="poststuff">
-            <?php
-            visibloc_jlg_render_supported_blocks_section( $registered_block_types, $configured_blocks );
-            visibloc_jlg_render_permissions_section( $allowed_roles );
-            visibloc_jlg_render_hidden_blocks_section( $hidden_posts );
-            visibloc_jlg_render_device_visibility_section( $device_posts );
-            visibloc_jlg_render_scheduled_blocks_section( $scheduled_posts );
-            visibloc_jlg_render_debug_mode_section( $debug_status );
-            visibloc_jlg_render_breakpoints_section( $mobile_bp, $tablet_bp );
-            visibloc_jlg_render_fallback_section( $fallback_settings, $fallback_blocks );
-            visibloc_jlg_render_settings_backup_section();
-            ?>
+        <div class="visibloc-help-layout">
+            <nav class="visibloc-help-nav" aria-label="<?php echo esc_attr__( 'Navigation des réglages Visi-Bloc', 'visi-bloc-jlg' ); ?>">
+                <ul class="visibloc-help-nav__list">
+                    <?php foreach ( $sections as $section ) :
+                        if ( empty( $section['id'] ) || empty( $section['label'] ) ) {
+                            continue;
+                        }
+
+                        $section_id    = sanitize_html_class( $section['id'] );
+                        $section_label = $section['label'];
+                        ?>
+                        <li class="visibloc-help-nav__item">
+                            <a class="visibloc-help-nav__link" href="#<?php echo esc_attr( $section_id ); ?>">
+                                <?php echo esc_html( $section_label ); ?>
+                            </a>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            </nav>
+            <div id="poststuff" class="visibloc-help-layout__content">
+                <?php
+                visibloc_jlg_render_supported_blocks_section( $registered_block_types, $configured_blocks );
+                visibloc_jlg_render_permissions_section( $allowed_roles );
+                visibloc_jlg_render_hidden_blocks_section( $hidden_posts );
+                visibloc_jlg_render_device_visibility_section( $device_posts );
+                visibloc_jlg_render_scheduled_blocks_section( $scheduled_posts );
+                visibloc_jlg_render_debug_mode_section( $debug_status );
+                visibloc_jlg_render_breakpoints_section( $mobile_bp, $tablet_bp );
+                visibloc_jlg_render_fallback_section( $fallback_settings, $fallback_blocks );
+                visibloc_jlg_render_settings_backup_section();
+                ?>
+            </div>
         </div>
     </div>
     <?php
@@ -466,7 +525,7 @@ function visibloc_jlg_render_supported_blocks_section( $registered_block_types, 
         : [ 'core/group' ];
 
     ?>
-    <div class="postbox">
+    <div id="visibloc-section-blocks" class="postbox">
         <h2 class="hndle"><span><?php esc_html_e( 'Blocs compatibles', 'visi-bloc-jlg' ); ?></span></h2>
         <div class="inside">
             <form method="POST" action="">
@@ -576,7 +635,7 @@ function visibloc_jlg_render_permissions_section( $allowed_roles ) {
     }
 
     ?>
-    <div class="postbox">
+    <div id="visibloc-section-permissions" class="postbox">
         <h2 class="hndle"><span><?php esc_html_e( "Permissions d'Aperçu", 'visi-bloc-jlg' ); ?></span></h2>
         <div class="inside">
             <form method="POST" action="">
@@ -605,7 +664,7 @@ function visibloc_jlg_render_hidden_blocks_section( $hidden_posts ) {
     $grouped_hidden_posts = visibloc_jlg_group_posts_by_id( $hidden_posts );
 
     ?>
-    <div class="postbox">
+    <div id="visibloc-section-hidden" class="postbox">
         <h2 class="hndle"><span><?php esc_html_e( 'Tableau de bord des blocs masqués (via Œil)', 'visi-bloc-jlg' ); ?></span></h2>
         <div class="inside">
             <?php if ( empty( $grouped_hidden_posts ) ) : ?>
@@ -634,7 +693,7 @@ function visibloc_jlg_render_device_visibility_section( $device_posts ) {
     $grouped_device_posts = visibloc_jlg_group_posts_by_id( $device_posts );
 
     ?>
-    <div class="postbox">
+    <div id="visibloc-section-device" class="postbox">
         <h2 class="hndle"><span><?php esc_html_e( 'Tableau de bord des blocs avec visibilité par appareil', 'visi-bloc-jlg' ); ?></span></h2>
         <div class="inside">
             <?php if ( empty( $grouped_device_posts ) ) : ?>
@@ -667,7 +726,7 @@ function visibloc_jlg_render_scheduled_blocks_section( $scheduled_posts ) {
     $end_column_label   = __( 'Date de fin', 'visi-bloc-jlg' );
 
     ?>
-    <div class="postbox">
+    <div id="visibloc-section-scheduled" class="postbox">
         <h2 class="hndle"><span><?php esc_html_e( 'Tableau de bord des blocs programmés', 'visi-bloc-jlg' ); ?></span></h2>
         <div class="inside">
             <?php if ( empty( $scheduled_posts ) ) : ?>
@@ -709,7 +768,7 @@ function visibloc_jlg_render_scheduled_blocks_section( $scheduled_posts ) {
 
 function visibloc_jlg_render_debug_mode_section( $debug_status ) {
     ?>
-    <div class="postbox">
+    <div id="visibloc-section-debug" class="postbox">
         <h2 class="hndle"><span><?php esc_html_e( 'Mode de débogage', 'visi-bloc-jlg' ); ?></span></h2>
         <div class="inside">
             <form method="POST" action="">
@@ -728,7 +787,7 @@ function visibloc_jlg_render_debug_mode_section( $debug_status ) {
 
 function visibloc_jlg_render_settings_backup_section() {
     ?>
-    <div class="postbox">
+    <div id="visibloc-section-backup" class="postbox">
         <h2 class="hndle"><span><?php esc_html_e( 'Export & sauvegarde', 'visi-bloc-jlg' ); ?></span></h2>
         <div class="inside">
             <p><?php esc_html_e( 'Exportez vos réglages pour les sauvegarder ou les transférer vers un autre site.', 'visi-bloc-jlg' ); ?></p>
@@ -758,7 +817,7 @@ function visibloc_jlg_render_breakpoints_section( $mobile_bp, $tablet_bp ) {
     $breakpoints_help_id             = 'visibloc_breakpoints_help';
 
     ?>
-    <div class="postbox">
+    <div id="visibloc-section-breakpoints" class="postbox">
         <h2 class="hndle"><span><?php esc_html_e( 'Réglage des points de rupture', 'visi-bloc-jlg' ); ?></span></h2>
         <div class="inside">
             <form method="POST" action="">
@@ -791,7 +850,7 @@ function visibloc_jlg_render_fallback_section( $fallback_settings, $fallback_blo
     $has_blocks        = ! empty( $fallback_blocks );
 
     ?>
-    <div class="postbox">
+    <div id="visibloc-section-fallback" class="postbox">
         <h2 class="hndle"><span><?php esc_html_e( 'Contenu de repli global', 'visi-bloc-jlg' ); ?></span></h2>
         <div class="inside">
             <form method="POST" action="">

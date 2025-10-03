@@ -34,6 +34,59 @@
     word-break: break-word;
 }
 
+.visibloc-help-layout {
+    display: grid;
+    gap: 24px;
+}
+
+.visibloc-help-layout__content {
+    min-width: 0;
+}
+
+.visibloc-help-nav {
+    position: relative;
+}
+
+.visibloc-help-nav__list {
+    display: flex;
+    gap: 12px;
+    list-style: none;
+    margin: 0;
+    padding: 4px 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+}
+
+.visibloc-help-nav__item {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+}
+
+.visibloc-help-nav__link {
+    display: block;
+    padding: 10px 16px;
+    border-radius: 6px;
+    border: 1px solid #dcdcde;
+    background: #f6f7f7;
+    color: #1d2327;
+    text-decoration: none;
+    font-weight: 600;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.visibloc-help-nav__link:hover,
+.visibloc-help-nav__link:focus {
+    background: #2271b1;
+    border-color: #2271b1;
+    color: #fff;
+}
+
+.visibloc-help-nav__link:focus-visible {
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px #2271b1;
+    outline: none;
+}
+
 @media (max-width: 782px) {
     .visibloc-admin-post-list {
         list-style: none;
@@ -117,5 +170,31 @@
         font-weight: 600;
         margin-bottom: 4px;
         color: #1d2327;
+    }
+}
+
+@media (min-width: 783px) {
+    .visibloc-help-layout {
+        grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+        align-items: start;
+    }
+
+    .visibloc-help-nav {
+        position: sticky;
+        top: 32px;
+    }
+
+    .visibloc-help-nav__list {
+        display: grid;
+        gap: 8px;
+        overflow: visible;
+    }
+
+    .visibloc-help-nav__item {
+        flex: 0 0 auto;
+    }
+
+    .visibloc-help-nav__link {
+        width: 100%;
     }
 }
