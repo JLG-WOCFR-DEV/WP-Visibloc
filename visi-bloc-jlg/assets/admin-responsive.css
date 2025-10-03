@@ -45,6 +45,11 @@
 
 .visibloc-help-nav {
     position: relative;
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
 }
 
 .visibloc-help-nav__list {
@@ -56,6 +61,7 @@
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scroll-snap-type: x proximity;
+    scroll-padding-inline: 12px;
 }
 
 .visibloc-help-nav__item {
@@ -65,6 +71,7 @@
 
 .visibloc-help-nav__link {
     display: block;
+    min-width: 180px;
     padding: 10px 16px;
     border-radius: 6px;
     border: 1px solid #dcdcde;
@@ -72,6 +79,7 @@
     color: #1d2327;
     text-decoration: none;
     font-weight: 600;
+    text-align: center;
     transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -87,7 +95,40 @@
     outline: none;
 }
 
+.visibloc-help-nav__list::-webkit-scrollbar {
+    height: 6px;
+}
+
+.visibloc-help-nav__list::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 999px;
+}
+
+.visibloc-help-nav__list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
 @media (max-width: 782px) {
+    .visibloc-help-nav {
+        margin: 0 -12px;
+        border-radius: 0;
+        border-left: 0;
+        border-right: 0;
+        box-shadow: none;
+    }
+
+    .visibloc-help-nav__list {
+        padding: 4px 12px 12px;
+    }
+
+    .visibloc-help-nav__item {
+        min-width: 70%;
+    }
+
+    .visibloc-help-nav__link {
+        text-align: left;
+    }
+
     .visibloc-admin-post-list {
         list-style: none;
         padding-left: 0;
@@ -182,12 +223,14 @@
     .visibloc-help-nav {
         position: sticky;
         top: 32px;
+        align-self: start;
     }
 
     .visibloc-help-nav__list {
         display: grid;
         gap: 8px;
         overflow: visible;
+        grid-auto-rows: minmax(0, 1fr);
     }
 
     .visibloc-help-nav__item {
@@ -195,6 +238,7 @@
     }
 
     .visibloc-help-nav__link {
+        min-width: unset;
         width: 100%;
     }
 }
