@@ -28,6 +28,23 @@ import './editor-styles.css';
 
 const DEFAULT_SUPPORTED_BLOCKS = ['core/group'];
 
+const StatusBadge = ({ label, variant = '', screenReaderText = '' }) => {
+    const classNames = ['visibloc-status-badge'];
+
+    if (typeof variant === 'string' && variant.trim()) {
+        classNames.push(`visibloc-status-badge--${variant.trim()}`);
+    }
+
+    return (
+        <span className={classNames.join(' ')}>
+            {label}
+            {screenReaderText ? (
+                <span className="screen-reader-text">{screenReaderText}</span>
+            ) : null}
+        </span>
+    );
+};
+
 const normalizeSupportedBlocks = (blocks) => {
     if (!Array.isArray(blocks)) {
         return [];
@@ -1640,23 +1657,29 @@ addFilter(
 
             if (hasHiddenBadge) {
                 badges.push(
-                    <span
+                    <StatusBadge
                         key="visibloc-hidden-badge"
-                        className="visibloc-status-badge visibloc-status-badge--hidden"
-                    >
-                        {__('Bloc masqué', 'visi-bloc-jlg')}
-                    </span>,
+                        label={__('Bloc masqué', 'visi-bloc-jlg')}
+                        variant="hidden"
+                        screenReaderText={__(
+                            'Ce bloc est masqué pour les visiteurs du site.',
+                            'visi-bloc-jlg',
+                        )}
+                    />,
                 );
             }
 
             if (hasFallbackBadge) {
                 badges.push(
-                    <span
+                    <StatusBadge
                         key="visibloc-fallback-badge"
-                        className="visibloc-status-badge visibloc-status-badge--fallback"
-                    >
-                        {__('Repli actif', 'visi-bloc-jlg')}
-                    </span>,
+                        label={__('Repli actif', 'visi-bloc-jlg')}
+                        variant="fallback"
+                        screenReaderText={__(
+                            'Le contenu de repli est affiché à la place du bloc original.',
+                            'visi-bloc-jlg',
+                        )}
+                    />,
                 );
             }
 

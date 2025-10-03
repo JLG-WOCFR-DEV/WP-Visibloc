@@ -489,6 +489,6 @@ CSS;
 
         $css_with_preview = visibloc_jlg_generate_device_visibility_css( true, 781, 1024 );
         $this->assertStringContainsString( 'outline: 2px dashed #0073aa', $css_with_preview );
-        $this->assertStringContainsString( 'Visible sur Desktop Uniquement', $css_with_preview );
+        $this->assertStringContainsString( '.visibloc-status-badge {', $css_with_preview );
     }
 }
