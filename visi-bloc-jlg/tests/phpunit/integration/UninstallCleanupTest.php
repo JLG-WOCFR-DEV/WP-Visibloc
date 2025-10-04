@@ -79,6 +79,9 @@ class UninstallCleanupTest extends TestCase {
         update_option( 'visibloc_fallback_settings', [ 'mobile' => 'hidden' ] );
         update_option( 'visibloc_device_css_transients', $bucket_keys );
 
+        wp_cache_set( 'visibloc_fallback_settings', [ 'mobile' => 'hidden' ], 'visibloc_jlg' );
+        wp_cache_set( 'visibloc_device_css_transients', $bucket_keys, 'visibloc_jlg' );
+
         foreach ( $bucket_keys as $bucket_key ) {
             $transient_name = sprintf( 'visibloc_device_css_%s', $bucket_key );
 
@@ -94,6 +97,14 @@ class UninstallCleanupTest extends TestCase {
 
         $this->assertSame( [ 'mobile' => 'hidden' ], get_option( 'visibloc_fallback_settings' ) );
         $this->assertSame( $bucket_keys, get_option( 'visibloc_device_css_transients' ) );
+        $this->assertSame(
+            [ 'mobile' => 'hidden' ],
+            wp_cache_get( 'visibloc_fallback_settings', 'visibloc_jlg' )
+        );
+        $this->assertSame(
+            $bucket_keys,
+            wp_cache_get( 'visibloc_device_css_transients', 'visibloc_jlg' )
+        );
 
         if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
             define( 'WP_UNINSTALL_PLUGIN', true );
@@ -109,6 +120,8 @@ class UninstallCleanupTest extends TestCase {
             '__default__',
             get_option( 'visibloc_device_css_transients', '__default__' )
         );
+        $this->assertFalse( wp_cache_get( 'visibloc_fallback_settings', 'visibloc_jlg' ) );
+        $this->assertFalse( wp_cache_get( 'visibloc_device_css_transients', 'visibloc_jlg' ) );
 
         foreach ( $bucket_keys as $bucket_key ) {
             $transient_name = sprintf( 'visibloc_device_css_%s', $bucket_key );
