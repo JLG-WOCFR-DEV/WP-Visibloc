@@ -234,6 +234,8 @@ function visibloc_jlg_get_available_fallback_blocks() {
         'post_type'        => 'wp_block',
         'post_status'      => 'publish',
         'numberposts'      => -1,
+        'posts_per_page'   => -1,
+        'nopaging'         => true,
         'orderby'          => 'title',
         'order'            => 'ASC',
         'suppress_filters' => false,
@@ -242,9 +244,11 @@ function visibloc_jlg_get_available_fallback_blocks() {
     /**
      * Filters the arguments used when looking up reusable blocks available as fallbacks.
      *
-     * Allowing the query arguments to be filtered lets integrators re-introduce pagination
-     * or otherwise tailor the lookup to their needs when a site has an extremely large
-     * collection of reusable blocks.
+     * By default the plugin disables pagination completely (`numberposts` and
+     * `posts_per_page` are both set to `-1`, and `nopaging` to `true`) so that no reusable
+     * block is hidden from the selector. Allowing the query arguments to be filtered lets
+     * integrators re-introduce pagination or otherwise tailor the lookup to their needs when
+     * a site has an extremely large collection of reusable blocks.
      *
      * @since 1.1.1
      *
