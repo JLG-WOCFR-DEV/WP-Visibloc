@@ -62,16 +62,18 @@ little longer while the plugin analyses the content library.
 
 ### `visibloc_jlg_available_fallback_blocks_query_args`
 
-Reusable blocks exposed in the fallback selector are now loaded without a hard limit (the plugin passes `numberposts => -1` to
-`get_posts()` by default). The query arguments can be filtered to re-introduce pagination or otherwise scope the lookup for very
-large libraries:
+Reusable blocks exposed in the fallback selector are now loaded without a hard limit (the plugin passes `numberposts => -1`,
+`posts_per_page => -1`, and `nopaging => true` to `get_posts()` by default). The query arguments can be filtered to
+re-introduce pagination or otherwise scope the lookup for very large libraries:
 
 ```php
 add_filter(
     'visibloc_jlg_available_fallback_blocks_query_args',
     static function ( array $args ) {
         // Keep the ascending alphabetical order but only fetch the first 50 blocks.
-        $args['numberposts'] = 50;
+        $args['numberposts']    = 50;
+        $args['posts_per_page'] = 50;
+        $args['nopaging']       = false;
 
         return $args;
     }
