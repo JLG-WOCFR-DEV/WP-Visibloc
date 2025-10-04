@@ -1,17 +1,3 @@
-.visibloc-admin-post-list {
-    list-style: disc;
-    padding-left: 20px;
-    margin: 0 0 1em;
-}
-
-.visibloc-admin-post-list li {
-    margin-bottom: 0.5em;
-}
-
-.visibloc-admin-post-list li:last-child {
-    margin-bottom: 0;
-}
-
 .visibloc-supported-blocks-fieldset {
     border: 0;
     margin: 0;
@@ -30,8 +16,46 @@
     overflow-x: auto;
 }
 
-.visibloc-admin-scheduled-table a {
+.visibloc-admin-dashboard-table {
+    min-width: 640px;
+}
+
+.visibloc-admin-dashboard-table a {
     word-break: break-word;
+}
+
+.visibloc-dashboard-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-end;
+    margin-bottom: 16px;
+}
+
+.visibloc-dashboard-controls__group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.visibloc-dashboard-controls__label {
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.visibloc-dashboard-controls__field {
+    min-width: 220px;
+}
+
+.visibloc-dashboard-controls__count {
+    margin-left: auto;
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.visibloc-dashboard-empty {
+    margin-top: 12px;
+    font-style: italic;
 }
 
 .visibloc-help-layout {
@@ -129,52 +153,41 @@
         text-align: left;
     }
 
-    .visibloc-admin-post-list {
-        list-style: none;
-        padding-left: 0;
-        margin: 0;
-    }
-
-    .visibloc-admin-post-list li {
-        display: block;
-        margin-bottom: 12px;
-        padding: 12px 14px;
-        border: 1px solid #dcdcde;
-        border-radius: 4px;
-        background: #fff;
-    }
-
-    .visibloc-admin-post-list li:last-child {
-        margin-bottom: 0;
-    }
-
-    .visibloc-admin-post-list a {
-        display: block;
-        text-decoration: none;
-        color: inherit;
-        word-break: break-word;
-    }
-
     .visibloc-admin-table-wrapper {
         overflow: visible;
     }
 
-    .visibloc-admin-scheduled-table,
-    .visibloc-admin-scheduled-table thead,
-    .visibloc-admin-scheduled-table tbody,
-    .visibloc-admin-scheduled-table tr,
-    .visibloc-admin-scheduled-table th,
-    .visibloc-admin-scheduled-table td {
+    .visibloc-dashboard-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .visibloc-dashboard-controls__field {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .visibloc-dashboard-controls__count {
+        margin-left: 0;
+    }
+
+    .visibloc-admin-dashboard-table,
+    .visibloc-admin-dashboard-table thead,
+    .visibloc-admin-dashboard-table tbody,
+    .visibloc-admin-dashboard-table tr,
+    .visibloc-admin-dashboard-table th,
+    .visibloc-admin-dashboard-table td {
         display: block;
         width: 100%;
     }
 
-    .visibloc-admin-scheduled-table {
+    .visibloc-admin-dashboard-table {
         border: 0;
         box-shadow: none;
+        min-width: 0;
     }
 
-    .visibloc-admin-scheduled-table thead {
+    .visibloc-admin-dashboard-table thead {
         position: absolute;
         width: 1px;
         height: 1px;
@@ -187,11 +200,11 @@
         white-space: nowrap;
     }
 
-    .visibloc-admin-scheduled-table tbody {
+    .visibloc-admin-dashboard-table tbody {
         display: block;
     }
 
-    .visibloc-admin-scheduled-table tr {
+    .visibloc-admin-dashboard-table tr {
         margin-bottom: 12px;
         border: 1px solid #dcdcde;
         border-radius: 4px;
@@ -200,18 +213,17 @@
         box-sizing: border-box;
     }
 
-    .visibloc-admin-scheduled-table tr:last-child {
+    .visibloc-admin-dashboard-table tr:last-child {
         margin-bottom: 0;
     }
 
-    .visibloc-admin-scheduled-table td {
-        padding: 0;
-        margin: 0 0 10px;
-        border-bottom: 0;
+    .visibloc-admin-dashboard-table td {
+        padding: 8px 0;
+        border: 0;
     }
 
-    .visibloc-admin-scheduled-table td:last-child {
-        margin-bottom: 0;
+    .visibloc-admin-dashboard-table td + td {
+        border-top: 1px solid #dcdcde;
     }
 
     .visibloc-table-label {

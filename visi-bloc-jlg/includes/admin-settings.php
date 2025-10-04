@@ -697,27 +697,84 @@ function visibloc_jlg_render_permissions_section( $allowed_roles ) {
 
 function visibloc_jlg_render_hidden_blocks_section( $hidden_posts ) {
     $grouped_hidden_posts = visibloc_jlg_group_posts_by_id( $hidden_posts );
+    $post_type_options    = visibloc_jlg_get_dashboard_post_type_options( $grouped_hidden_posts );
+    $datetime_format      = visibloc_jlg_get_wp_datetime_format();
+    $title_column_label   = __( "Titre de l'article / Modèle", 'visi-bloc-jlg' );
+    $type_column_label    = __( 'Type de contenu', 'visi-bloc-jlg' );
+    $count_column_label   = __( 'Nombre de blocs', 'visi-bloc-jlg' );
+    $role_column_label    = __( 'Rôle du dernier éditeur', 'visi-bloc-jlg' );
+    $deadline_column_label = __( 'Prochaine échéance', 'visi-bloc-jlg' );
 
     ?>
-    <div id="visibloc-section-hidden" class="postbox">
+    <div id="visibloc-section-hidden" class="postbox" data-visibloc-dashboard>
         <h2 class="hndle"><span><?php esc_html_e( 'Tableau de bord des blocs masqués (via Œil)', 'visi-bloc-jlg' ); ?></span></h2>
         <div class="inside">
             <?php if ( empty( $grouped_hidden_posts ) ) : ?>
                 <p><?php esc_html_e( "Aucun bloc masqué manuellement n'a été trouvé.", 'visi-bloc-jlg' ); ?></p>
             <?php else : ?>
-                <ul class="visibloc-admin-post-list">
-                    <?php foreach ( $grouped_hidden_posts as $post_data ) :
-                        $block_count = isset( $post_data['block_count'] ) ? (int) $post_data['block_count'] : 0;
-                        $label       = $post_data['title'] ?? '';
-
-                        if ( $block_count > 1 ) {
-                            /* translators: 1: Post title. 2: Number of blocks. */
-                            $label = sprintf( __( '%1$s (%2$d blocs)', 'visi-bloc-jlg' ), $label, $block_count );
-                        }
-                        ?>
-                        <li><a href="<?php echo esc_url( $post_data['link'] ?? '' ); ?>"><?php echo esc_html( $label ); ?></a></li>
-                    <?php endforeach; ?>
-                </ul>
+                <?php visibloc_jlg_render_visibility_dashboard_filters( 'hidden', $post_type_options, count( $grouped_hidden_posts ) ); ?>
+                <div class="visibloc-admin-table-wrapper" data-visibloc-dashboard-list>
+                    <table class="wp-list-table widefat striped visibloc-admin-dashboard-table">
+                        <thead>
+                            <tr>
+                                <th scope="col"><?php echo esc_html( $title_column_label ); ?></th>
+                                <th scope="col"><?php echo esc_html( $type_column_label ); ?></th>
+                                <th scope="col"><?php echo esc_html( $count_column_label ); ?></th>
+                                <th scope="col"><?php echo esc_html( $role_column_label ); ?></th>
+                                <th scope="col"><?php echo esc_html( $deadline_column_label ); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        <?php foreach ( $grouped_hidden_posts as $post_data ) :
+                            $post_link   = $post_data['link'] ?? '';
+                            $post_title  = $post_data['title'] ?? '';
+                            $block_count = isset( $post_data['block_count'] ) ? (int) $post_data['block_count'] : 0;
+                            $post_type   = $post_data['post_type_label'] ?? '';
+                            $last_editor = $post_data['last_editor_role_label'] ?? '';
+                            $deadline_ts = isset( $post_data['next_deadline_timestamp'] )
+                                ? visibloc_jlg_normalize_schedule_timestamp( $post_data['next_deadline_timestamp'] )
+                                : null;
+                            $deadline_display = null !== $deadline_ts
+                                ? wp_date( $datetime_format, $deadline_ts )
+                                : '—';
+                            $search_value = $post_data['search_value'] ?? $post_title;
+                            ?>
+                            <tr
+                                data-visibloc-dashboard-row
+                                data-post-type="<?php echo esc_attr( $post_data['post_type'] ?? '' ); ?>"
+                                data-block-count="<?php echo esc_attr( $block_count ); ?>"
+                                data-next-deadline="<?php echo esc_attr( null !== $deadline_ts ? $deadline_ts : '' ); ?>"
+                                data-search-value="<?php echo esc_attr( $search_value ); ?>"
+                                data-title="<?php echo esc_attr( $post_title ); ?>"
+                            >
+                                <td>
+                                    <span class="visibloc-table-label"><?php echo esc_html( $title_column_label ); ?></span>
+                                    <a href="<?php echo esc_url( $post_link ); ?>"><?php echo esc_html( $post_title ); ?></a>
+                                </td>
+                                <td>
+                                    <span class="visibloc-table-label"><?php echo esc_html( $type_column_label ); ?></span>
+                                    <?php echo esc_html( $post_type ? $post_type : '—' ); ?>
+                                </td>
+                                <td>
+                                    <span class="visibloc-table-label"><?php echo esc_html( $count_column_label ); ?></span>
+                                    <?php echo esc_html( $block_count ); ?>
+                                </td>
+                                <td>
+                                    <span class="visibloc-table-label"><?php echo esc_html( $role_column_label ); ?></span>
+                                    <?php echo esc_html( $last_editor ? $last_editor : '—' ); ?>
+                                </td>
+                                <td>
+                                    <span class="visibloc-table-label"><?php echo esc_html( $deadline_column_label ); ?></span>
+                                    <?php echo esc_html( $deadline_display ); ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="visibloc-dashboard-empty" data-visibloc-dashboard-empty hidden>
+                    <?php esc_html_e( 'Aucun résultat ne correspond aux filtres sélectionnés.', 'visi-bloc-jlg' ); ?>
+                </p>
             <?php endif; ?>
         </div>
     </div>
@@ -726,27 +783,84 @@ function visibloc_jlg_render_hidden_blocks_section( $hidden_posts ) {
 
 function visibloc_jlg_render_device_visibility_section( $device_posts ) {
     $grouped_device_posts = visibloc_jlg_group_posts_by_id( $device_posts );
+    $post_type_options    = visibloc_jlg_get_dashboard_post_type_options( $grouped_device_posts );
+    $datetime_format      = visibloc_jlg_get_wp_datetime_format();
+    $title_column_label   = __( "Titre de l'article / Modèle", 'visi-bloc-jlg' );
+    $type_column_label    = __( 'Type de contenu', 'visi-bloc-jlg' );
+    $count_column_label   = __( 'Nombre de blocs', 'visi-bloc-jlg' );
+    $role_column_label    = __( 'Rôle du dernier éditeur', 'visi-bloc-jlg' );
+    $deadline_column_label = __( 'Prochaine échéance', 'visi-bloc-jlg' );
 
     ?>
-    <div id="visibloc-section-device" class="postbox">
+    <div id="visibloc-section-device" class="postbox" data-visibloc-dashboard>
         <h2 class="hndle"><span><?php esc_html_e( 'Tableau de bord des blocs avec visibilité par appareil', 'visi-bloc-jlg' ); ?></span></h2>
         <div class="inside">
             <?php if ( empty( $grouped_device_posts ) ) : ?>
                 <p><?php esc_html_e( "Aucun bloc avec une règle de visibilité par appareil n'a été trouvé.", 'visi-bloc-jlg' ); ?></p>
             <?php else : ?>
-                <ul class="visibloc-admin-post-list">
-                    <?php foreach ( $grouped_device_posts as $post_data ) :
-                        $block_count = isset( $post_data['block_count'] ) ? (int) $post_data['block_count'] : 0;
-                        $label       = $post_data['title'] ?? '';
-
-                        if ( $block_count > 1 ) {
-                            /* translators: 1: Post title. 2: Number of blocks. */
-                            $label = sprintf( __( '%1$s (%2$d blocs)', 'visi-bloc-jlg' ), $label, $block_count );
-                        }
-                        ?>
-                        <li><a href="<?php echo esc_url( $post_data['link'] ?? '' ); ?>"><?php echo esc_html( $label ); ?></a></li>
-                    <?php endforeach; ?>
-                </ul>
+                <?php visibloc_jlg_render_visibility_dashboard_filters( 'device', $post_type_options, count( $grouped_device_posts ) ); ?>
+                <div class="visibloc-admin-table-wrapper" data-visibloc-dashboard-list>
+                    <table class="wp-list-table widefat striped visibloc-admin-dashboard-table">
+                        <thead>
+                            <tr>
+                                <th scope="col"><?php echo esc_html( $title_column_label ); ?></th>
+                                <th scope="col"><?php echo esc_html( $type_column_label ); ?></th>
+                                <th scope="col"><?php echo esc_html( $count_column_label ); ?></th>
+                                <th scope="col"><?php echo esc_html( $role_column_label ); ?></th>
+                                <th scope="col"><?php echo esc_html( $deadline_column_label ); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        <?php foreach ( $grouped_device_posts as $post_data ) :
+                            $post_link   = $post_data['link'] ?? '';
+                            $post_title  = $post_data['title'] ?? '';
+                            $block_count = isset( $post_data['block_count'] ) ? (int) $post_data['block_count'] : 0;
+                            $post_type   = $post_data['post_type_label'] ?? '';
+                            $last_editor = $post_data['last_editor_role_label'] ?? '';
+                            $deadline_ts = isset( $post_data['next_deadline_timestamp'] )
+                                ? visibloc_jlg_normalize_schedule_timestamp( $post_data['next_deadline_timestamp'] )
+                                : null;
+                            $deadline_display = null !== $deadline_ts
+                                ? wp_date( $datetime_format, $deadline_ts )
+                                : '—';
+                            $search_value = $post_data['search_value'] ?? $post_title;
+                            ?>
+                            <tr
+                                data-visibloc-dashboard-row
+                                data-post-type="<?php echo esc_attr( $post_data['post_type'] ?? '' ); ?>"
+                                data-block-count="<?php echo esc_attr( $block_count ); ?>"
+                                data-next-deadline="<?php echo esc_attr( null !== $deadline_ts ? $deadline_ts : '' ); ?>"
+                                data-search-value="<?php echo esc_attr( $search_value ); ?>"
+                                data-title="<?php echo esc_attr( $post_title ); ?>"
+                            >
+                                <td>
+                                    <span class="visibloc-table-label"><?php echo esc_html( $title_column_label ); ?></span>
+                                    <a href="<?php echo esc_url( $post_link ); ?>"><?php echo esc_html( $post_title ); ?></a>
+                                </td>
+                                <td>
+                                    <span class="visibloc-table-label"><?php echo esc_html( $type_column_label ); ?></span>
+                                    <?php echo esc_html( $post_type ? $post_type : '—' ); ?>
+                                </td>
+                                <td>
+                                    <span class="visibloc-table-label"><?php echo esc_html( $count_column_label ); ?></span>
+                                    <?php echo esc_html( $block_count ); ?>
+                                </td>
+                                <td>
+                                    <span class="visibloc-table-label"><?php echo esc_html( $role_column_label ); ?></span>
+                                    <?php echo esc_html( $last_editor ? $last_editor : '—' ); ?>
+                                </td>
+                                <td>
+                                    <span class="visibloc-table-label"><?php echo esc_html( $deadline_column_label ); ?></span>
+                                    <?php echo esc_html( $deadline_display ); ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="visibloc-dashboard-empty" data-visibloc-dashboard-empty hidden>
+                    <?php esc_html_e( 'Aucun résultat ne correspond aux filtres sélectionnés.', 'visi-bloc-jlg' ); ?>
+                </p>
             <?php endif; ?>
         </div>
     </div>
@@ -754,54 +868,85 @@ function visibloc_jlg_render_device_visibility_section( $device_posts ) {
 }
 
 function visibloc_jlg_render_scheduled_blocks_section( $scheduled_posts ) {
-    $datetime_format = visibloc_jlg_get_wp_datetime_format();
-
-    $title_column_label = __( "Titre de l'article / Modèle", 'visi-bloc-jlg' );
-    $start_column_label = __( 'Date de début', 'visi-bloc-jlg' );
-    $end_column_label   = __( 'Date de fin', 'visi-bloc-jlg' );
+    $grouped_scheduled_posts = visibloc_jlg_group_posts_by_id( $scheduled_posts );
+    $post_type_options       = visibloc_jlg_get_dashboard_post_type_options( $grouped_scheduled_posts );
+    $datetime_format         = visibloc_jlg_get_wp_datetime_format();
+    $title_column_label      = __( "Titre de l'article / Modèle", 'visi-bloc-jlg' );
+    $type_column_label       = __( 'Type de contenu', 'visi-bloc-jlg' );
+    $count_column_label      = __( 'Nombre de blocs', 'visi-bloc-jlg' );
+    $role_column_label       = __( 'Rôle du dernier éditeur', 'visi-bloc-jlg' );
+    $deadline_column_label   = __( 'Prochaine échéance', 'visi-bloc-jlg' );
 
     ?>
-    <div id="visibloc-section-scheduled" class="postbox">
+    <div id="visibloc-section-scheduled" class="postbox" data-visibloc-dashboard>
         <h2 class="hndle"><span><?php esc_html_e( 'Tableau de bord des blocs programmés', 'visi-bloc-jlg' ); ?></span></h2>
         <div class="inside">
-            <?php if ( empty( $scheduled_posts ) ) : ?>
+            <?php if ( empty( $grouped_scheduled_posts ) ) : ?>
                 <p><?php esc_html_e( "Aucun bloc programmé n'a été trouvé sur votre site.", 'visi-bloc-jlg' ); ?></p>
             <?php else : ?>
-                <div class="visibloc-admin-table-wrapper">
-                    <table class="wp-list-table widefat striped visibloc-admin-scheduled-table">
+                <?php visibloc_jlg_render_visibility_dashboard_filters( 'scheduled', $post_type_options, count( $grouped_scheduled_posts ) ); ?>
+                <div class="visibloc-admin-table-wrapper" data-visibloc-dashboard-list>
+                    <table class="wp-list-table widefat striped visibloc-admin-dashboard-table visibloc-admin-scheduled-table">
                         <thead>
                             <tr>
                                 <th scope="col"><?php echo esc_html( $title_column_label ); ?></th>
-                                <th scope="col"><?php echo esc_html( $start_column_label ); ?></th>
-                                <th scope="col"><?php echo esc_html( $end_column_label ); ?></th>
+                                <th scope="col"><?php echo esc_html( $type_column_label ); ?></th>
+                                <th scope="col"><?php echo esc_html( $count_column_label ); ?></th>
+                                <th scope="col"><?php echo esc_html( $role_column_label ); ?></th>
+                                <th scope="col"><?php echo esc_html( $deadline_column_label ); ?></th>
                             </tr>
                         </thead>
                         <tbody>
-                        <?php foreach ( $scheduled_posts as $scheduled_block ) :
-                            $start_datetime = visibloc_jlg_create_schedule_datetime( $scheduled_block['start'] ?? null );
-                            $end_datetime   = visibloc_jlg_create_schedule_datetime( $scheduled_block['end'] ?? null );
-
-                            $start_display = null !== $start_datetime ? wp_date( $datetime_format, $start_datetime->getTimestamp() ) : '–';
-                            $end_display   = null !== $end_datetime ? wp_date( $datetime_format, $end_datetime->getTimestamp() ) : '–';
+                        <?php foreach ( $grouped_scheduled_posts as $post_data ) :
+                            $post_link   = $post_data['link'] ?? '';
+                            $post_title  = $post_data['title'] ?? '';
+                            $block_count = isset( $post_data['block_count'] ) ? (int) $post_data['block_count'] : 0;
+                            $post_type   = $post_data['post_type_label'] ?? '';
+                            $last_editor = $post_data['last_editor_role_label'] ?? '';
+                            $deadline_ts = isset( $post_data['next_deadline_timestamp'] )
+                                ? visibloc_jlg_normalize_schedule_timestamp( $post_data['next_deadline_timestamp'] )
+                                : null;
+                            $deadline_display = null !== $deadline_ts
+                                ? wp_date( $datetime_format, $deadline_ts )
+                                : '—';
+                            $search_value = $post_data['search_value'] ?? $post_title;
                             ?>
-                            <tr>
+                            <tr
+                                data-visibloc-dashboard-row
+                                data-post-type="<?php echo esc_attr( $post_data['post_type'] ?? '' ); ?>"
+                                data-block-count="<?php echo esc_attr( $block_count ); ?>"
+                                data-next-deadline="<?php echo esc_attr( null !== $deadline_ts ? $deadline_ts : '' ); ?>"
+                                data-search-value="<?php echo esc_attr( $search_value ); ?>"
+                                data-title="<?php echo esc_attr( $post_title ); ?>"
+                            >
                                 <td>
                                     <span class="visibloc-table-label"><?php echo esc_html( $title_column_label ); ?></span>
-                                    <a href="<?php echo esc_url( $scheduled_block['link'] ); ?>"><?php echo esc_html( $scheduled_block['title'] ); ?></a>
+                                    <a href="<?php echo esc_url( $post_link ); ?>"><?php echo esc_html( $post_title ); ?></a>
                                 </td>
                                 <td>
-                                    <span class="visibloc-table-label"><?php echo esc_html( $start_column_label ); ?></span>
-                                    <?php echo esc_html( $start_display ); ?>
+                                    <span class="visibloc-table-label"><?php echo esc_html( $type_column_label ); ?></span>
+                                    <?php echo esc_html( $post_type ? $post_type : '—' ); ?>
                                 </td>
                                 <td>
-                                    <span class="visibloc-table-label"><?php echo esc_html( $end_column_label ); ?></span>
-                                    <?php echo esc_html( $end_display ); ?>
+                                    <span class="visibloc-table-label"><?php echo esc_html( $count_column_label ); ?></span>
+                                    <?php echo esc_html( $block_count ); ?>
+                                </td>
+                                <td>
+                                    <span class="visibloc-table-label"><?php echo esc_html( $role_column_label ); ?></span>
+                                    <?php echo esc_html( $last_editor ? $last_editor : '—' ); ?>
+                                </td>
+                                <td>
+                                    <span class="visibloc-table-label"><?php echo esc_html( $deadline_column_label ); ?></span>
+                                    <?php echo esc_html( $deadline_display ); ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>
+                <p class="visibloc-dashboard-empty" data-visibloc-dashboard-empty hidden>
+                    <?php esc_html_e( 'Aucun résultat ne correspond aux filtres sélectionnés.', 'visi-bloc-jlg' ); ?>
+                </p>
             <?php endif; ?>
         </div>
     </div>
@@ -977,6 +1122,149 @@ function visibloc_jlg_get_breakpoints_requirement_message() {
     return __( 'Les valeurs de breakpoint doivent être des nombres positifs et la tablette doit être supérieure au mobile.', 'visi-bloc-jlg' );
 }
 
+function visibloc_jlg_get_post_type_display( $post_type ) {
+    $result = [
+        'slug'  => '',
+        'label' => '',
+    ];
+
+    if ( ! is_string( $post_type ) || '' === $post_type ) {
+        return $result;
+    }
+
+    $result['slug'] = $post_type;
+
+    if ( function_exists( 'get_post_type_object' ) ) {
+        $type_object = get_post_type_object( $post_type );
+
+        if ( $type_object && isset( $type_object->labels ) ) {
+            $label = $type_object->labels->singular_name ?? $type_object->label ?? '';
+
+            if ( is_string( $label ) && '' !== $label ) {
+                $result['label'] = $label;
+
+                return $result;
+            }
+        }
+    }
+
+    $result['label'] = $post_type;
+
+    return $result;
+}
+
+function visibloc_jlg_get_post_last_editor_role( $post_id ) {
+    $result = [
+        'role'  => '',
+        'label' => '',
+    ];
+
+    if ( ! function_exists( 'get_post_meta' ) || ! function_exists( 'get_userdata' ) ) {
+        return $result;
+    }
+
+    $post_id = absint( $post_id );
+
+    if ( $post_id <= 0 ) {
+        return $result;
+    }
+
+    $last_editor_id = get_post_meta( $post_id, '_edit_last', true );
+
+    if ( empty( $last_editor_id ) ) {
+        $author_id = get_post_field( 'post_author', $post_id );
+
+        if ( $author_id ) {
+            $last_editor_id = $author_id;
+        }
+    }
+
+    $last_editor_id = absint( $last_editor_id );
+
+    if ( $last_editor_id <= 0 ) {
+        return $result;
+    }
+
+    $user = get_userdata( $last_editor_id );
+
+    if ( ! $user || empty( $user->roles ) ) {
+        return $result;
+    }
+
+    $role = reset( $user->roles );
+
+    if ( ! is_string( $role ) || '' === $role ) {
+        return $result;
+    }
+
+    $label = '';
+
+    if ( function_exists( 'wp_roles' ) ) {
+        $roles = wp_roles();
+
+        if ( $roles && isset( $roles->roles[ $role ]['name'] ) ) {
+            $label = translate_user_role( $roles->roles[ $role ]['name'] );
+        }
+    }
+
+    if ( '' === $label ) {
+        $label = $role;
+    }
+
+    $result['role']  = $role;
+    $result['label'] = $label;
+
+    return $result;
+}
+
+function visibloc_jlg_normalize_schedule_timestamp( $value ) {
+    if ( null === $value || '' === $value ) {
+        return null;
+    }
+
+    if ( is_numeric( $value ) ) {
+        return (int) $value;
+    }
+
+    $timestamp = strtotime( (string) $value );
+
+    return false === $timestamp ? null : $timestamp;
+}
+
+function visibloc_jlg_get_next_schedule_deadline( $schedules ) {
+    if ( empty( $schedules ) || ! is_array( $schedules ) ) {
+        return null;
+    }
+
+    $now = function_exists( 'current_time' ) ? current_time( 'timestamp' ) : time();
+    $candidates = [];
+
+    foreach ( $schedules as $schedule ) {
+        if ( ! is_array( $schedule ) ) {
+            continue;
+        }
+
+        $start_ts = visibloc_jlg_normalize_schedule_timestamp( $schedule['start'] ?? null );
+        $end_ts   = visibloc_jlg_normalize_schedule_timestamp( $schedule['end'] ?? null );
+
+        if ( null !== $start_ts && $start_ts >= $now ) {
+            $candidates[] = $start_ts;
+        }
+
+        if ( null !== $end_ts && $end_ts >= $now ) {
+            $candidates[] = $end_ts;
+        }
+    }
+
+    if ( empty( $candidates ) ) {
+        return null;
+    }
+
+    sort( $candidates, SORT_NUMERIC );
+
+    return $candidates[0];
+}
+
 function visibloc_jlg_group_posts_by_id( $posts ) {
     if ( ! is_array( $posts ) ) {
         return [];
@@ -996,11 +1284,25 @@ function visibloc_jlg_group_posts_by_id( $posts ) {
         }
 
         if ( ! isset( $grouped_posts[ $post_id ] ) ) {
+            $initial_deadline = null;
+
+            if ( isset( $post_data['next_deadline_timestamp'] ) ) {
+                $initial_deadline = visibloc_jlg_normalize_schedule_timestamp( $post_data['next_deadline_timestamp'] );
+            } elseif ( isset( $post_data['start'] ) || isset( $post_data['end'] ) ) {
+                $initial_deadline = visibloc_jlg_get_next_schedule_deadline( [ $post_data ] );
+            }
+
             $grouped_posts[ $post_id ] = [
                 'id'          => $post_id,
                 'title'       => $post_data['title'] ?? '',
                 'link'        => $post_data['link'] ?? '',
                 'block_count' => 0,
+                'post_type'   => $post_data['post_type'] ?? '',
+                'post_type_label' => $post_data['post_type_label'] ?? '',
+                'last_editor_role' => $post_data['last_editor_role'] ?? '',
+                'last_editor_role_label' => $post_data['last_editor_role_label'] ?? '',
+                'next_deadline_timestamp' => $initial_deadline,
+                'search_value' => $post_data['search_value'] ?? '',
             ];
         }
 
@@ -1010,9 +1312,120 @@ function visibloc_jlg_group_posts_by_id( $posts ) {
         }
 
         $grouped_posts[ $post_id ]['block_count'] += $increment;
+
+        $existing_deadline = $grouped_posts[ $post_id ]['next_deadline_timestamp'];
+
+        if ( isset( $post_data['next_deadline_timestamp'] ) ) {
+            $new_deadline = visibloc_jlg_normalize_schedule_timestamp( $post_data['next_deadline_timestamp'] );
+
+            if ( null === $existing_deadline || ( null !== $new_deadline && $new_deadline < $existing_deadline ) ) {
+                $grouped_posts[ $post_id ]['next_deadline_timestamp'] = $new_deadline;
+                $existing_deadline = $new_deadline;
+            }
+        }
+
+        if ( isset( $post_data['start'] ) || isset( $post_data['end'] ) ) {
+            $candidate_deadline = visibloc_jlg_get_next_schedule_deadline( [ $post_data ] );
+
+            if ( null !== $candidate_deadline && ( null === $existing_deadline || $candidate_deadline < $existing_deadline ) ) {
+                $grouped_posts[ $post_id ]['next_deadline_timestamp'] = $candidate_deadline;
+            }
+        }
     }
 
     return array_values( $grouped_posts );
+}
+
+function visibloc_jlg_get_dashboard_post_type_options( $posts ) {
+    $options = [];
+
+    foreach ( $posts as $post ) {
+        if ( ! is_array( $post ) ) {
+            continue;
+        }
+
+        $slug  = isset( $post['post_type'] ) && is_string( $post['post_type'] ) ? trim( $post['post_type'] ) : '';
+        $label = isset( $post['post_type_label'] ) && is_string( $post['post_type_label'] )
+            ? trim( $post['post_type_label'] )
+            : '';
+
+        if ( '' === $slug ) {
+            continue;
+        }
+
+        if ( '' === $label ) {
+            $label = $slug;
+        }
+
+        $options[ $slug ] = $label;
+    }
+
+    if ( empty( $options ) ) {
+        return [];
+    }
+
+    natcasesort( $options );
+
+    $prepared = [];
+
+    foreach ( $options as $slug => $label ) {
+        $prepared[] = [
+            'value' => $slug,
+            'label' => $label,
+        ];
+    }
+
+    return $prepared;
+}
+
+function visibloc_jlg_render_visibility_dashboard_filters( $context, $post_type_options, $total_count ) {
+    $context = preg_replace( '/[^a-z0-9\-]+/', '-', strtolower( (string) $context ) );
+    $context = trim( $context, '-' );
+
+    if ( '' === $context ) {
+        $context = 'visibloc';
+    }
+
+    $search_id = sprintf( 'visibloc-%s-search', $context );
+    $type_id   = sprintf( 'visibloc-%s-type', $context );
+    $sort_id   = sprintf( 'visibloc-%s-sort', $context );
+
+    $count_template = __( 'Résultats : %d', 'visi-bloc-jlg' );
+
+    ?>
+    <div class="visibloc-dashboard-controls" data-visibloc-dashboard-controls>
+        <div class="visibloc-dashboard-controls__group">
+            <label class="visibloc-dashboard-controls__label" for="<?php echo esc_attr( $type_id ); ?>">
+                <?php esc_html_e( 'Type de contenu', 'visi-bloc-jlg' ); ?>
+            </label>
+            <select id="<?php echo esc_attr( $type_id ); ?>" class="visibloc-dashboard-controls__field" data-visibloc-filter="post-type">
+                <option value=""><?php esc_html_e( 'Tous les types', 'visi-bloc-jlg' ); ?></option>
+                <?php foreach ( $post_type_options as $option ) : ?>
+                    <option value="<?php echo esc_attr( $option['value'] ); ?>"><?php echo esc_html( $option['label'] ); ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="visibloc-dashboard-controls__group">
+            <label class="visibloc-dashboard-controls__label" for="<?php echo esc_attr( $search_id ); ?>">
+                <?php esc_html_e( 'Recherche', 'visi-bloc-jlg' ); ?>
+            </label>
+            <input id="<?php echo esc_attr( $search_id ); ?>" type="search" class="visibloc-dashboard-controls__field" data-visibloc-filter="search" placeholder="<?php echo esc_attr__( 'Rechercher…', 'visi-bloc-jlg' ); ?>">
+        </div>
+        <div class="visibloc-dashboard-controls__group">
+            <label class="visibloc-dashboard-controls__label" for="<?php echo esc_attr( $sort_id ); ?>">
+                <?php esc_html_e( 'Trier par', 'visi-bloc-jlg' ); ?>
+            </label>
+            <select id="<?php echo esc_attr( $sort_id ); ?>" class="visibloc-dashboard-controls__field" data-visibloc-filter="sort">
+                <option value="title"><?php esc_html_e( 'Titre (A→Z)', 'visi-bloc-jlg' ); ?></option>
+                <option value="blocks-desc"><?php esc_html_e( 'Nombre de blocs (décroissant)', 'visi-bloc-jlg' ); ?></option>
+                <option value="deadline"><?php esc_html_e( 'Prochaine échéance', 'visi-bloc-jlg' ); ?></option>
+            </select>
+        </div>
+        <p class="visibloc-dashboard-controls__count" data-visibloc-dashboard-count data-count-template="<?php echo esc_attr( $count_template ); ?>">
+            <?php echo esc_html( sprintf( $count_template, (int) $total_count ) ); ?>
+        </p>
+    </div>
+    <?php
 }
 
 function visibloc_jlg_find_blocks_recursive( $blocks, $callback, &$found_blocks = null ) {
@@ -1337,12 +1750,35 @@ function visibloc_jlg_collect_group_block_metadata() {
         $post_title = $post_title_cache[ $post_id ];
         $post_link  = $post_link_cache[ $post_id ];
 
+        $post_type = function_exists( 'get_post_type' ) ? get_post_type( $post_id ) : '';
+        $type_info = visibloc_jlg_get_post_type_display( $post_type );
+
+        $editor_info = visibloc_jlg_get_post_last_editor_role( $post_id );
+
+        $scheduled_windows  = isset( $summary['scheduled'] ) && is_array( $summary['scheduled'] )
+            ? $summary['scheduled']
+            : [];
+        $next_deadline_time = visibloc_jlg_get_next_schedule_deadline( $scheduled_windows );
+
+        $search_value = trim( sprintf(
+            '%s %s %s',
+            is_string( $post_title ) ? $post_title : '',
+            $type_info['label'],
+            $editor_info['label']
+        ) );
+
         if ( ! empty( $summary['hidden'] ) ) {
             $collected['hidden'][] = [
                 'id'          => $post_id,
                 'title'       => $post_title,
                 'link'        => $post_link,
                 'block_count' => (int) $summary['hidden'],
+                'post_type'   => $type_info['slug'],
+                'post_type_label' => $type_info['label'],
+                'last_editor_role' => $editor_info['role'],
+                'last_editor_role_label' => $editor_info['label'],
+                'next_deadline_timestamp' => $next_deadline_time,
+                'search_value' => $search_value,
             ];
         }
 
@@ -1352,21 +1788,32 @@ function visibloc_jlg_collect_group_block_metadata() {
                 'title'       => $post_title,
                 'link'        => $post_link,
                 'block_count' => (int) $summary['device'],
+                'post_type'   => $type_info['slug'],
+                'post_type_label' => $type_info['label'],
+                'last_editor_role' => $editor_info['role'],
+                'last_editor_role_label' => $editor_info['label'],
+                'next_deadline_timestamp' => $next_deadline_time,
+                'search_value' => $search_value,
             ];
         }
 
-        if ( ! empty( $summary['scheduled'] ) && is_array( $summary['scheduled'] ) ) {
-            foreach ( $summary['scheduled'] as $schedule ) {
+        if ( ! empty( $scheduled_windows ) ) {
+            foreach ( $scheduled_windows as $schedule ) {
                 if ( ! is_array( $schedule ) ) {
                     continue;
                 }
 
                 $collected['scheduled'][] = [
-                    'id'    => $post_id,
-                    'title' => $post_title,
-                    'link'  => $post_link,
-                    'start' => $schedule['start'] ?? null,
-                    'end'   => $schedule['end'] ?? null,
+                    'id'          => $post_id,
+                    'title'       => $post_title,
+                    'link'        => $post_link,
+                    'start'       => $schedule['start'] ?? null,
+                    'end'         => $schedule['end'] ?? null,
+                    'post_type'   => $type_info['slug'],
+                    'post_type_label' => $type_info['label'],
+                    'last_editor_role' => $editor_info['role'],
+                    'last_editor_role_label' => $editor_info['label'],
+                    'search_value' => $search_value,
                 ];
             }
         }

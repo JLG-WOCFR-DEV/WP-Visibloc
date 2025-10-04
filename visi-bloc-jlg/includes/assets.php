@@ -107,6 +107,35 @@ function visibloc_jlg_enqueue_admin_supported_blocks_script( $hook_suffix ) {
     );
 }
 
+add_action( 'admin_enqueue_scripts', 'visibloc_jlg_enqueue_admin_visibility_dashboards_script' );
+function visibloc_jlg_enqueue_admin_visibility_dashboards_script( $hook_suffix ) {
+    if ( 'toplevel_page_visi-bloc-jlg-help' !== $hook_suffix ) {
+        return;
+    }
+
+    $plugin_main_file      = __DIR__ . '/../visi-bloc-jlg.php';
+    $script_relative_path  = 'assets/admin-visibility-dashboards.js';
+    $script_path           = plugin_dir_path( $plugin_main_file ) . $script_relative_path;
+    $default_script_version = defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : '1.1';
+    $script_version        = $default_script_version;
+
+    if ( file_exists( $script_path ) ) {
+        $file_version = filemtime( $script_path );
+
+        if ( false !== $file_version ) {
+            $script_version = (string) $file_version;
+        }
+    }
+
+    wp_enqueue_script(
+        'visibloc-jlg-visibility-dashboards',
+        plugins_url( $script_relative_path, $plugin_main_file ),
+        [],
+        $script_version,
+        true
+    );
+}
+
 add_action( 'enqueue_block_editor_assets', 'visibloc_jlg_enqueue_editor_assets' );
 function visibloc_jlg_enqueue_editor_assets() {
     $plugin_main_file = __DIR__ . '/../visi-bloc-jlg.php';
