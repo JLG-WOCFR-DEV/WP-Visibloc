@@ -132,6 +132,10 @@ function visibloc_jlg_enqueue_editor_assets() {
             'taxonomies'       => visibloc_jlg_get_editor_taxonomies(),
             'templates'        => visibloc_jlg_get_editor_templates(),
             'daysOfWeek'       => visibloc_jlg_get_editor_days_of_week(),
+            'roleGroups'       => visibloc_jlg_get_editor_role_groups(),
+            'loginStatuses'    => visibloc_jlg_get_editor_login_statuses(),
+            'woocommerceTaxonomies' => visibloc_jlg_get_editor_woocommerce_taxonomies(),
+            'commonQueryParams' => visibloc_jlg_get_editor_common_query_params(),
             'fallbackSettings' => visibloc_jlg_get_editor_fallback_settings(),
             'fallbackBlocks'   => visibloc_jlg_get_editor_fallback_blocks(),
         ]
@@ -335,6 +339,215 @@ function visibloc_jlg_get_editor_days_of_week() {
     }
 
     return $items;
+}
+
+function visibloc_jlg_get_role_group_definitions() {
+    $roles = function_exists( 'wp_roles' ) ? wp_roles()->get_names() : [];
+
+    if ( ! is_array( $roles ) ) {
+        $roles = [];
+    }
+
+    $groups = [];
+
+    if ( ! empty( $roles ) ) {
+        $groups[] = [
+            'value' => 'all_registered',
+            'label' => __( 'Utilisateurs connectés (tous)', 'visi-bloc-jlg' ),
+            'roles' => array_keys( $roles ),
+        ];
+    }
+
+    foreach ( $roles as $slug => $label ) {
+        if ( ! is_string( $slug ) || '' === $slug ) {
+            continue;
+        }
+
+        $groups[] = [
+            'value' => $slug,
+            'label' => $label,
+            'roles' => [ $slug ],
+        ];
+    }
+
+    $groups = apply_filters( 'visibloc_jlg_role_groups', $groups, $roles );
+
+    $sanitized = [];
+
+    foreach ( (array) $groups as $group ) {
+        if ( ! is_array( $group ) ) {
+            continue;
+        }
+
+        $value = isset( $group['value'] ) ? (string) $group['value'] : '';
+
+        if ( '' === $value ) {
+            continue;
+        }
+
+        $label = isset( $group['label'] ) ? (string) $group['label'] : $value;
+        $roles_list = [];
+
+        if ( isset( $group['roles'] ) && is_array( $group['roles'] ) ) {
+            foreach ( $group['roles'] as $role_slug ) {
+                if ( is_string( $role_slug ) && '' !== $role_slug ) {
+                    $roles_list[] = $role_slug;
+                }
+            }
+        }
+
+        $roles_list = array_values( array_unique( $roles_list ) );
+
+        $sanitized[] = [
+            'value' => $value,
+            'label' => $label,
+            'roles' => $roles_list,
+        ];
+    }
+
+    return $sanitized;
+}
+
+function visibloc_jlg_get_editor_role_groups() {
+    return visibloc_jlg_get_role_group_definitions();
+}
+
+function visibloc_jlg_get_editor_login_statuses() {
+    return [
+        [
+            'value' => 'logged_in',
+            'label' => __( 'Utilisateur connecté', 'visi-bloc-jlg' ),
+        ],
+        [
+            'value' => 'logged_out',
+            'label' => __( 'Visiteur déconnecté', 'visi-bloc-jlg' ),
+        ],
+    ];
+}
+
+function visibloc_jlg_get_editor_woocommerce_taxonomies() {
+    $taxonomies = [
+        'product_cat' => __( 'Catégories de produits', 'visi-bloc-jlg' ),
+        'product_tag' => __( 'Étiquettes de produits', 'visi-bloc-jlg' ),
+    ];
+
+    if ( function_exists( 'wc_get_attribute_taxonomies' ) && function_exists( 'wc_attribute_taxonomy_name' ) ) {
+        $attribute_taxonomies = wc_get_attribute_taxonomies();
+
+        if ( is_array( $attribute_taxonomies ) ) {
+            foreach ( $attribute_taxonomies as $taxonomy ) {
+                if ( empty( $taxonomy->attribute_name ) ) {
+                    continue;
+                }
+
+                $attribute_name = wc_attribute_taxonomy_name( $taxonomy->attribute_name );
+                $label = ! empty( $taxonomy->attribute_label )
+                    ? $taxonomy->attribute_label
+                    : $attribute_name;
+
+                $taxonomies[ $attribute_name ] = $label;
+            }
+        }
+    }
+
+    $taxonomies = apply_filters( 'visibloc_jlg_woocommerce_taxonomies', $taxonomies );
+
+    $items = [];
+
+    foreach ( $taxonomies as $slug => $label ) {
+        if ( ! is_string( $slug ) || '' === $slug ) {
+            continue;
+        }
+
+        $taxonomy_slug = $slug;
+
+        if ( ! taxonomy_exists( $taxonomy_slug ) ) {
+            continue;
+        }
+
+        $term_options = [];
+        $terms = get_terms(
+            [
+                'taxonomy'   => $taxonomy_slug,
+                'hide_empty' => false,
+                'number'     => 200,
+                'orderby'    => 'name',
+                'order'      => 'ASC',
+            ]
+        );
+
+        if ( ! is_wp_error( $terms ) ) {
+            foreach ( $terms as $term ) {
+                if ( ! $term instanceof WP_Term ) {
+                    continue;
+                }
+
+                $term_value = $term->slug;
+
+                if ( '' === $term_value ) {
+                    $term_value = (string) $term->term_id;
+                }
+
+                $term_options[] = [
+                    'value' => $term_value,
+                    'label' => $term->name,
+                ];
+            }
+        }
+
+        $items[] = [
+            'slug'  => $taxonomy_slug,
+            'label' => is_string( $label ) && '' !== $label ? $label : $taxonomy_slug,
+            'terms' => $term_options,
+        ];
+    }
+
+    usort(
+        $items,
+        static function ( $first, $second ) {
+            return strcasecmp( (string) ( $first['label'] ?? '' ), (string) ( $second['label'] ?? '' ) );
+        }
+    );
+
+    return $items;
+}
+
+function visibloc_jlg_get_editor_common_query_params() {
+    $params = [
+        [ 'value' => 'utm_source', 'label' => 'utm_source' ],
+        [ 'value' => 'utm_medium', 'label' => 'utm_medium' ],
+        [ 'value' => 'utm_campaign', 'label' => 'utm_campaign' ],
+        [ 'value' => 'utm_term', 'label' => 'utm_term' ],
+        [ 'value' => 'utm_content', 'label' => 'utm_content' ],
+        [ 'value' => 'gclid', 'label' => 'gclid' ],
+        [ 'value' => 'fbclid', 'label' => 'fbclid' ],
+        [ 'value' => 'ref', 'label' => 'ref' ],
+    ];
+
+    $params = apply_filters( 'visibloc_jlg_common_query_params', $params );
+
+    $sanitized = [];
+
+    foreach ( (array) $params as $param ) {
+        if ( ! is_array( $param ) ) {
+            continue;
+        }
+
+        $value = isset( $param['value'] ) ? (string) $param['value'] : '';
+
+        if ( '' === $value ) {
+            continue;
+        }
+
+        $label = isset( $param['label'] ) ? (string) $param['label'] : $value;
+
+        $sanitized[] = [
+            'value' => $value,
+            'label' => $label,
+        ];
+    }
+
+    return $sanitized;
 }
 
 function visibloc_jlg_flag_missing_editor_assets() {
