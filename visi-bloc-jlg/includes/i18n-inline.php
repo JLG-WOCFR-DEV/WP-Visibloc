@@ -2,6 +2,9 @@
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 if ( ! function_exists( 'visibloc_jlg_inline_translate_hidden_block' ) ) {
+    // Ensure the "Hidden block" string is registered for translations.
+    __( 'Hidden block', 'visi-bloc-jlg' );
+
     /**
      * Provide inline translations for strings that are generated dynamically.
      *
@@ -16,7 +19,11 @@ if ( ! function_exists( 'visibloc_jlg_inline_translate_hidden_block' ) ) {
         }
 
         if ( 'Hidden block' === $text ) {
-            return 'Bloc caché';
+            $locale = function_exists( 'determine_locale' ) ? determine_locale() : get_locale();
+
+            if ( $locale && 0 === strpos( strtolower( $locale ), 'fr' ) ) {
+                return 'Bloc caché';
+            }
         }
 
         return $translation;
