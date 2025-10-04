@@ -128,6 +128,14 @@ function visibloc_test_reset_state() {
     ];
 
     visibloc_test_reset_request_environment();
+
+    if ( function_exists( 'visibloc_jlg_get_fallback_settings' ) ) {
+        visibloc_jlg_get_fallback_settings( true );
+    }
+
+    if ( function_exists( 'visibloc_jlg_get_global_fallback_markup' ) ) {
+        visibloc_jlg_get_global_fallback_markup( true );
+    }
 }
 
 function visibloc_test_set_timezone( $timezone_string ) {
@@ -703,6 +711,111 @@ function esc_attr__( $text ) {
 
 function esc_attr( $text ) {
     return $text;
+}
+
+if ( ! class_exists( 'WP_Error' ) ) {
+    class WP_Error {
+        protected $errors = [];
+        protected $error_data = [];
+
+        public function __construct( $code = '', $message = '', $data = null ) {
+            if ( '' !== $code ) {
+                $this->add( $code, $message, $data );
+            }
+        }
+
+        public function add( $code, $message, $data = null ) {
+            if ( ! is_string( $code ) || '' === $code ) {
+                return;
+            }
+
+            if ( ! isset( $this->errors[ $code ] ) ) {
+                $this->errors[ $code ] = [];
+            }
+
+            $this->errors[ $code ][] = (string) $message;
+
+            if ( null !== $data ) {
+                $this->error_data[ $code ] = $data;
+            }
+        }
+
+        public function get_error_codes() {
+            return array_keys( $this->errors );
+        }
+
+        public function get_error_code() {
+            $codes = $this->get_error_codes();
+
+            return empty( $codes ) ? '' : $codes[0];
+        }
+
+        public function get_error_messages( $code = '' ) {
+            if ( '' === $code ) {
+                if ( empty( $this->errors ) ) {
+                    return [];
+                }
+
+                return array_merge( ...array_values( $this->errors ) );
+            }
+
+            return isset( $this->errors[ $code ] ) ? $this->errors[ $code ] : [];
+        }
+
+        public function get_error_message( $code = '' ) {
+            $messages = $this->get_error_messages( $code );
+
+            return empty( $messages ) ? '' : $messages[0];
+        }
+
+        public function has_errors() {
+            return ! empty( $this->errors );
+        }
+    }
+}
+
+if ( ! function_exists( 'is_wp_error' ) ) {
+    function is_wp_error( $thing ) {
+        return $thing instanceof WP_Error;
+    }
+}
+
+if ( ! function_exists( 'wp_kses_post' ) ) {
+    function wp_kses_post( $content ) {
+        return is_string( $content ) ? $content : '';
+    }
+}
+
+if ( ! function_exists( 'wpautop' ) ) {
+    function wpautop( $pee ) {
+        if ( ! is_string( $pee ) ) {
+            return '';
+        }
+
+        $pee = trim( $pee );
+
+        if ( '' === $pee ) {
+            return '';
+        }
+
+        $pee = preg_replace( "/\r\n|\r/", "\n", $pee );
+        $paragraphs = preg_split( "/\n{2,}/", $pee );
+
+        $wrapped = [];
+
+        foreach ( $paragraphs as $paragraph ) {
+            $paragraph = trim( $paragraph );
+
+            if ( '' === $paragraph ) {
+                continue;
+            }
+
+            $paragraph = preg_replace( "/\n/", "<br />\n", $paragraph );
+            $wrapped[] = '<p>' . $paragraph . '</p>';
+        }
+
+        return implode( "\n", $wrapped );
+    }
 }
 
 class Visibloc_Test_User {

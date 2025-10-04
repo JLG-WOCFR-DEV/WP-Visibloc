@@ -221,6 +221,7 @@ function visibloc_jlg_get_settings_snapshot() {
         ],
         'preview_roles'    => $preview_roles,
         'debug_mode'       => ( 'on' === $debug_mode ) ? 'on' : 'off',
+        'fallback'         => visibloc_jlg_get_fallback_settings(),
         'exported_at'      => gmdate( 'c' ),
         'version'          => defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : 'unknown',
     ];
@@ -284,6 +285,10 @@ function visibloc_jlg_import_settings_snapshot( $payload ) {
         update_option( 'visibloc_debug_mode', $sanitized['debug_mode'] );
     }
 
+    if ( isset( $sanitized['fallback'] ) ) {
+        update_option( 'visibloc_fallback_settings', $sanitized['fallback'] );
+    }
+
     visibloc_jlg_clear_caches();
 
     return true;
@@ -337,6 +342,14 @@ function visibloc_jlg_sanitize_import_settings( $data ) {
         $sanitized['debug_mode'] = $debug_mode;
     }
 
+    if ( array_key_exists( 'fallback', $data ) ) {
+        if ( ! is_array( $data['fallback'] ) ) {
+            return new WP_Error( 'visibloc_invalid_fallback_settings', __( 'Les réglages de repli sont invalides.', 'visi-bloc-jlg' ) );
+        }
+
+        $sanitized['fallback'] = visibloc_jlg_normalize_fallback_settings( $data['fallback'] );
+    }
+
     return $sanitized;
 }
 
@@ -348,6 +361,8 @@ function visibloc_jlg_get_import_error_message( $code ) {
             return __( 'Les données importées sont invalides.', 'visi-bloc-jlg' );
         case 'visibloc_invalid_breakpoints':
             return visibloc_jlg_get_breakpoints_requirement_message();
+        case 'visibloc_invalid_fallback_settings':
+            return __( 'Les réglages de repli sont invalides.', 'visi-bloc-jlg' );
         case 'visibloc_empty_payload':
             return __( 'Aucune donnée fournie pour l’import.', 'visi-bloc-jlg' );
     }

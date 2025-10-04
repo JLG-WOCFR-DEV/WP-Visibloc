@@ -60,14 +60,19 @@ function visibloc_jlg_normalize_fallback_settings( $value ) {
 /**
  * Retrieve the configured fallback settings.
  *
+ * @param bool $reset_cache Optional. Whether to reset the cached value.
  * @return array{
  *     mode: string,
  *     text: string,
  *     block_id: int,
  * }
  */
-function visibloc_jlg_get_fallback_settings() {
+function visibloc_jlg_get_fallback_settings( $reset_cache = false ) {
     static $cache = null;
+
+    if ( $reset_cache ) {
+        $cache = null;
+    }
 
     if ( null !== $cache ) {
         return $cache;
@@ -142,10 +147,15 @@ function visibloc_jlg_render_reusable_block_fallback( $block_id ) {
 /**
  * Retrieve the global fallback markup.
  *
+ * @param bool $reset_cache Optional. Whether to reset the cached markup.
  * @return string
  */
-function visibloc_jlg_get_global_fallback_markup() {
+function visibloc_jlg_get_global_fallback_markup( $reset_cache = false ) {
     static $cache = null;
+
+    if ( $reset_cache ) {
+        $cache = null;
+    }
 
     if ( null !== $cache ) {
         return $cache;
