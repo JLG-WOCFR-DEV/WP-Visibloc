@@ -52,17 +52,6 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
 
     $attrs = $block['attrs'];
 
-    $fallback_markup = null;
-    $fallback_initialized = false;
-    $get_fallback_markup = static function () use ( &$fallback_markup, &$fallback_initialized, $attrs ) {
-        if ( ! $fallback_initialized ) {
-            $fallback_markup     = visibloc_jlg_get_block_fallback_markup( $attrs );
-            $fallback_initialized = true;
-        }
-
-        return $fallback_markup;
-    };
-
     $visibility_roles = [];
 
     if ( array_key_exists( 'visibilityRoles', $attrs ) ) {
@@ -105,6 +94,17 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
     if ( ! $has_hidden_flag && ! $has_schedule_enabled && empty( $visibility_roles ) && ! $has_advanced_rules ) {
         return $block_content;
     }
+
+    $fallback_markup = null;
+    $fallback_initialized = false;
+    $get_fallback_markup = static function () use ( &$fallback_markup, &$fallback_initialized, $attrs ) {
+        if ( ! $fallback_initialized ) {
+            $fallback_markup      = visibloc_jlg_get_block_fallback_markup( $attrs );
+            $fallback_initialized = true;
+        }
+
+        return $fallback_markup;
+    };
 
     $preview_context = function_exists( 'visibloc_jlg_get_preview_runtime_context' )
         ? visibloc_jlg_get_preview_runtime_context()
