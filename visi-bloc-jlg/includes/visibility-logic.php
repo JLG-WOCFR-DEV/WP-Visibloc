@@ -118,6 +118,8 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
     $hidden_preview_markup = null;
     $has_preview_markup = false;
 
+    $user_visibility_context = visibloc_jlg_get_user_visibility_context( $preview_context, $can_preview_hidden_blocks );
+
     if ( $has_hidden_flag && $can_preview_hidden_blocks ) {
         $hidden_preview_label = __( 'Hidden block', 'visi-bloc-jlg' );
         $hidden_preview_markup = sprintf(
@@ -197,7 +199,12 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
     }
 
     if ( $has_advanced_rules ) {
-        $advanced_rules_match = visibloc_jlg_evaluate_advanced_visibility( $advanced_visibility );
+        $advanced_rules_match = visibloc_jlg_evaluate_advanced_visibility(
+            $advanced_visibility,
+            [
+                'user' => $user_visibility_context,
+            ]
+        );
 
         if ( ! $advanced_rules_match ) {
             if ( $can_preview_hidden_blocks ) {
@@ -223,62 +230,10 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
     }
 
     if ( ! empty( $visibility_roles ) ) {
-        $should_apply_preview_role = ! empty( $preview_context['should_apply_preview_role'] );
-        $preview_role              = is_string( $preview_context['preview_role'] ?? '' ) ? $preview_context['preview_role'] : '';
-
-        static $cached_user_ref = null;
-        static $cached_user_logged_in = null;
-        static $cached_user_roles = null;
-
-        $current_user       = wp_get_current_user();
-        $current_roles      = (array) $current_user->roles;
-        $current_is_logged_in = $current_user->exists();
-
-        if ( ! ( $cached_user_ref instanceof WP_User )
-            || $cached_user_ref !== $current_user
-            || $cached_user_logged_in !== $current_is_logged_in
-            || $cached_user_roles !== $current_roles
-        ) {
-            $cached_user_ref      = $current_user;
-            $cached_user_logged_in = $current_is_logged_in;
-            $cached_user_roles     = $current_roles;
-        }
-
-        $is_logged_in = $cached_user_logged_in;
-        $user_roles   = $cached_user_roles;
-
-        if ( $should_apply_preview_role ) {
-            if ( 'guest' === $preview_role ) {
-                $is_logged_in = false;
-                $user_roles   = [];
-            } elseif ( '' !== $preview_role ) {
-                static $allowed_preview_roles_cache = null;
-
-                if ( null === $allowed_preview_roles_cache ) {
-                    $allowed_preview_roles_cache = function_exists( 'visibloc_jlg_get_allowed_preview_roles' )
-                        ? (array) visibloc_jlg_get_allowed_preview_roles()
-                        : [];
-                }
-
-                static $role_exists_cache = [];
-
-                if ( ! array_key_exists( $preview_role, $role_exists_cache ) ) {
-                    $role_exists_cache[ $preview_role ] = (bool) get_role( $preview_role );
-                }
-
-                if ( $role_exists_cache[ $preview_role ] ) {
-                    if ( ! in_array( $preview_role, $allowed_preview_roles_cache, true ) ) {
-                        $can_preview_hidden_blocks = false;
-                    }
-
-                    $is_logged_in = true;
-                    $user_roles   = [ $preview_role ];
-                } else {
-                    $should_apply_preview_role = false;
-                    $preview_role             = '';
-                }
-            }
-        }
+        $is_logged_in = ! empty( $user_visibility_context['is_logged_in'] );
+        $user_roles   = isset( $user_visibility_context['roles'] ) && is_array( $user_visibility_context['roles'] )
+            ? $user_visibility_context['roles']
+            : [];
 
         $is_visible = false;
         // Manual check: without preview access the cookie must not affect visibility.
@@ -326,6 +281,77 @@ function visibloc_jlg_wrap_preview_with_fallback_notice( $preview_markup, $fallb
         $preview_markup,
         $fallback_markup
     );
+}
+
+function visibloc_jlg_get_user_visibility_context( $preview_context, &$can_preview_hidden_blocks ) {
+    static $cached_user_ref = null;
+    static $cached_user_logged_in = null;
+    static $cached_user_roles = null;
+
+    $current_user = wp_get_current_user();
+    $current_roles = (array) $current_user->roles;
+    $current_is_logged_in = $current_user->exists();
+
+    if ( ! ( $cached_user_ref instanceof WP_User )
+        || $cached_user_ref !== $current_user
+        || $cached_user_logged_in !== $current_is_logged_in
+        || $cached_user_roles !== $current_roles
+    ) {
+        $cached_user_ref        = $current_user;
+        $cached_user_logged_in  = $current_is_logged_in;
+        $cached_user_roles      = $current_roles;
+    }
+
+    $is_logged_in = $cached_user_logged_in;
+    $user_roles   = $cached_user_roles;
+
+    $should_apply_preview_role = ! empty( $preview_context['should_apply_preview_role'] );
+    $preview_role = isset( $preview_context['preview_role'] ) && is_string( $preview_context['preview_role'] )
+        ? $preview_context['preview_role']
+        : '';
+    $applied_preview_role = '';
+
+    if ( $should_apply_preview_role ) {
+        if ( 'guest' === $preview_role ) {
+            $is_logged_in = false;
+            $user_roles   = [];
+            $applied_preview_role = 'guest';
+        } elseif ( '' !== $preview_role ) {
+            static $allowed_preview_roles_cache = null;
+
+            if ( null === $allowed_preview_roles_cache ) {
+                $allowed_preview_roles_cache = function_exists( 'visibloc_jlg_get_allowed_preview_roles' )
+                    ? (array) visibloc_jlg_get_allowed_preview_roles()
+                    : [];
+            }
+
+            static $role_exists_cache = [];
+
+            if ( ! array_key_exists( $preview_role, $role_exists_cache ) ) {
+                $role_exists_cache[ $preview_role ] = (bool) get_role( $preview_role );
+            }
+
+            if ( $role_exists_cache[ $preview_role ] ) {
+                if ( ! in_array( $preview_role, $allowed_preview_roles_cache, true ) ) {
+                    $can_preview_hidden_blocks = false;
+                }
+
+                $is_logged_in         = true;
+                $user_roles           = [ $preview_role ];
+                $applied_preview_role = $preview_role;
+            } else {
+                $should_apply_preview_role = false;
+                $preview_role             = '';
+            }
+        }
+    }
+
+    return [
+        'is_logged_in'             => (bool) $is_logged_in,
+        'roles'                    => array_values( array_unique( array_map( 'strval', (array) $user_roles ) ) ),
+        'should_apply_preview_role' => $should_apply_preview_role && '' !== $preview_role,
+        'preview_role'             => $applied_preview_role,
+    ];
 }
 
 function visibloc_jlg_render_status_badge( $label, $variant = '', $screen_reader_text = '' ) {
@@ -416,7 +442,18 @@ function visibloc_jlg_normalize_advanced_rule( $rule ) {
 
     $type = isset( $rule['type'] ) ? $rule['type'] : '';
 
-    if ( ! in_array( $type, [ 'post_type', 'taxonomy', 'template', 'recurring_schedule' ], true ) ) {
+    $supported_types = [
+        'post_type',
+        'taxonomy',
+        'template',
+        'recurring_schedule',
+        'logged_in_status',
+        'user_role_group',
+        'woocommerce_cart',
+        'query_param',
+    ];
+
+    if ( ! in_array( $type, $supported_types, true ) ) {
         return null;
     }
 
@@ -466,12 +503,48 @@ function visibloc_jlg_normalize_advanced_rule( $rule ) {
             $normalized['startTime'] = isset( $rule['startTime'] ) && is_string( $rule['startTime'] ) ? $rule['startTime'] : '08:00';
             $normalized['endTime']   = isset( $rule['endTime'] ) && is_string( $rule['endTime'] ) ? $rule['endTime'] : '17:00';
             break;
+        case 'logged_in_status':
+            $normalized['operator'] = isset( $rule['operator'] ) && 'is_not' === $rule['operator'] ? 'is_not' : 'is';
+            $normalized['value']    = isset( $rule['value'] ) && is_string( $rule['value'] ) ? $rule['value'] : '';
+            break;
+        case 'user_role_group':
+            $normalized['operator'] = isset( $rule['operator'] ) && 'does_not_match' === $rule['operator']
+                ? 'does_not_match'
+                : 'matches';
+            $normalized['group'] = isset( $rule['group'] ) && is_string( $rule['group'] ) ? $rule['group'] : '';
+            break;
+        case 'woocommerce_cart':
+            $normalized['operator'] = isset( $rule['operator'] ) && 'not_contains' === $rule['operator'] ? 'not_contains' : 'contains';
+            $normalized['taxonomy'] = isset( $rule['taxonomy'] ) && is_string( $rule['taxonomy'] ) ? $rule['taxonomy'] : '';
+            $normalized['terms']    = [];
+
+            if ( isset( $rule['terms'] ) && is_array( $rule['terms'] ) ) {
+                foreach ( $rule['terms'] as $term ) {
+                    if ( is_scalar( $term ) ) {
+                        $term_value = (string) $term;
+
+                        if ( '' !== $term_value ) {
+                            $normalized['terms'][] = $term_value;
+                        }
+                    }
+                }
+            }
+            break;
+        case 'query_param':
+            $allowed_operators = [ 'equals', 'not_equals', 'contains', 'not_contains', 'exists', 'not_exists' ];
+            $operator = isset( $rule['operator'] ) && in_array( $rule['operator'], $allowed_operators, true )
+                ? $rule['operator']
+                : 'equals';
+            $normalized['operator'] = $operator;
+            $normalized['param']    = isset( $rule['param'] ) && is_string( $rule['param'] ) ? $rule['param'] : '';
+            $normalized['value']    = isset( $rule['value'] ) && is_string( $rule['value'] ) ? $rule['value'] : '';
+            break;
     }
 
     return $normalized;
 }
 
-function visibloc_jlg_evaluate_advanced_visibility( $advanced_visibility ) {
+function visibloc_jlg_evaluate_advanced_visibility( $advanced_visibility, $runtime_context = [] ) {
     if ( empty( $advanced_visibility['rules'] ) ) {
         return true;
     }
@@ -481,7 +554,7 @@ function visibloc_jlg_evaluate_advanced_visibility( $advanced_visibility ) {
     $results      = [];
 
     foreach ( $advanced_visibility['rules'] as $rule ) {
-        $results[] = visibloc_jlg_evaluate_advanced_rule( $rule, $post_context );
+        $results[] = visibloc_jlg_evaluate_advanced_rule( $rule, $post_context, $runtime_context );
     }
 
     if ( 'OR' === $logic ) {
@@ -523,7 +596,7 @@ function visibloc_jlg_get_visibility_post_context() {
     return null;
 }
 
-function visibloc_jlg_evaluate_advanced_rule( $rule, $post ) {
+function visibloc_jlg_evaluate_advanced_rule( $rule, $post, $runtime_context = [] ) {
     switch ( $rule['type'] ) {
         case 'post_type':
             return visibloc_jlg_match_post_type_rule( $rule, $post );
@@ -533,6 +606,14 @@ function visibloc_jlg_evaluate_advanced_rule( $rule, $post ) {
             return visibloc_jlg_match_template_rule( $rule, $post );
         case 'recurring_schedule':
             return visibloc_jlg_match_recurring_schedule_rule( $rule );
+        case 'logged_in_status':
+            return visibloc_jlg_match_logged_in_status_rule( $rule, $runtime_context );
+        case 'user_role_group':
+            return visibloc_jlg_match_user_role_group_rule( $rule, $runtime_context );
+        case 'woocommerce_cart':
+            return visibloc_jlg_match_woocommerce_cart_rule( $rule );
+        case 'query_param':
+            return visibloc_jlg_match_query_param_rule( $rule );
     }
 
     return true;
@@ -605,6 +686,45 @@ function visibloc_jlg_match_template_rule( $rule, $post ) {
     return $current_template === $target_template;
 }
 
+function visibloc_jlg_get_role_group_map() {
+    static $cache = null;
+
+    if ( null !== $cache ) {
+        return $cache;
+    }
+
+    $cache = [];
+    $groups = function_exists( 'visibloc_jlg_get_role_group_definitions' )
+        ? (array) visibloc_jlg_get_role_group_definitions()
+        : [];
+
+    foreach ( $groups as $group ) {
+        if ( ! is_array( $group ) ) {
+            continue;
+        }
+
+        $value = isset( $group['value'] ) ? (string) $group['value'] : '';
+
+        if ( '' === $value ) {
+            continue;
+        }
+
+        $roles = [];
+
+        if ( isset( $group['roles'] ) && is_array( $group['roles'] ) ) {
+            foreach ( $group['roles'] as $role_slug ) {
+                if ( is_string( $role_slug ) && '' !== $role_slug ) {
+                    $roles[] = $role_slug;
+                }
+            }
+        }
+
+        $cache[ $value ] = array_values( array_unique( $roles ) );
+    }
+
+    return $cache;
+}
+
 function visibloc_jlg_match_recurring_schedule_rule( $rule ) {
     $start_minutes = visibloc_jlg_parse_time_to_minutes( $rule['startTime'] ?? '' );
     $end_minutes   = visibloc_jlg_parse_time_to_minutes( $rule['endTime'] ?? '' );
@@ -646,6 +766,219 @@ function visibloc_jlg_match_recurring_schedule_rule( $rule ) {
         $current_day_slug = isset( $day_map[ $current_day ] ) ? $day_map[ $current_day ] : strtolower( $current_day );
 
         return in_array( $current_day_slug, $days, true );
+    }
+
+    return true;
+}
+
+function visibloc_jlg_match_logged_in_status_rule( $rule, $runtime_context ) {
+    $operator = isset( $rule['operator'] ) && 'is_not' === $rule['operator'] ? 'is_not' : 'is';
+    $target   = isset( $rule['value'] ) ? (string) $rule['value'] : '';
+
+    if ( '' === $target ) {
+        return true;
+    }
+
+    $user_context = isset( $runtime_context['user'] ) && is_array( $runtime_context['user'] )
+        ? $runtime_context['user']
+        : [];
+    $is_logged_in = ! empty( $user_context['is_logged_in'] );
+
+    $matches = false;
+
+    if ( 'logged_in' === $target ) {
+        $matches = $is_logged_in;
+    } elseif ( 'logged_out' === $target ) {
+        $matches = ! $is_logged_in;
+    }
+
+    return 'is_not' === $operator ? ! $matches : $matches;
+}
+
+function visibloc_jlg_match_user_role_group_rule( $rule, $runtime_context ) {
+    $group    = isset( $rule['group'] ) ? (string) $rule['group'] : '';
+    $operator = isset( $rule['operator'] ) && 'does_not_match' === $rule['operator'] ? 'does_not_match' : 'matches';
+
+    if ( '' === $group ) {
+        return true;
+    }
+
+    $user_context = isset( $runtime_context['user'] ) && is_array( $runtime_context['user'] )
+        ? $runtime_context['user']
+        : [];
+    $is_logged_in = ! empty( $user_context['is_logged_in'] );
+    $user_roles = isset( $user_context['roles'] ) && is_array( $user_context['roles'] )
+        ? array_values( array_unique( array_map( 'strval', $user_context['roles'] ) ) )
+        : [];
+
+    $group_map = visibloc_jlg_get_role_group_map();
+    $group_roles = isset( $group_map[ $group ] ) ? $group_map[ $group ] : [];
+
+    if ( empty( $group_roles ) ) {
+        $matches = false;
+    } else {
+        if ( ! $is_logged_in ) {
+            $matches = false;
+        } else {
+            $matches = ! empty( array_intersect( $group_roles, $user_roles ) );
+        }
+    }
+
+    return 'does_not_match' === $operator ? ! $matches : $matches;
+}
+
+function visibloc_jlg_match_woocommerce_cart_rule( $rule ) {
+    $operator = isset( $rule['operator'] ) && 'not_contains' === $rule['operator'] ? 'not_contains' : 'contains';
+    $taxonomy = isset( $rule['taxonomy'] ) ? (string) $rule['taxonomy'] : '';
+    $terms    = isset( $rule['terms'] ) && is_array( $rule['terms'] ) ? array_values( array_unique( array_map( 'strval', $rule['terms'] ) ) ) : [];
+
+    if ( '' === $taxonomy ) {
+        return 'not_contains' === $operator;
+    }
+
+    if ( 'contains' === $operator && empty( $terms ) ) {
+        return false;
+    }
+
+    if ( ! function_exists( 'WC' ) ) {
+        return 'not_contains' === $operator;
+    }
+
+    $wc = WC();
+
+    if ( ! $wc || ! isset( $wc->cart ) || ! $wc->cart ) {
+        return 'not_contains' === $operator;
+    }
+
+    $cart = $wc->cart;
+
+    if ( ! method_exists( $cart, 'get_cart' ) ) {
+        return 'not_contains' === $operator;
+    }
+
+    $cart_items = $cart->get_cart();
+
+    if ( empty( $cart_items ) ) {
+        return 'not_contains' === $operator;
+    }
+
+    $product_ids = [];
+
+    foreach ( $cart_items as $item ) {
+        if ( ! is_array( $item ) ) {
+            continue;
+        }
+
+        if ( isset( $item['product_id'] ) ) {
+            $product_ids[] = (int) $item['product_id'];
+        }
+
+        if ( isset( $item['variation_id'] ) ) {
+            $product_ids[] = (int) $item['variation_id'];
+        }
+    }
+
+    $product_ids = array_values( array_unique( array_filter( $product_ids ) ) );
+
+    if ( empty( $product_ids ) ) {
+        return 'not_contains' === $operator;
+    }
+
+    $matched = false;
+
+    foreach ( $product_ids as $product_id ) {
+        $term_slugs = wp_get_object_terms( $product_id, $taxonomy, [ 'fields' => 'slugs' ] );
+
+        if ( ! is_wp_error( $term_slugs ) ) {
+            foreach ( $term_slugs as $slug ) {
+                if ( in_array( (string) $slug, $terms, true ) ) {
+                    $matched = true;
+                    break 2;
+                }
+            }
+        }
+
+        $term_ids = wp_get_object_terms( $product_id, $taxonomy, [ 'fields' => 'ids' ] );
+
+        if ( is_wp_error( $term_ids ) ) {
+            continue;
+        }
+
+        foreach ( $term_ids as $term_id ) {
+            if ( in_array( (string) $term_id, $terms, true ) ) {
+                $matched = true;
+                break 2;
+            }
+        }
+    }
+
+    return 'not_contains' === $operator ? ! $matched : $matched;
+}
+
+function visibloc_jlg_match_query_param_rule( $rule ) {
+    $operator = isset( $rule['operator'] ) ? (string) $rule['operator'] : 'equals';
+    $param    = isset( $rule['param'] ) ? (string) $rule['param'] : '';
+    $value    = isset( $rule['value'] ) ? (string) $rule['value'] : '';
+
+    if ( '' === $param ) {
+        return true;
+    }
+
+    $raw = isset( $_GET[ $param ] ) ? wp_unslash( $_GET[ $param ] ) : null; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+    $values = [];
+
+    if ( is_array( $raw ) ) {
+        foreach ( $raw as $item ) {
+            if ( is_scalar( $item ) ) {
+                $values[] = (string) $item;
+            }
+        }
+    } elseif ( null !== $raw ) {
+        $values[] = (string) $raw;
+    }
+
+    switch ( $operator ) {
+        case 'exists':
+            return ! empty( $values );
+        case 'not_exists':
+            return empty( $values );
+        case 'equals':
+            if ( empty( $values ) ) {
+                return false;
+            }
+
+            return in_array( $value, $values, true );
+        case 'not_equals':
+            if ( empty( $values ) ) {
+                return true;
+            }
+
+            return ! in_array( $value, $values, true );
+        case 'contains':
+            if ( '' === $value ) {
+                return ! empty( $values );
+            }
+
+            foreach ( $values as $current_value ) {
+                if ( false !== strpos( $current_value, $value ) ) {
+                    return true;
+                }
+            }
+
+            return false;
+        case 'not_contains':
+            if ( '' === $value ) {
+                return empty( $values );
+            }
+
+            foreach ( $values as $current_value ) {
+                if ( false !== strpos( $current_value, $value ) ) {
+                    return false;
+                }
+            }
+
+            return true;
     }
 
     return true;

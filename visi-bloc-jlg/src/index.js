@@ -20,6 +20,7 @@ import {
     FlexBlock,
     FlexItem,
     TextareaControl,
+    TextControl,
 } from '@wordpress/components';
 import { __, sprintf, _n } from '@wordpress/i18n';
 import { __experimentalGetSettings, dateI18n, format as formatDate } from '@wordpress/date';
@@ -271,6 +272,21 @@ const SUPPORTED_ADVANCED_RULE_TYPES = [
     'taxonomy',
     'template',
     'recurring_schedule',
+    'logged_in_status',
+    'user_role_group',
+    'woocommerce_cart',
+    'query_param',
+];
+
+const ADVANCED_RULE_TYPE_OPTIONS = [
+    { value: 'post_type', label: __('Type de contenu', 'visi-bloc-jlg') },
+    { value: 'taxonomy', label: __('Taxonomie', 'visi-bloc-jlg') },
+    { value: 'template', label: __('Modèle de page', 'visi-bloc-jlg') },
+    { value: 'recurring_schedule', label: __('Horaire récurrent', 'visi-bloc-jlg') },
+    { value: 'logged_in_status', label: __('État de connexion', 'visi-bloc-jlg') },
+    { value: 'user_role_group', label: __('Groupe de rôles', 'visi-bloc-jlg') },
+    { value: 'woocommerce_cart', label: __('Panier WooCommerce', 'visi-bloc-jlg') },
+    { value: 'query_param', label: __('Paramètre d’URL', 'visi-bloc-jlg') },
 ];
 
 const DEFAULT_ADVANCED_VISIBILITY = Object.freeze({
@@ -415,6 +431,53 @@ const getDefaultRecurringRule = () => ({
     ...DEFAULT_RECURRING_SCHEDULE,
 });
 
+const getDefaultLoggedInStatusRule = () => {
+    const statuses = getVisiBlocArray('loginStatuses');
+
+    return {
+        id: createRuleId(),
+        type: 'logged_in_status',
+        operator: 'is',
+        value: getFirstOptionValue(statuses),
+    };
+};
+
+const getDefaultRoleGroupRule = () => {
+    const groups = getVisiBlocArray('roleGroups');
+
+    return {
+        id: createRuleId(),
+        type: 'user_role_group',
+        operator: 'matches',
+        group: getFirstOptionValue(groups),
+    };
+};
+
+const getDefaultWooCommerceCartRule = () => {
+    const sources = getVisiBlocArray('woocommerceTaxonomies');
+    const firstTaxonomy = sources.find((item) => item && typeof item.slug === 'string');
+
+    return {
+        id: createRuleId(),
+        type: 'woocommerce_cart',
+        operator: 'contains',
+        taxonomy: firstTaxonomy ? firstTaxonomy.slug : '',
+        terms: [],
+    };
+};
+
+const getDefaultQueryParamRule = () => {
+    const params = getVisiBlocArray('commonQueryParams');
+
+    return {
+        id: createRuleId(),
+        type: 'query_param',
+        operator: 'equals',
+        param: getFirstOptionValue(params),
+        value: '',
+    };
+};
+
 const createDefaultRuleForType = (type) => {
     switch (type) {
         case 'taxonomy':
@@ -423,6 +486,14 @@ const createDefaultRuleForType = (type) => {
             return getDefaultTemplateRule();
         case 'recurring_schedule':
             return getDefaultRecurringRule();
+        case 'logged_in_status':
+            return getDefaultLoggedInStatusRule();
+        case 'user_role_group':
+            return getDefaultRoleGroupRule();
+        case 'woocommerce_cart':
+            return getDefaultWooCommerceCartRule();
+        case 'query_param':
+            return getDefaultQueryParamRule();
         case 'post_type':
         default:
             return getDefaultPostTypeRule();
@@ -466,6 +537,51 @@ const normalizeRule = (rule) => {
 
     if (type === 'template') {
         normalized.operator = rule.operator === 'is_not' ? 'is_not' : 'is';
+        normalized.value = typeof rule.value === 'string' ? rule.value : '';
+
+        return normalized;
+    }
+
+    if (type === 'logged_in_status') {
+        normalized.operator = rule.operator === 'is_not' ? 'is_not' : 'is';
+        normalized.value = typeof rule.value === 'string' ? rule.value : '';
+
+        return normalized;
+    }
+
+    if (type === 'user_role_group') {
+        normalized.operator = rule.operator === 'does_not_match' ? 'does_not_match' : 'matches';
+        normalized.group = typeof rule.group === 'string' ? rule.group : '';
+
+        return normalized;
+    }
+
+    if (type === 'woocommerce_cart') {
+        normalized.operator = rule.operator === 'not_contains' ? 'not_contains' : 'contains';
+        normalized.taxonomy = typeof rule.taxonomy === 'string' ? rule.taxonomy : '';
+        normalized.terms = Array.isArray(rule.terms)
+            ? rule.terms
+                  .map((term) => (typeof term === 'string' || typeof term === 'number' ? String(term) : ''))
+                  .filter(Boolean)
+            : [];
+
+        return normalized;
+    }
+
+    if (type === 'query_param') {
+        const allowedOperators = [
+            'equals',
+            'not_equals',
+            'contains',
+            'not_contains',
+            'exists',
+            'not_exists',
+        ];
+
+        normalized.operator = allowedOperators.includes(rule.operator)
+            ? rule.operator
+            : 'equals';
+        normalized.param = typeof rule.param === 'string' ? rule.param : '';
         normalized.value = typeof rule.value === 'string' ? rule.value : '';
 
         return normalized;
@@ -713,12 +829,7 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                         <SelectControl
                             label={__('Type de règle', 'visi-bloc-jlg')}
                             value={rule.type}
-                            options={[
-                                { value: 'post_type', label: __('Type de contenu', 'visi-bloc-jlg') },
-                                { value: 'taxonomy', label: __('Taxonomie', 'visi-bloc-jlg') },
-                                { value: 'template', label: __('Modèle de page', 'visi-bloc-jlg') },
-                                { value: 'recurring_schedule', label: __('Horaire récurrent', 'visi-bloc-jlg') },
-                            ]}
+                            options={ADVANCED_RULE_TYPE_OPTIONS}
                             onChange={onChangeType}
                         />
                     </FlexBlock>
@@ -852,6 +963,234 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                             options={templates}
                             onChange={(newValue) => onUpdateRule({ value: newValue })}
                         />
+                    </div>
+                );
+            }
+
+            if (rule.type === 'logged_in_status') {
+                const statuses = getVisiBlocArray('loginStatuses').map((item) => ({
+                    value: item.value,
+                    label: item.label,
+                }));
+
+                return (
+                    <div key={rule.id} className="visibloc-advanced-rule">
+                        {commonHeader}
+                        <SelectControl
+                            label={__('Condition', 'visi-bloc-jlg')}
+                            value={rule.operator}
+                            options={[
+                                { value: 'is', label: __('Est', 'visi-bloc-jlg') },
+                                { value: 'is_not', label: __('N’est pas', 'visi-bloc-jlg') },
+                            ]}
+                            onChange={(newOperator) => onUpdateRule({ operator: newOperator })}
+                        />
+                        <SelectControl
+                            label={__('État de connexion', 'visi-bloc-jlg')}
+                            value={rule.value}
+                            options={statuses}
+                            onChange={(newValue) => onUpdateRule({ value: newValue })}
+                        />
+                    </div>
+                );
+            }
+
+            if (rule.type === 'user_role_group') {
+                const roleGroups = getVisiBlocArray('roleGroups');
+                const roleLabels = getVisiBlocObject('roles') || {};
+                const currentGroup = roleGroups.find((group) => group && group.value === rule.group);
+                const groupRoles = currentGroup && Array.isArray(currentGroup.roles)
+                    ? currentGroup.roles
+                    : [];
+
+                return (
+                    <div key={rule.id} className="visibloc-advanced-rule">
+                        {commonHeader}
+                        <SelectControl
+                            label={__('Condition', 'visi-bloc-jlg')}
+                            value={rule.operator}
+                            options={[
+                                {
+                                    value: 'matches',
+                                    label: __('Correspond à', 'visi-bloc-jlg'),
+                                },
+                                {
+                                    value: 'does_not_match',
+                                    label: __('Ne correspond pas à', 'visi-bloc-jlg'),
+                                },
+                            ]}
+                            onChange={(newOperator) => onUpdateRule({ operator: newOperator })}
+                        />
+                        <SelectControl
+                            label={__('Groupe de rôles', 'visi-bloc-jlg')}
+                            value={rule.group}
+                            options={roleGroups.map((group) => ({
+                                value: group.value,
+                                label: group.label,
+                            }))}
+                            onChange={(newValue) => onUpdateRule({ group: newValue })}
+                        />
+                        {groupRoles.length > 0 && (
+                            <p className="components-help-text">
+                                {groupRoles
+                                    .map((role) => roleLabels[role] || role)
+                                    .filter(Boolean)
+                                    .join(', ')}
+                            </p>
+                        )}
+                    </div>
+                );
+            }
+
+            if (rule.type === 'woocommerce_cart') {
+                const taxonomies = getVisiBlocArray('woocommerceTaxonomies');
+                const hasTaxonomies = Array.isArray(taxonomies) && taxonomies.length > 0;
+                const currentTaxonomy = taxonomies.find(
+                    (item) => item && item.slug === rule.taxonomy,
+                );
+                const taxonomyOptions = hasTaxonomies
+                    ? taxonomies.map((item) => ({
+                          value: item.slug,
+                          label: item.label,
+                      }))
+                    : [
+                          {
+                              value: '',
+                              label: __('Aucune taxonomie disponible', 'visi-bloc-jlg'),
+                          },
+                      ];
+                const termOptions = currentTaxonomy && Array.isArray(currentTaxonomy.terms)
+                    ? currentTaxonomy.terms.map((term) => ({
+                          value: term.value,
+                          label: term.label,
+                      }))
+                    : [];
+
+                const onToggleTerm = (isChecked, termValue) => {
+                    const valueAsString = String(termValue);
+                    const newTerms = isChecked
+                        ? [...rule.terms, valueAsString]
+                        : rule.terms.filter((currentTerm) => currentTerm !== valueAsString);
+
+                    onUpdateRule({ terms: newTerms });
+                };
+
+                return (
+                    <div key={rule.id} className="visibloc-advanced-rule">
+                        {commonHeader}
+                        <SelectControl
+                            label={__('Condition', 'visi-bloc-jlg')}
+                            value={rule.operator}
+                            options={[
+                                {
+                                    value: 'contains',
+                                    label: __('Contient des produits avec ces termes', 'visi-bloc-jlg'),
+                                },
+                                {
+                                    value: 'not_contains',
+                                    label: __('Ne contient aucun produit avec ces termes', 'visi-bloc-jlg'),
+                                },
+                            ]}
+                            onChange={(newOperator) => onUpdateRule({ operator: newOperator })}
+                        />
+                        <SelectControl
+                            label={__('Taxonomie WooCommerce', 'visi-bloc-jlg')}
+                            value={rule.taxonomy}
+                            options={taxonomyOptions}
+                            onChange={(newValue) => onUpdateRule({ taxonomy: newValue, terms: [] })}
+                            disabled={!hasTaxonomies}
+                        />
+                        {!hasTaxonomies ? (
+                            <p className="components-help-text">
+                                {__(
+                                    'Aucune source WooCommerce n’est disponible. Activez WooCommerce pour utiliser cette règle.',
+                                    'visi-bloc-jlg',
+                                )}
+                            </p>
+                        ) : termOptions.length > 0 ? (
+                            <div className="visibloc-advanced-rule__terms">
+                                {termOptions.map((term) => (
+                                    <CheckboxControl
+                                        key={term.value}
+                                        label={term.label}
+                                        checked={rule.terms.includes(term.value)}
+                                        onChange={(isChecked) => onToggleTerm(isChecked, term.value)}
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="components-help-text">
+                                {__(
+                                    'Aucun terme disponible pour cette taxonomie WooCommerce.',
+                                    'visi-bloc-jlg',
+                                )}
+                            </p>
+                        )}
+                    </div>
+                );
+            }
+
+            if (rule.type === 'query_param') {
+                const suggestions = getVisiBlocArray('commonQueryParams').map((item) => ({
+                    value: item.value,
+                    label: item.label || item.value,
+                }));
+
+                const suggestionOptions = [
+                    { value: '', label: __('Personnalisé…', 'visi-bloc-jlg') },
+                    ...suggestions,
+                ];
+
+                const operatorOptions = [
+                    { value: 'equals', label: __('Est égal à', 'visi-bloc-jlg') },
+                    { value: 'not_equals', label: __('Est différent de', 'visi-bloc-jlg') },
+                    { value: 'contains', label: __('Contient', 'visi-bloc-jlg') },
+                    { value: 'not_contains', label: __('Ne contient pas', 'visi-bloc-jlg') },
+                    { value: 'exists', label: __('Existe', 'visi-bloc-jlg') },
+                    { value: 'not_exists', label: __('N’existe pas', 'visi-bloc-jlg') },
+                ];
+
+                const selectedSuggestion = suggestions.some((item) => item.value === rule.param)
+                    ? rule.param
+                    : '';
+
+                return (
+                    <div key={rule.id} className="visibloc-advanced-rule">
+                        {commonHeader}
+                        <SelectControl
+                            label={__('Condition', 'visi-bloc-jlg')}
+                            value={rule.operator}
+                            options={operatorOptions}
+                            onChange={(newOperator) => onUpdateRule({ operator: newOperator })}
+                        />
+                        <SelectControl
+                            label={__('Paramètre courant', 'visi-bloc-jlg')}
+                            value={selectedSuggestion}
+                            options={suggestionOptions}
+                            onChange={(newValue) => {
+                                if (!newValue) {
+                                    return;
+                                }
+
+                                onUpdateRule({ param: newValue });
+                            }}
+                        />
+                        <TextControl
+                            label={__('Nom du paramètre', 'visi-bloc-jlg')}
+                            value={rule.param}
+                            onChange={(newValue) => onUpdateRule({ param: newValue })}
+                            help={__(
+                                'Saisissez le nom du paramètre de requête attendu (ex. utm_source).',
+                                'visi-bloc-jlg',
+                            )}
+                        />
+                        {!['exists', 'not_exists'].includes(rule.operator) && (
+                            <TextControl
+                                label={__('Valeur attendue', 'visi-bloc-jlg')}
+                                value={rule.value}
+                                onChange={(newValue) => onUpdateRule({ value: newValue })}
+                            />
+                        )}
                     </div>
                 );
             }
