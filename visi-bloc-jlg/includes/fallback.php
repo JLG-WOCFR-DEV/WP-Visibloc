@@ -230,16 +230,35 @@ function visibloc_jlg_get_block_fallback_markup( $attrs ) {
  * @return array<int, array{value:int,label:string}>
  */
 function visibloc_jlg_get_available_fallback_blocks() {
-    $posts = get_posts(
-        [
-            'post_type'      => 'wp_block',
-            'post_status'    => 'publish',
-            'numberposts'    => 200,
-            'orderby'        => 'title',
-            'order'          => 'ASC',
-            'suppress_filters' => false,
-        ]
-    );
+    $default_args = [
+        'post_type'        => 'wp_block',
+        'post_status'      => 'publish',
+        'numberposts'      => -1,
+        'orderby'          => 'title',
+        'order'            => 'ASC',
+        'suppress_filters' => false,
+    ];
+
+    /**
+     * Filters the arguments used when looking up reusable blocks available as fallbacks.
+     *
+     * Allowing the query arguments to be filtered lets integrators re-introduce pagination
+     * or otherwise tailor the lookup to their needs when a site has an extremely large
+     * collection of reusable blocks.
+     *
+     * @since 1.1.1
+     *
+     * @param array $query_args Arguments forwarded to {@see get_posts()}.
+     */
+    $query_args = apply_filters( 'visibloc_jlg_available_fallback_blocks_query_args', $default_args );
+
+    if ( ! is_array( $query_args ) ) {
+        $query_args = $default_args;
+    } else {
+        $query_args = array_merge( $default_args, $query_args );
+    }
+
+    $posts = get_posts( $query_args );
 
     if ( empty( $posts ) ) {
         return [];

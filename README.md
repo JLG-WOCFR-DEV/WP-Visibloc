@@ -57,3 +57,26 @@ The tests rely on [`@wordpress/env`](https://developer.wordpress.org/block-edito
 The "Visi-Bloc - JLG" administration screen paginates the internal queries in batches of 100 post IDs and caches the compiled
 results for an hour. This keeps memory usage low, but on very large sites the first load after the cache expires may still take a
 little longer while the plugin analyses the content library.
+
+## Filters
+
+### `visibloc_jlg_available_fallback_blocks_query_args`
+
+Reusable blocks exposed in the fallback selector are now loaded without a hard limit (the plugin passes `numberposts => -1` to
+`get_posts()` by default). The query arguments can be filtered to re-introduce pagination or otherwise scope the lookup for very
+large libraries:
+
+```php
+add_filter(
+    'visibloc_jlg_available_fallback_blocks_query_args',
+    static function ( array $args ) {
+        // Keep the ascending alphabetical order but only fetch the first 50 blocks.
+        $args['numberposts'] = 50;
+
+        return $args;
+    }
+);
+```
+
+When using pagination, make sure the fallback block stored in the global settings stays within the returned subset or adjust the
+selector UI accordingly.
