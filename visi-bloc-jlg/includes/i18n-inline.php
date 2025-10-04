@@ -1,6 +1,11 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+if ( function_exists( '__' ) ) {
+    // Ensure the "Hidden block" string is available for translation tools.
+    __( 'Hidden block', 'visi-bloc-jlg' );
+}
+
 if ( ! function_exists( 'visibloc_jlg_inline_translate_hidden_block' ) ) {
     /**
      * Provide inline translations for strings that are generated dynamically.
@@ -16,7 +21,17 @@ if ( ! function_exists( 'visibloc_jlg_inline_translate_hidden_block' ) ) {
         }
 
         if ( 'Hidden block' === $text ) {
-            return 'Bloc caché';
+            $locale = '';
+
+            if ( function_exists( 'determine_locale' ) ) {
+                $locale = determine_locale();
+            } elseif ( function_exists( 'get_locale' ) ) {
+                $locale = get_locale();
+            }
+
+            if ( is_string( $locale ) && 0 === strpos( strtolower( $locale ), 'fr' ) ) {
+                return 'Bloc caché';
+            }
         }
 
         return $translation;
