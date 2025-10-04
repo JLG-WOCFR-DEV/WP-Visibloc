@@ -9,6 +9,7 @@ delete_option( 'visibloc_preview_roles' );
 delete_option( 'visibloc_group_block_summary' );
 delete_option( 'visibloc_supported_blocks' );
 delete_option( 'visibloc_fallback_settings' );
+wp_cache_delete( 'visibloc_fallback_settings', 'visibloc_jlg' );
 
 // Supprime les transients de cache du plugin
 delete_transient( 'visibloc_hidden_posts' );
@@ -33,5 +34,6 @@ if ( is_array( $registered_buckets ) ) {
 }
 
 delete_option( 'visibloc_device_css_transients' );
+wp_cache_delete( 'visibloc_device_css_transients', 'visibloc_jlg' );
 
 wp_cache_delete( 'visibloc_device_css_cache', 'visibloc_jlg' );
