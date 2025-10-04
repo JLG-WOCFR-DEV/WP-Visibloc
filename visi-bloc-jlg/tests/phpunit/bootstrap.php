@@ -23,6 +23,17 @@ $GLOBALS['visibloc_test_request_environment'] = [
     'request_uri' => '',
 ];
 
+if ( ! class_exists( 'WP_Post' ) ) {
+    #[AllowDynamicProperties]
+    class WP_Post {
+        public function __construct( array $data = [] ) {
+            foreach ( $data as $key => $value ) {
+                $this->{$key} = $value;
+            }
+        }
+    }
+}
+
 function visibloc_test_reset_request_environment() {
     $GLOBALS['visibloc_test_request_environment'] = [
         'is_admin'    => false,
@@ -629,6 +640,10 @@ function parse_blocks( $content ) {
 }
 
 function get_post_field( $field, $post_id ) {
+    if ( $post_id instanceof WP_Post ) {
+        $post_id = $post_id->ID ?? 0;
+    }
+
     $post_id = absint( $post_id );
 
     if ( $post_id <= 0 ) {
@@ -670,7 +685,124 @@ function get_post( $post_id ) {
     $post_data = $posts[ $post_id ];
     $post_data['ID'] = $post_id;
 
-    return (object) $post_data;
+    return new WP_Post( $post_data );
+}
+
+if ( ! function_exists( 'get_posts' ) ) {
+    function get_posts( $args = [] ) {
+        $defaults = [
+            'numberposts'      => 5,
+            'offset'           => 0,
+            'orderby'          => 'date',
+            'order'            => 'DESC',
+            'post_type'        => 'post',
+            'post_status'      => 'publish',
+            'suppress_filters' => true,
+        ];
+
+        if ( ! is_array( $args ) ) {
+            $args = [];
+        }
+
+        $args      = array_merge( $defaults, $args );
+        $posts     = $GLOBALS['visibloc_posts'] ?? [];
+        $post_type = $args['post_type'];
+
+        if ( is_array( $post_type ) ) {
+            $post_types = array_map( 'strval', $post_type );
+        } elseif ( 'any' === $post_type ) {
+            $post_types = null;
+        } else {
+            $post_types = [ (string) $post_type ];
+        }
+
+        $post_status = $args['post_status'];
+
+        if ( is_array( $post_status ) ) {
+            $post_statuses = array_map( 'strval', $post_status );
+        } elseif ( 'any' === $post_status ) {
+            $post_statuses = null;
+        } else {
+            $post_statuses = [ (string) $post_status ];
+        }
+
+        $matching = [];
+
+        foreach ( $posts as $post_id => $post ) {
+            $type  = $post['post_type'] ?? 'post';
+            $state = $post['post_status'] ?? 'publish';
+
+            if ( null !== $post_types && ! in_array( $type, $post_types, true ) ) {
+                continue;
+            }
+
+            if ( null !== $post_statuses && ! in_array( $state, $post_statuses, true ) ) {
+                continue;
+            }
+
+            $post['ID'] = (int) $post_id;
+            $matching[] = $post;
+        }
+
+        $orderby = strtolower( (string) $args['orderby'] );
+        $order   = strtoupper( (string) $args['order'] );
+
+        $compare = static function ( $a, $b, $key ) {
+            $value_a = $a[ $key ] ?? '';
+            $value_b = $b[ $key ] ?? '';
+
+            if ( is_numeric( $value_a ) && is_numeric( $value_b ) ) {
+                return (int) $value_a <=> (int) $value_b;
+            }
+
+            return strcmp( (string) $value_a, (string) $value_b );
+        };
+
+        if ( 'title' === $orderby ) {
+            usort(
+                $matching,
+                static function ( $a, $b ) use ( $order, $compare ) {
+                    $result = $compare( $a, $b, 'post_title' );
+
+                    return 'DESC' === $order ? -$result : $result;
+                }
+            );
+        } elseif ( 'id' === $orderby ) {
+            usort(
+                $matching,
+                static function ( $a, $b ) use ( $order, $compare ) {
+                    $result = $compare( $a, $b, 'ID' );
+
+                    return 'DESC' === $order ? -$result : $result;
+                }
+            );
+        } else {
+            usort(
+                $matching,
+                static function ( $a, $b ) use ( $order, $compare ) {
+                    $result = $compare( $a, $b, 'post_date' );
+
+                    return 'DESC' === $order ? -$result : $result;
+                }
+            );
+        }
+
+        $offset = max( 0, (int) $args['offset'] );
+        $limit  = (int) $args['numberposts'];
+
+        if ( $limit < 0 ) {
+            $matching = array_slice( $matching, $offset );
+        } else {
+            $matching = array_slice( $matching, $offset, $limit );
+        }
+
+        return array_map(
+            static function ( $post ) {
+                return new WP_Post( $post );
+            },
+            $matching
+        );
+    }
 }
 
 function get_the_title( $post_id ) {
