@@ -13,6 +13,48 @@ class VisibilityLogicTest extends TestCase {
         }
     }
 
+    public function test_blocks_without_visibility_rules_do_not_initialize_fallback(): void {
+        $filter_calls = 0;
+        $hook = 'pre_option_visibloc_fallback_settings';
+
+        $previous_filters = $GLOBALS['visibloc_test_filters'][ $hook ] ?? null;
+
+        $callback = static function ( $pre_value ) use ( &$filter_calls ) {
+            $filter_calls++;
+
+            return $pre_value;
+        };
+
+        add_filter( $hook, $callback );
+
+        try {
+            $block = [
+                'blockName' => 'core/group',
+                'attrs'     => [],
+            ];
+
+            $content = '<p>Visible block</p>';
+
+            $this->assertSame(
+                $content,
+                visibloc_jlg_render_block_filter( $content, $block ),
+                'Blocks without visibility settings should render as-is.'
+            );
+
+            $this->assertSame(
+                0,
+                $filter_calls,
+                'Fallback settings should not be loaded when no visibility rules are present.'
+            );
+        } finally {
+            if ( null === $previous_filters ) {
+                unset( $GLOBALS['visibloc_test_filters'][ $hook ] );
+            } else {
+                $GLOBALS['visibloc_test_filters'][ $hook ] = $previous_filters;
+            }
+        }
+    }
+
     public function test_administrator_impersonating_editor_sees_editor_view_without_hidden_blocks(): void {
         global $visibloc_test_state;
 

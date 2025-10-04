@@ -51,7 +51,17 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
     if ( empty( $block['attrs'] ) ) { return $block_content; }
 
     $attrs = $block['attrs'];
-    $fallback_markup = visibloc_jlg_get_block_fallback_markup( $attrs );
+
+    $fallback_markup = null;
+    $fallback_initialized = false;
+    $get_fallback_markup = static function () use ( &$fallback_markup, &$fallback_initialized, $attrs ) {
+        if ( ! $fallback_initialized ) {
+            $fallback_markup     = visibloc_jlg_get_block_fallback_markup( $attrs );
+            $fallback_initialized = true;
+        }
+
+        return $fallback_markup;
+    };
 
     $visibility_roles = [];
 
@@ -179,9 +189,9 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
                         ) .
                     '</div>';
 
-                    return visibloc_jlg_wrap_preview_with_fallback_notice( $schedule_preview_markup, $fallback_markup );
+                    return visibloc_jlg_wrap_preview_with_fallback_notice( $schedule_preview_markup, $get_fallback_markup() );
                 }
-                return $fallback_markup;
+                return $get_fallback_markup();
             }
         }
     }
@@ -207,7 +217,7 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
                 $hidden_preview_markup = $advanced_markup;
                 $has_preview_markup    = true;
             } else {
-                return $fallback_markup;
+                return $get_fallback_markup();
             }
         }
     }
@@ -277,23 +287,23 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         if ( ! $is_visible && ! empty( $user_roles ) && count( array_intersect( $user_roles, $visibility_roles ) ) > 0 ) { $is_visible = true; }
         if ( ! $is_visible ) {
             if ( $has_preview_markup && null !== $hidden_preview_markup ) {
-                return visibloc_jlg_wrap_preview_with_fallback_notice( $hidden_preview_markup, $fallback_markup );
+                return visibloc_jlg_wrap_preview_with_fallback_notice( $hidden_preview_markup, $get_fallback_markup() );
             }
 
-            return $fallback_markup;
+            return $get_fallback_markup();
         }
     }
 
     if ( $has_hidden_flag ) {
         if ( $has_preview_markup && null !== $hidden_preview_markup ) {
-            return visibloc_jlg_wrap_preview_with_fallback_notice( $hidden_preview_markup, $fallback_markup );
+            return visibloc_jlg_wrap_preview_with_fallback_notice( $hidden_preview_markup, $get_fallback_markup() );
         }
 
-        return $fallback_markup;
+        return $get_fallback_markup();
     }
 
     if ( $has_preview_markup && null !== $hidden_preview_markup ) {
-        return visibloc_jlg_wrap_preview_with_fallback_notice( $hidden_preview_markup, $fallback_markup );
+        return visibloc_jlg_wrap_preview_with_fallback_notice( $hidden_preview_markup, $get_fallback_markup() );
     }
 
     return $block_content;
