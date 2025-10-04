@@ -8,6 +8,7 @@ delete_option( 'visibloc_breakpoint_tablet' );
 delete_option( 'visibloc_preview_roles' );
 delete_option( 'visibloc_group_block_summary' );
 delete_option( 'visibloc_supported_blocks' );
+delete_option( 'visibloc_fallback_settings' );
 
 // Supprime les transients de cache du plugin
 delete_transient( 'visibloc_hidden_posts' );
@@ -15,5 +16,22 @@ delete_transient( 'visibloc_device_posts' );
 delete_transient( 'visibloc_scheduled_posts' );
 delete_transient( 'visibloc_group_block_metadata' );
 delete_transient( 'visibloc_jlg_missing_editor_assets' );
+
+$registered_buckets = get_option( 'visibloc_device_css_transients', [] );
+
+if ( is_array( $registered_buckets ) ) {
+    foreach ( array_unique( array_map( 'strval', $registered_buckets ) ) as $bucket_key ) {
+        if ( '' === $bucket_key ) {
+            continue;
+        }
+
+        $transient_name = sprintf( 'visibloc_device_css_%s', $bucket_key );
+
+        delete_transient( $transient_name );
+        wp_cache_delete( $transient_name, 'visibloc_jlg' );
+    }
+}
+
+delete_option( 'visibloc_device_css_transients' );
 
 wp_cache_delete( 'visibloc_device_css_cache', 'visibloc_jlg' );
