@@ -37,6 +37,17 @@ if ( ! class_exists( 'WP_Post' ) ) {
     }
 }
 
+if ( ! class_exists( 'WP_Term' ) ) {
+    #[AllowDynamicProperties]
+    class WP_Term {
+        public function __construct( array $data = [] ) {
+            foreach ( $data as $key => $value ) {
+                $this->{$key} = $value;
+            }
+        }
+    }
+}
+
 function visibloc_test_reset_request_environment() {
     $GLOBALS['visibloc_test_request_environment'] = [
         'is_admin'    => false,

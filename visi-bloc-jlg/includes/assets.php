@@ -248,17 +248,27 @@ function visibloc_jlg_get_editor_taxonomies() {
         $term_options = [];
 
         if ( taxonomy_exists( $slug ) ) {
-            $terms = get_terms(
-                [
-                    'taxonomy'   => $slug,
-                    'hide_empty' => false,
-                    'number'     => 200,
-                    'orderby'    => 'name',
-                    'order'      => 'ASC',
-                ]
-            );
+            $term_query_args = [
+                'taxonomy'   => $slug,
+                'hide_empty' => false,
+                'number'     => 200, // Default limit for editor term suggestions.
+                'orderby'    => 'name',
+                'order'      => 'ASC',
+            ];
 
-            if ( ! is_wp_error( $terms ) ) {
+            /**
+             * Filter the query arguments used to retrieve taxonomy terms for the editor.
+             *
+             * The default arguments include a limit of 200 terms to avoid large responses.
+             *
+             * @param array  $term_query_args Query arguments passed to {@see get_terms()}.
+             * @param string $slug            Taxonomy slug being queried.
+             */
+            $term_query_args = apply_filters( 'visibloc_jlg_editor_terms_query_args', $term_query_args, $slug );
+
+            $terms = get_terms( $term_query_args );
+
+            if ( ! is_wp_error( $terms ) && is_array( $terms ) ) {
                 foreach ( $terms as $term ) {
                     if ( ! $term instanceof WP_Term ) {
                         continue;
