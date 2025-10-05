@@ -18,6 +18,33 @@ class DeviceVisibilityCssTest extends TestCase {
         }
     }
 
+    public function test_build_css_for_default_breakpoints(): void {
+        $css = visibloc_jlg_build_device_visibility_css( false, 781, 1024 );
+
+        $this->assertStringContainsString('@media (max-width: 781px)', $css);
+        $this->assertStringContainsString('@media (min-width: 782px) and (max-width: 1024px)', $css);
+        $this->assertStringContainsString('@media (min-width: 1025px)', $css);
+        $this->assertStringNotContainsString('display: revert !important;', $css);
+    }
+
+    public function test_build_css_for_custom_breakpoints_includes_resets(): void {
+        $css = visibloc_jlg_build_device_visibility_css( false, 900, 1200 );
+
+        $this->assertStringContainsString('@media (max-width: 900px)', $css);
+        $this->assertStringContainsString('@media (min-width: 901px) and (max-width: 1200px)', $css);
+        $this->assertStringContainsString('@media (min-width: 1201px)', $css);
+        $this->assertStringContainsString('@media (min-width: 782px) and (max-width: 900px)', $css);
+        $this->assertStringContainsString('display: revert !important;', $css);
+    }
+
+    public function test_build_css_includes_preview_styles_when_enabled(): void {
+        $css = visibloc_jlg_build_device_visibility_css( true, 781, 1024 );
+
+        $this->assertStringContainsString('.visibloc-status-badge {', $css);
+        $this->assertStringContainsString('.visibloc-status-badge--hidden {', $css);
+        $this->assertStringContainsString('@media (max-width: 782px) {', $css);
+    }
+
     public function test_mobile_breakpoint_lower_than_default_unhides_tablet_classes(): void {
         $css = visibloc_jlg_generate_device_visibility_css( false, 600, 1024 );
 
