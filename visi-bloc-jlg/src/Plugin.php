@@ -55,7 +55,10 @@ class Plugin {
         $this->register_visibility_hooks();
         $this->register_role_switcher_hooks();
         $this->register_cli_commands();
-        $this->load_textdomain();
+
+        if ( function_exists( 'add_action' ) ) {
+            add_action( 'init', [ $this, 'load_textdomain' ] );
+        }
     }
 
     /**
@@ -102,7 +105,7 @@ class Plugin {
     /**
      * Load the plugin text domain for translations.
      */
-    protected function load_textdomain() {
+    public function load_textdomain() {
         if ( function_exists( 'load_plugin_textdomain' ) ) {
             load_plugin_textdomain(
                 'visi-bloc-jlg',
