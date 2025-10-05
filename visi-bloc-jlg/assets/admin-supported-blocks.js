@@ -15,6 +15,86 @@
         return normalized;
     };
 
+    var formatCountMessage = function (template, visibleCount, selectedCount) {
+        if (!template) {
+            return '';
+        }
+
+        var output = template;
+
+        output = output.replace(/%1\$d/g, String(visibleCount));
+        output = output.replace(/%2\$d/g, String(selectedCount));
+
+        if (/%d/.test(output) && !/%1\$d/.test(template)) {
+            output = output.replace(/%d/g, String(visibleCount));
+        }
+
+        return output;
+    };
+
+    var containerContexts = new WeakMap();
+
+    var getContainerContext = function (container) {
+        var existing = containerContexts.get(container);
+        if (existing) {
+            return existing;
+        }
+
+        var context = {
+            container: container,
+            items: Array.prototype.slice.call(
+                container.querySelectorAll('[data-visibloc-block]')
+            ),
+            emptyMessage: container.querySelector('[data-visibloc-blocks-empty]'),
+            countMessage: container.querySelector('[data-visibloc-blocks-count]')
+        };
+
+        context.countTemplate = context.countMessage
+            ? context.countMessage.getAttribute('data-visibloc-count-template') || ''
+            : '';
+
+        containerContexts.set(container, context);
+
+        return context;
+    };
+
+    var updateEmptyState = function (context, visibleCount) {
+        if (!context.emptyMessage) {
+            return;
+        }
+
+        context.emptyMessage.hidden = visibleCount > 0;
+    };
+
+    var updateCountMessage = function (context, counts) {
+        if (!context.countMessage || !context.countTemplate) {
+            return;
+        }
+
+        var hasVisible = counts && typeof counts.visibleCount === 'number';
+        var hasSelected = counts && typeof counts.selectedCount === 'number';
+        var visibleCount = hasVisible ? counts.visibleCount : 0;
+        var selectedCount = hasSelected ? counts.selectedCount : 0;
+
+        if (!hasVisible || !hasSelected) {
+            context.items.forEach(function (item) {
+                var input = item.querySelector('input[type="checkbox"]');
+                var isVisible = item.style.display !== 'none';
+
+                if (!hasVisible && isVisible) {
+                    visibleCount++;
+                }
+
+                if (!hasSelected && input && input.checked) {
+                    selectedCount++;
+                }
+            });
+        }
+
+        var output = formatCountMessage(context.countTemplate, visibleCount, selectedCount);
+        context.countMessage.textContent = output;
+    };
+
     var initSearch = function (input) {
         var targetId = input.getAttribute('data-visibloc-blocks-target');
         if (!targetId) {
@@ -26,16 +106,10 @@
             return;
         }
 
-        var items = Array.prototype.slice.call(
-            container.querySelectorAll('[data-visibloc-block]')
-        );
-        if (!items.length) {
+        var context = getContainerContext(container);
+        if (!context.items.length) {
             return;
         }
-
-        var emptyMessage = container.querySelector('[data-visibloc-blocks-empty]');
-        var countMessage = container.querySelector('[data-visibloc-blocks-count]');
-        var countTemplate = countMessage ? countMessage.getAttribute('data-visibloc-count-template') : '';
 
         var getNormalizedSearchValue = function (item) {
             var cached = item.getAttribute('data-visibloc-search-cache');
@@ -54,8 +128,9 @@
             var normalizedQuery = normalizeText(input.value || '');
             var hasQuery = normalizedQuery.length > 0;
             var visibleCount = 0;
+            var selectedCount = 0;
 
-            items.forEach(function (item) {
+            context.items.forEach(function (item) {
                 var searchValue = getNormalizedSearchValue(item);
                 var isVisible = !hasQuery || searchValue.indexOf(normalizedQuery) !== -1;
 
@@ -64,16 +139,18 @@
                 if (isVisible) {
                     visibleCount++;
                 }
+
+                var inputElement = item.querySelector('input[type="checkbox"]');
+                if (inputElement && inputElement.checked) {
+                    selectedCount++;
+                }
             });
 
-            if (emptyMessage) {
-                emptyMessage.hidden = visibleCount > 0;
-            }
-
-            if (countMessage && countTemplate) {
-                var output = countTemplate.replace('%d', visibleCount);
-                countMessage.textContent = output;
-            }
+            updateEmptyState(context, visibleCount);
+            updateCountMessage(context, {
+                visibleCount: visibleCount,
+                selectedCount: selectedCount
+            });
         };
 
         input.addEventListener('input', toggleItems);
@@ -82,14 +159,68 @@
         toggleItems();
     };
 
-    var onReady = function () {
-        var searchInputs = document.querySelectorAll('[data-visibloc-blocks-search]');
-        if (!searchInputs.length) {
+    var initMassAction = function (button, shouldCheck) {
+        var targetId = button.getAttribute('data-visibloc-blocks-target');
+        if (!targetId) {
             return;
         }
 
-        Array.prototype.forEach.call(searchInputs, function (input) {
-            initSearch(input);
+        var container = document.getElementById(targetId);
+        if (!container) {
+            return;
+        }
+
+        var context = getContainerContext(container);
+        if (!context.items.length) {
+            return;
+        }
+
+        button.addEventListener('click', function (event) {
+            event.preventDefault();
+
+            context.items.forEach(function (item) {
+                if (item.style.display === 'none') {
+                    return;
+                }
+
+                var inputElement = item.querySelector('input[type="checkbox"]');
+                if (!inputElement || inputElement.disabled) {
+                    return;
+                }
+
+                if (inputElement.checked === shouldCheck) {
+                    return;
+                }
+
+                inputElement.checked = shouldCheck;
+                var changeEvent = new window.Event('change', { bubbles: true });
+                inputElement.dispatchEvent(changeEvent);
+            });
+
+            updateCountMessage(context);
+
+            if (typeof button.focus === 'function') {
+                try {
+                    button.focus({ preventScroll: true });
+                } catch (error) {
+                    button.focus();
+                }
+            }
+        });
+    };
+
+    var onReady = function () {
+        var searchInputs = document.querySelectorAll('[data-visibloc-blocks-search]');
+        Array.prototype.forEach.call(searchInputs, initSearch);
+
+        var selectAllButtons = document.querySelectorAll('[data-visibloc-select-all]');
+        Array.prototype.forEach.call(selectAllButtons, function (button) {
+            initMassAction(button, true);
+        });
+
+        var selectNoneButtons = document.querySelectorAll('[data-visibloc-select-none]');
+        Array.prototype.forEach.call(selectNoneButtons, function (button) {
+            initMassAction(button, false);
         });
     };
 
