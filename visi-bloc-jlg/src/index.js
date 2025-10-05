@@ -1,5 +1,5 @@
 /* global VisiBlocData */
-import { Fragment, cloneElement, Children } from '@wordpress/element';
+import { Fragment, cloneElement, Children, useMemo, useState, RawHTML } from '@wordpress/element';
 import { addFilter, applyFilters } from '@wordpress/hooks';
 import { createHigherOrderComponent } from '@wordpress/compose';
 import { BlockControls, InspectorControls } from '@wordpress/block-editor';
@@ -28,7 +28,8 @@ import {
 } from '@wordpress/components';
 import { __, sprintf, _n } from '@wordpress/i18n';
 import { __experimentalGetSettings, dateI18n, format as formatDate } from '@wordpress/date';
-import { subscribe, select } from '@wordpress/data';
+import { subscribe, select, useSelect } from '@wordpress/data';
+import autop from '@wordpress/autop';
 
 import './editor-styles.css';
 
@@ -341,6 +342,74 @@ const getVisiBlocObject = (key) => {
     }
 
     return value;
+};
+
+const FALLBACK_PREVIEW_UNSAFE_SELECTORS =
+    'script, iframe, frame, frameset, object, embed, link, meta, style, noscript, form, input, button, textarea, select';
+
+const sanitizeFallbackPreviewHtml = (html) => {
+    if (typeof html !== 'string') {
+        return '';
+    }
+
+    const trimmed = html.trim();
+
+    if (!trimmed) {
+        return '';
+    }
+
+    if (typeof document === 'undefined') {
+        return trimmed;
+    }
+
+    const template = document.createElement('template');
+    template.innerHTML = trimmed;
+
+    template.content.querySelectorAll(FALLBACK_PREVIEW_UNSAFE_SELECTORS).forEach((node) => {
+        node.remove();
+    });
+
+    template.content.querySelectorAll('*').forEach((element) => {
+        Array.from(element.attributes).forEach((attribute) => {
+            const attributeName = attribute.name.toLowerCase();
+
+            if (attributeName.startsWith('on')) {
+                element.removeAttribute(attribute.name);
+
+                return;
+            }
+
+            if (['src', 'href', 'xlink:href'].includes(attributeName)) {
+                const value = attribute.value.trim().toLowerCase();
+
+                if (value.startsWith('javascript:') || value.startsWith('data:')) {
+                    element.removeAttribute(attribute.name);
+                }
+            }
+        });
+    });
+
+    return template.innerHTML.trim();
+};
+
+const getTextFallbackPreviewHtml = (text) => {
+    if (typeof text !== 'string') {
+        return '';
+    }
+
+    const trimmed = text.trim();
+
+    if (!trimmed) {
+        return '';
+    }
+
+    let html = trimmed;
+
+    if (typeof autop === 'function') {
+        html = autop(trimmed);
+    }
+
+    return sanitizeFallbackPreviewHtml(html);
 };
 
 const getBlockHasFallback = (attrs) => {
@@ -717,11 +786,16 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
 
         const advancedVisibility = normalizeAdvancedVisibility(rawAdvancedVisibility);
         const fallbackSettings = getVisiBlocObject('fallbackSettings') || {};
+        const [isFallbackPreviewVisible, setFallbackPreviewVisible] = useState(false);
         const hasFallback = getBlockHasFallback(attributes);
         const hasGlobalFallback = Boolean(fallbackSettings && fallbackSettings.hasContent);
         const globalFallbackSummary = fallbackSettings && typeof fallbackSettings.summary === 'string'
             ? fallbackSettings.summary
             : '';
+        const localizedFallbackPreview =
+            fallbackSettings && typeof fallbackSettings.previewHtml === 'string'
+                ? fallbackSettings.previewHtml
+                : '';
         const fallbackBlocks = getVisiBlocArray('fallbackBlocks');
         const fallbackBlockOptions = fallbackBlocks
             .filter((item) => item && typeof item === 'object')
@@ -741,6 +815,161 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             { value: 'text', label: __('Texte personnalisé', 'visi-bloc-jlg') },
             { value: 'block', label: __('Bloc réutilisable', 'visi-bloc-jlg') },
         ];
+
+        const globalFallbackPreviewHtml = useMemo(
+            () => sanitizeFallbackPreviewHtml(localizedFallbackPreview),
+            [localizedFallbackPreview],
+        );
+
+        const customFallbackPreviewHtml = useMemo(
+            () => (fallbackBehavior === 'text' ? getTextFallbackPreviewHtml(fallbackCustomText) : ''),
+            [fallbackBehavior, fallbackCustomText],
+        );
+
+        const { blockPreviewHtml, isBlockPreviewResolving } = useSelect(
+            (selectFn) => {
+                if (fallbackBehavior !== 'block' || !fallbackBlockId) {
+                    return {
+                        blockPreviewHtml: '',
+                        isBlockPreviewResolving: false,
+                    };
+                }
+
+                const coreStore = selectFn('core');
+                const dataStore = selectFn('core/data');
+                const record = coreStore
+                    ? coreStore.getEntityRecord('postType', 'wp_block', fallbackBlockId)
+                    : undefined;
+                const isResolving = dataStore
+                    ? dataStore.isResolving('core', 'getEntityRecord', [
+                          'postType',
+                          'wp_block',
+                          fallbackBlockId,
+                      ])
+                    : false;
+
+                const html =
+                    record && record.content && typeof record.content.rendered === 'string'
+                        ? record.content.rendered
+                        : '';
+
+                return {
+                    blockPreviewHtml: html,
+                    isBlockPreviewResolving: isResolving || typeof record === 'undefined',
+                };
+            },
+            [fallbackBehavior, fallbackBlockId],
+        );
+
+        const blockFallbackPreviewHtml = useMemo(
+            () => (fallbackBehavior === 'block' ? sanitizeFallbackPreviewHtml(blockPreviewHtml) : ''),
+            [fallbackBehavior, blockPreviewHtml],
+        );
+
+        const fallbackPreviewDetails = useMemo(() => {
+            if (!fallbackEnabled) {
+                return {
+                    status: 'info',
+                    message: __('Le repli est désactivé pour ce bloc.', 'visi-bloc-jlg'),
+                    html: '',
+                };
+            }
+
+            if (fallbackBehavior === 'text') {
+                const trimmedText = typeof fallbackCustomText === 'string' ? fallbackCustomText.trim() : '';
+
+                if (!trimmedText) {
+                    return {
+                        status: 'warning',
+                        message: __('Aucun texte de repli défini.', 'visi-bloc-jlg'),
+                        html: '',
+                    };
+                }
+
+                if (!customFallbackPreviewHtml) {
+                    return {
+                        status: 'warning',
+                        message: __('Prévisualisation indisponible pour ce texte.', 'visi-bloc-jlg'),
+                        html: '',
+                    };
+                }
+
+                return {
+                    status: 'ready',
+                    message: '',
+                    html: customFallbackPreviewHtml,
+                };
+            }
+
+            if (fallbackBehavior === 'block') {
+                if (!fallbackBlockId) {
+                    return {
+                        status: 'warning',
+                        message: __('Aucun bloc réutilisable sélectionné.', 'visi-bloc-jlg'),
+                        html: '',
+                    };
+                }
+
+                if (isBlockPreviewResolving) {
+                    return {
+                        status: 'info',
+                        message: __('Chargement de l’aperçu du bloc de repli…', 'visi-bloc-jlg'),
+                        html: '',
+                    };
+                }
+
+                if (!blockFallbackPreviewHtml) {
+                    return {
+                        status: 'warning',
+                        message: __('Impossible d’afficher l’aperçu du bloc sélectionné.', 'visi-bloc-jlg'),
+                        html: '',
+                    };
+                }
+
+                return {
+                    status: 'ready',
+                    message: '',
+                    html: blockFallbackPreviewHtml,
+                };
+            }
+
+            if (!hasGlobalFallback) {
+                return {
+                    status: 'warning',
+                    message: __('Aucun repli global n’est configuré.', 'visi-bloc-jlg'),
+                    html: '',
+                };
+            }
+
+            if (!globalFallbackPreviewHtml) {
+                return {
+                    status: 'warning',
+                    message: __('Aucun aperçu disponible pour le repli global.', 'visi-bloc-jlg'),
+                    html: '',
+                };
+            }
+
+            return {
+                status: 'ready',
+                message: '',
+                html: globalFallbackPreviewHtml,
+            };
+        }, [
+            fallbackEnabled,
+            fallbackBehavior,
+            fallbackCustomText,
+            customFallbackPreviewHtml,
+            fallbackBlockId,
+            isBlockPreviewResolving,
+            blockFallbackPreviewHtml,
+            hasGlobalFallback,
+            globalFallbackPreviewHtml,
+        ]);
+
+        const fallbackPreviewHtmlContent = fallbackPreviewDetails.html;
+        const fallbackPreviewNoticeStatus = fallbackPreviewDetails.status;
+        const fallbackPreviewNoticeMessage = fallbackPreviewDetails.message;
+
 
         const updateAdvancedVisibility = (updater) => {
             const current = normalizeAdvancedVisibility({ ...advancedVisibility });
@@ -1870,6 +2099,35 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                                     </Notice>
                                                 )}
                                             </Fragment>
+                                        )}
+                                        <ToggleControl
+                                            label={__('Prévisualiser le repli', 'visi-bloc-jlg')}
+                                            checked={isFallbackPreviewVisible}
+                                            onChange={() =>
+                                                setFallbackPreviewVisible((currentValue) => !currentValue)
+                                            }
+                                            disabled={!fallbackEnabled}
+                                        />
+                                        {isFallbackPreviewVisible && fallbackEnabled && (
+                                            <div className="visibloc-fallback-preview" role="region" aria-live="polite">
+                                                {fallbackPreviewHtmlContent ? (
+                                                    <div className="visibloc-fallback-preview__content">
+                                                        <RawHTML>{fallbackPreviewHtmlContent}</RawHTML>
+                                                    </div>
+                                                ) : (
+                                                    <Notice
+                                                        status={
+                                                            fallbackPreviewNoticeStatus === 'warning'
+                                                                ? 'warning'
+                                                                : 'info'
+                                                        }
+                                                        isDismissible={false}
+                                                    >
+                                                        {fallbackPreviewNoticeMessage ||
+                                                            __('Aucun aperçu disponible pour ce repli.', 'visi-bloc-jlg')}
+                                                    </Notice>
+                                                )}
+                                            </div>
                                         )}
                                     </Fragment>
                                 )}
