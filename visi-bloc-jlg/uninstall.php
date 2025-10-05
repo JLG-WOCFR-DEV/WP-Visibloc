@@ -1,6 +1,8 @@
 <?php
 if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) { exit; }
 
+require_once __DIR__ . '/includes/cache-constants.php';
+
 // Supprime les options de la base de données
 delete_option( 'visibloc_debug_mode' );
 delete_option( 'visibloc_breakpoint_mobile' );
@@ -34,7 +36,7 @@ delete_transient( 'visibloc_scheduled_posts' );
 delete_transient( 'visibloc_group_block_metadata' );
 delete_transient( 'visibloc_jlg_missing_editor_assets' );
 
-$registered_buckets = get_option( 'visibloc_device_css_transients', [] );
+$registered_buckets = get_option( VISIBLOC_JLG_DEVICE_CSS_BUCKET_OPTION, [] );
 
 if ( is_array( $registered_buckets ) ) {
     foreach ( array_unique( array_map( 'strval', $registered_buckets ) ) as $bucket_key ) {
@@ -42,14 +44,14 @@ if ( is_array( $registered_buckets ) ) {
             continue;
         }
 
-        $transient_name = sprintf( 'visibloc_device_css_%s', $bucket_key );
+        $transient_name = VISIBLOC_JLG_DEVICE_CSS_TRANSIENT_PREFIX . $bucket_key;
 
         delete_transient( $transient_name );
-        wp_cache_delete( $transient_name, 'visibloc_jlg' );
+        wp_cache_delete( $transient_name, VISIBLOC_JLG_DEVICE_CSS_CACHE_GROUP );
     }
 }
 
-delete_option( 'visibloc_device_css_transients' );
-wp_cache_delete( 'visibloc_device_css_transients', 'visibloc_jlg' );
+delete_option( VISIBLOC_JLG_DEVICE_CSS_BUCKET_OPTION );
+wp_cache_delete( VISIBLOC_JLG_DEVICE_CSS_BUCKET_OPTION, VISIBLOC_JLG_DEVICE_CSS_CACHE_GROUP );
 
-wp_cache_delete( 'visibloc_device_css_cache', 'visibloc_jlg' );
+wp_cache_delete( VISIBLOC_JLG_DEVICE_CSS_CACHE_KEY, VISIBLOC_JLG_DEVICE_CSS_CACHE_GROUP );

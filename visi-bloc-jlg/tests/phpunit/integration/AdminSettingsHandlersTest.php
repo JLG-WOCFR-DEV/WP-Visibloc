@@ -2,6 +2,8 @@
 
 use PHPUnit\Framework\TestCase;
 
+require_once dirname( __DIR__, 3 ) . '/includes/cache-constants.php';
+
 if ( ! class_exists( 'Visibloc_Test_Redirect_Exception' ) ) {
     class Visibloc_Test_Redirect_Exception extends Exception {}
 }
@@ -207,16 +209,16 @@ class AdminSettingsHandlersTest extends TestCase {
             'visibloc_device_posts'         => [ 'value' => [ 2 ], 'expires' => 0 ],
             'visibloc_scheduled_posts'      => [ 'value' => [ 3 ], 'expires' => 0 ],
             'visibloc_group_block_metadata' => [ 'value' => [ 'meta' ], 'expires' => 0 ],
-            'visibloc_device_css_bucket-one' => [ 'value' => 'css', 'expires' => 0 ],
+            VISIBLOC_JLG_DEVICE_CSS_TRANSIENT_PREFIX . 'bucket-one' => [ 'value' => 'css', 'expires' => 0 ],
         ];
 
-        $GLOBALS['visibloc_test_options']['visibloc_device_css_transients'] = [ 'bucket-one' ];
+        $GLOBALS['visibloc_test_options'][ VISIBLOC_JLG_DEVICE_CSS_BUCKET_OPTION ] = [ 'bucket-one' ];
 
         if ( ! isset( $GLOBALS['visibloc_test_object_cache']['visibloc_jlg'] ) ) {
             $GLOBALS['visibloc_test_object_cache']['visibloc_jlg'] = [];
         }
 
-        $GLOBALS['visibloc_test_object_cache']['visibloc_jlg']['visibloc_device_css_cache'] = [
+        $GLOBALS['visibloc_test_object_cache'][ VISIBLOC_JLG_DEVICE_CSS_CACHE_GROUP ][ VISIBLOC_JLG_DEVICE_CSS_CACHE_KEY ] = [
             'value'   => [ 'bucket-one' => 'css-content' ],
             'expires' => 0,
         ];
@@ -230,23 +232,23 @@ class AdminSettingsHandlersTest extends TestCase {
             'visibloc_device_posts',
             'visibloc_scheduled_posts',
             'visibloc_group_block_metadata',
-            'visibloc_device_css_bucket-one',
+            VISIBLOC_JLG_DEVICE_CSS_TRANSIENT_PREFIX . 'bucket-one',
         ] as $key ) {
             $this->assertArrayNotHasKey( $key, $transients, sprintf( 'Transient "%s" should be cleared.', $key ) );
         }
 
         $options = $GLOBALS['visibloc_test_options'] ?? [];
         $this->assertArrayNotHasKey(
-            'visibloc_device_css_transients',
+            VISIBLOC_JLG_DEVICE_CSS_BUCKET_OPTION,
             $options,
             'Device CSS transient registry should be cleared.'
         );
 
         $object_cache = $GLOBALS['visibloc_test_object_cache'] ?? [];
-        $cache_group  = $object_cache['visibloc_jlg'] ?? [];
+        $cache_group  = $object_cache[ VISIBLOC_JLG_DEVICE_CSS_CACHE_GROUP ] ?? [];
 
         $this->assertArrayNotHasKey(
-            'visibloc_device_css_cache',
+            VISIBLOC_JLG_DEVICE_CSS_CACHE_KEY,
             $cache_group,
             'Device CSS object cache should be cleared.'
         );

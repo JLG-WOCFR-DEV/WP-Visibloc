@@ -2,6 +2,7 @@
 
 use PHPUnit\Framework\TestCase;
 
+require_once dirname( __DIR__, 3 ) . '/includes/cache-constants.php';
 require_once __DIR__ . '/../role-switcher-test-loader.php';
 
 class UninstallCleanupTest extends TestCase {
@@ -51,12 +52,12 @@ class UninstallCleanupTest extends TestCase {
      */
     public function test_uninstall_clears_editor_asset_and_device_css_caches(): void {
         set_transient( 'visibloc_jlg_missing_editor_assets', 'yes', 0 );
-        wp_cache_set( 'visibloc_device_css_cache', [ 'cached' => true ], 'visibloc_jlg' );
+        wp_cache_set( VISIBLOC_JLG_DEVICE_CSS_CACHE_KEY, [ 'cached' => true ], VISIBLOC_JLG_DEVICE_CSS_CACHE_GROUP );
 
         $this->assertSame( 'yes', get_transient( 'visibloc_jlg_missing_editor_assets' ) );
         $this->assertSame(
             [ 'cached' => true ],
-            wp_cache_get( 'visibloc_device_css_cache', 'visibloc_jlg' )
+            wp_cache_get( VISIBLOC_JLG_DEVICE_CSS_CACHE_KEY, VISIBLOC_JLG_DEVICE_CSS_CACHE_GROUP )
         );
 
         if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
@@ -66,7 +67,7 @@ class UninstallCleanupTest extends TestCase {
         require dirname( __DIR__, 3 ) . '/uninstall.php';
 
         $this->assertFalse( get_transient( 'visibloc_jlg_missing_editor_assets' ) );
-        $this->assertFalse( wp_cache_get( 'visibloc_device_css_cache', 'visibloc_jlg' ) );
+        $this->assertFalse( wp_cache_get( VISIBLOC_JLG_DEVICE_CSS_CACHE_KEY, VISIBLOC_JLG_DEVICE_CSS_CACHE_GROUP ) );
     }
 
     /**
@@ -77,13 +78,13 @@ class UninstallCleanupTest extends TestCase {
         $bucket_keys = [ 'bucket-one', 'bucket-two' ];
 
         update_option( 'visibloc_fallback_settings', [ 'mobile' => 'hidden' ] );
-        update_option( 'visibloc_device_css_transients', $bucket_keys );
+        update_option( VISIBLOC_JLG_DEVICE_CSS_BUCKET_OPTION, $bucket_keys );
 
         wp_cache_set( 'visibloc_fallback_settings', [ 'mobile' => 'hidden' ], 'visibloc_jlg' );
-        wp_cache_set( 'visibloc_device_css_transients', $bucket_keys, 'visibloc_jlg' );
+        wp_cache_set( VISIBLOC_JLG_DEVICE_CSS_BUCKET_OPTION, $bucket_keys, VISIBLOC_JLG_DEVICE_CSS_CACHE_GROUP );
 
         foreach ( $bucket_keys as $bucket_key ) {
-            $transient_name = sprintf( 'visibloc_device_css_%s', $bucket_key );
+            $transient_name = VISIBLOC_JLG_DEVICE_CSS_TRANSIENT_PREFIX . $bucket_key;
 
             set_transient( $transient_name, 'css-' . $bucket_key, 0 );
             wp_cache_set( $transient_name, [ 'cached' => true ], 'visibloc_jlg' );
@@ -96,14 +97,14 @@ class UninstallCleanupTest extends TestCase {
         }
 
         $this->assertSame( [ 'mobile' => 'hidden' ], get_option( 'visibloc_fallback_settings' ) );
-        $this->assertSame( $bucket_keys, get_option( 'visibloc_device_css_transients' ) );
+        $this->assertSame( $bucket_keys, get_option( VISIBLOC_JLG_DEVICE_CSS_BUCKET_OPTION ) );
         $this->assertSame(
             [ 'mobile' => 'hidden' ],
             wp_cache_get( 'visibloc_fallback_settings', 'visibloc_jlg' )
         );
         $this->assertSame(
             $bucket_keys,
-            wp_cache_get( 'visibloc_device_css_transients', 'visibloc_jlg' )
+            wp_cache_get( VISIBLOC_JLG_DEVICE_CSS_BUCKET_OPTION, VISIBLOC_JLG_DEVICE_CSS_CACHE_GROUP )
         );
 
         if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
@@ -118,13 +119,13 @@ class UninstallCleanupTest extends TestCase {
         );
         $this->assertSame(
             '__default__',
-            get_option( 'visibloc_device_css_transients', '__default__' )
+            get_option( VISIBLOC_JLG_DEVICE_CSS_BUCKET_OPTION, '__default__' )
         );
         $this->assertFalse( wp_cache_get( 'visibloc_fallback_settings', 'visibloc_jlg' ) );
-        $this->assertFalse( wp_cache_get( 'visibloc_device_css_transients', 'visibloc_jlg' ) );
+        $this->assertFalse( wp_cache_get( VISIBLOC_JLG_DEVICE_CSS_BUCKET_OPTION, VISIBLOC_JLG_DEVICE_CSS_CACHE_GROUP ) );
 
         foreach ( $bucket_keys as $bucket_key ) {
-            $transient_name = sprintf( 'visibloc_device_css_%s', $bucket_key );
+            $transient_name = VISIBLOC_JLG_DEVICE_CSS_TRANSIENT_PREFIX . $bucket_key;
 
             $this->assertFalse( get_transient( $transient_name ) );
             $this->assertFalse( wp_cache_get( $transient_name, 'visibloc_jlg' ) );
