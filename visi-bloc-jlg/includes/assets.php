@@ -652,46 +652,12 @@ function visibloc_jlg_escape_admin_notice_text( $text ) {
 
 add_action( 'admin_notices', 'visibloc_jlg_render_missing_editor_assets_notice' );
 
-function visibloc_jlg_generate_device_visibility_css( $can_preview, $mobile_bp = null, $tablet_bp = null ) {
+function visibloc_jlg_build_device_visibility_css( $can_preview, $mobile_bp, $tablet_bp ) {
     $default_mobile_bp = 781;
     $default_tablet_bp = 1024;
 
-    if ( null === $mobile_bp ) {
-        $mobile_bp = absint( get_option( 'visibloc_breakpoint_mobile', $default_mobile_bp ) );
-    }
-
-    if ( null === $tablet_bp ) {
-        $tablet_bp = absint( get_option( 'visibloc_breakpoint_tablet', $default_tablet_bp ) );
-    }
-
-    $mobile_bp = $mobile_bp > 0 ? $mobile_bp : $default_mobile_bp;
-    $tablet_bp = $tablet_bp > 0 ? $tablet_bp : $default_tablet_bp;
-
-    $cache_group = 'visibloc_jlg';
-    $cache_key   = 'visibloc_device_css_cache';
-    $bucket_key  = sprintf(
-        '%s:%d:%d:%d',
-        VISIBLOC_JLG_VERSION,
-        $can_preview ? 1 : 0,
-        (int) $mobile_bp,
-        (int) $tablet_bp
-    );
-
-    $transient_key = sprintf( 'visibloc_device_css_%s', $bucket_key );
-
-    if ( function_exists( 'get_transient' ) ) {
-        $transient_css = get_transient( $transient_key );
-
-        if ( false !== $transient_css ) {
-            return $transient_css;
-        }
-    }
-
-    $cached_css = wp_cache_get( $cache_key, $cache_group );
-
-    if ( is_array( $cached_css ) && array_key_exists( $bucket_key, $cached_css ) ) {
-        return $cached_css[ $bucket_key ];
-    }
+    $mobile_bp = (int) $mobile_bp;
+    $tablet_bp = (int) $tablet_bp;
 
     $css_lines      = [];
     $current_blocks = visibloc_jlg_build_visibility_blocks( $mobile_bp, $tablet_bp );
@@ -763,7 +729,58 @@ function visibloc_jlg_generate_device_visibility_css( $can_preview, $mobile_bp =
         $css_lines[] = '}';
     }
 
-    $css = implode( "\n", $css_lines );
+    return implode( "\n", $css_lines );
+}
+
+/**
+ * Generates the device visibility CSS while orchestrating the caching layer.
+ *
+ * The pure CSS construction is delegated to visibloc_jlg_build_device_visibility_css().
+ * Cache entries are cleared via visibloc_jlg_clear_caches() and naturally expire thanks to
+ * the transient timeout defined below.
+ */
+function visibloc_jlg_generate_device_visibility_css( $can_preview, $mobile_bp = null, $tablet_bp = null ) {
+    $default_mobile_bp = 781;
+    $default_tablet_bp = 1024;
+
+    if ( null === $mobile_bp ) {
+        $mobile_bp = absint( get_option( 'visibloc_breakpoint_mobile', $default_mobile_bp ) );
+    }
+
+    if ( null === $tablet_bp ) {
+        $tablet_bp = absint( get_option( 'visibloc_breakpoint_tablet', $default_tablet_bp ) );
+    }
+
+    $mobile_bp = $mobile_bp > 0 ? $mobile_bp : $default_mobile_bp;
+    $tablet_bp = $tablet_bp > 0 ? $tablet_bp : $default_tablet_bp;
+
+    $cache_group = 'visibloc_jlg';
+    $cache_key   = 'visibloc_device_css_cache';
+    $bucket_key  = sprintf(
+        '%s:%d:%d:%d',
+        VISIBLOC_JLG_VERSION,
+        $can_preview ? 1 : 0,
+        (int) $mobile_bp,
+        (int) $tablet_bp
+    );
+
+    $transient_key = sprintf( 'visibloc_device_css_%s', $bucket_key );
+
+    if ( function_exists( 'get_transient' ) ) {
+        $transient_css = get_transient( $transient_key );
+
+        if ( false !== $transient_css ) {
+            return $transient_css;
+        }
+    }
+
+    $cached_css = wp_cache_get( $cache_key, $cache_group );
+
+    if ( is_array( $cached_css ) && array_key_exists( $bucket_key, $cached_css ) ) {
+        return $cached_css[ $bucket_key ];
+    }
+
+    $css = visibloc_jlg_build_device_visibility_css( $can_preview, $mobile_bp, $tablet_bp );
 
     if ( ! is_array( $cached_css ) ) {
         $cached_css = [];
@@ -772,7 +789,9 @@ function visibloc_jlg_generate_device_visibility_css( $can_preview, $mobile_bp =
     $cached_css[ $bucket_key ] = $css;
 
     if ( function_exists( 'set_transient' ) ) {
-        set_transient( $transient_key, $css, 0 );
+        $transient_expiration = defined( 'DAY_IN_SECONDS' ) ? DAY_IN_SECONDS : 86400;
+        // The transient expiration prevents stale CSS in case visibloc_jlg_clear_caches() is not triggered.
+        set_transient( $transient_key, $css, $transient_expiration );
     }
 
     if ( function_exists( 'get_option' ) && function_exists( 'update_option' ) ) {
