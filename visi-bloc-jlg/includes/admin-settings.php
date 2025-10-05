@@ -36,168 +36,270 @@ function visibloc_jlg_handle_options_save() {
 
     if ( ! is_string( $nonce ) || '' === $nonce ) return;
 
-    $submitted_supported_blocks = [];
-    if ( isset( $_POST['visibloc_supported_blocks'] ) ) {
-        $submitted_supported_blocks = (array) wp_unslash( $_POST['visibloc_supported_blocks'] );
-    }
+    $handlers = visibloc_jlg_get_settings_request_handlers();
 
-    $mobile_breakpoint          = null;
-    $mobile_breakpoint_invalid  = false;
-    if ( isset( $_POST['visibloc_breakpoint_mobile'] ) ) {
-        $raw_mobile_breakpoint = trim( wp_unslash( $_POST['visibloc_breakpoint_mobile'] ) );
-        if ( '' !== $raw_mobile_breakpoint ) {
-            $mobile_breakpoint = absint( $raw_mobile_breakpoint );
-            if ( $mobile_breakpoint < 1 ) {
-                $mobile_breakpoint_invalid = true;
-                $mobile_breakpoint         = null;
-            }
-        }
-    }
-
-    $tablet_breakpoint          = null;
-    $tablet_breakpoint_invalid  = false;
-    if ( isset( $_POST['visibloc_breakpoint_tablet'] ) ) {
-        $raw_tablet_breakpoint = trim( wp_unslash( $_POST['visibloc_breakpoint_tablet'] ) );
-        if ( '' !== $raw_tablet_breakpoint ) {
-            $tablet_breakpoint = absint( $raw_tablet_breakpoint );
-            if ( $tablet_breakpoint < 1 ) {
-                $tablet_breakpoint_invalid = true;
-                $tablet_breakpoint         = null;
-            }
-        }
-    }
-
-    $submitted_roles = [];
-    if ( isset( $_POST['visibloc_preview_roles'] ) ) {
-        $submitted_roles = array_map( 'sanitize_key', (array) wp_unslash( $_POST['visibloc_preview_roles'] ) );
-    }
-
-    if ( wp_verify_nonce( $nonce, 'visibloc_save_supported_blocks' ) ) {
-        visibloc_jlg_update_supported_blocks( $submitted_supported_blocks );
-        visibloc_jlg_clear_caches();
-        wp_safe_redirect( admin_url( 'admin.php?page=visi-bloc-jlg-help&status=updated' ) );
-        exit;
-    }
-
-    if ( wp_verify_nonce( $nonce, 'visibloc_export_settings' ) ) {
-        visibloc_jlg_export_settings_snapshot();
-        exit;
-    }
-
-    if ( wp_verify_nonce( $nonce, 'visibloc_import_settings' ) ) {
-        $payload = isset( $_POST['visibloc_settings_payload'] )
-            ? wp_unslash( $_POST['visibloc_settings_payload'] )
-            : '';
-
-        $import_result = visibloc_jlg_import_settings_snapshot( $payload );
-        $status        = is_wp_error( $import_result ) ? 'settings_import_failed' : 'settings_imported';
-        $redirect_url  = add_query_arg(
-            'status',
-            $status,
-            admin_url( 'admin.php?page=visi-bloc-jlg-help' )
-        );
-
-        if ( is_wp_error( $import_result ) ) {
-            $error_code = $import_result->get_error_code();
-
-            if ( is_string( $error_code ) && '' !== $error_code ) {
-                $redirect_url = add_query_arg( 'error_code', rawurlencode( $error_code ), $redirect_url );
-            }
+    foreach ( $handlers as $action => $handler ) {
+        if ( ! is_callable( $handler ) ) {
+            continue;
         }
 
-        wp_safe_redirect( $redirect_url );
-        exit;
+        if ( ! wp_verify_nonce( $nonce, $action ) ) {
+            continue;
+        }
+
+        $data   = visibloc_jlg_prepare_settings_request_data( $action );
+        $result = call_user_func( $handler, $data );
+
+        visibloc_jlg_finalize_settings_request( $result );
+        return;
+    }
+}
+
+function visibloc_jlg_get_settings_request_handlers() {
+    return [
+        'visibloc_save_supported_blocks' => 'visibloc_jlg_handle_supported_blocks_request',
+        'visibloc_export_settings'       => 'visibloc_jlg_handle_export_settings_request',
+        'visibloc_import_settings'       => 'visibloc_jlg_handle_import_settings_request',
+        'visibloc_toggle_debug'          => 'visibloc_jlg_handle_toggle_debug_request',
+        'visibloc_save_breakpoints'      => 'visibloc_jlg_handle_breakpoints_request',
+        'visibloc_save_fallback'         => 'visibloc_jlg_handle_fallback_request',
+        'visibloc_save_permissions'      => 'visibloc_jlg_handle_permissions_request',
+    ];
+}
+
+function visibloc_jlg_prepare_settings_request_data( $action ) {
+    switch ( $action ) {
+        case 'visibloc_save_supported_blocks':
+            $submitted_supported_blocks = [];
+            if ( isset( $_POST['visibloc_supported_blocks'] ) ) {
+                $submitted_supported_blocks = (array) wp_unslash( $_POST['visibloc_supported_blocks'] );
+            }
+
+            return [
+                'supported_blocks' => visibloc_jlg_normalize_block_names( $submitted_supported_blocks ),
+            ];
+
+        case 'visibloc_import_settings':
+            return [
+                'payload' => isset( $_POST['visibloc_settings_payload'] )
+                    ? wp_unslash( $_POST['visibloc_settings_payload'] )
+                    : '',
+            ];
+
+        case 'visibloc_save_breakpoints':
+            $mobile_invalid = false;
+            $tablet_invalid = false;
+
+            return [
+                'mobile_breakpoint' => visibloc_jlg_normalize_breakpoint_from_request( 'visibloc_breakpoint_mobile', $mobile_invalid ),
+                'tablet_breakpoint' => visibloc_jlg_normalize_breakpoint_from_request( 'visibloc_breakpoint_tablet', $tablet_invalid ),
+                'mobile_invalid'    => $mobile_invalid,
+                'tablet_invalid'    => $tablet_invalid,
+            ];
+
+        case 'visibloc_save_fallback':
+            $raw_settings = [
+                'mode'     => isset( $_POST['visibloc_fallback_mode'] )
+                    ? wp_unslash( $_POST['visibloc_fallback_mode'] )
+                    : 'none',
+                'text'     => isset( $_POST['visibloc_fallback_text'] )
+                    ? wp_unslash( $_POST['visibloc_fallback_text'] )
+                    : '',
+                'block_id' => isset( $_POST['visibloc_fallback_block_id'] )
+                    ? wp_unslash( $_POST['visibloc_fallback_block_id'] )
+                    : 0,
+            ];
+
+            return [
+                'settings' => visibloc_jlg_normalize_fallback_settings( $raw_settings ),
+            ];
+
+        case 'visibloc_save_permissions':
+            $submitted_roles = [];
+            if ( isset( $_POST['visibloc_preview_roles'] ) ) {
+                $submitted_roles = array_map( 'sanitize_key', (array) wp_unslash( $_POST['visibloc_preview_roles'] ) );
+            }
+
+            return [
+                'roles' => array_values( array_unique( $submitted_roles ) ),
+            ];
     }
 
-    if ( wp_verify_nonce( $nonce, 'visibloc_toggle_debug' ) ) {
-        $current_status = get_option( 'visibloc_debug_mode', 'off' );
-        update_option( 'visibloc_debug_mode', ( $current_status === 'on' ) ? 'off' : 'on' );
-        visibloc_jlg_clear_caches();
-        wp_safe_redirect( admin_url( 'admin.php?page=visi-bloc-jlg-help&status=updated' ) );
-        exit;
+    return [];
+}
+
+function visibloc_jlg_finalize_settings_request( $result ) {
+    if ( ! is_array( $result ) ) {
+        return;
     }
 
-    if ( wp_verify_nonce( $nonce, 'visibloc_save_breakpoints' ) ) {
-        $current_mobile_bp = get_option( 'visibloc_breakpoint_mobile', 781 );
-        $current_tablet_bp = get_option( 'visibloc_breakpoint_tablet', 1024 );
+    $should_exit = ! ( defined( 'VISIBLOC_JLG_DISABLE_EXIT' ) && VISIBLOC_JLG_DISABLE_EXIT );
 
-        if ( $mobile_breakpoint_invalid || $tablet_breakpoint_invalid ) {
-            $redirect_url = add_query_arg(
-                'status',
-                'invalid_breakpoints',
-                admin_url( 'admin.php?page=visi-bloc-jlg-help' )
-            );
-            wp_safe_redirect( $redirect_url );
+    if ( ! empty( $result['redirect_to'] ) && is_string( $result['redirect_to'] ) ) {
+        wp_safe_redirect( $result['redirect_to'] );
+
+        if ( $should_exit ) {
             exit;
         }
 
-        $new_mobile_bp = ( null !== $mobile_breakpoint ) ? $mobile_breakpoint : $current_mobile_bp;
-        $new_tablet_bp = ( null !== $tablet_breakpoint ) ? $tablet_breakpoint : $current_tablet_bp;
+        return;
+    }
 
-        if ( $new_mobile_bp < 1 || $new_tablet_bp < 1 || $new_tablet_bp <= $new_mobile_bp ) {
-            $redirect_url = add_query_arg(
-                'status',
-                'invalid_breakpoints',
-                admin_url( 'admin.php?page=visi-bloc-jlg-help' )
-            );
-            wp_safe_redirect( $redirect_url );
+    if ( ! empty( $result['should_exit'] ) ) {
+        if ( $should_exit ) {
             exit;
         }
 
-        if ( null !== $mobile_breakpoint && $mobile_breakpoint !== $current_mobile_bp ) {
-            update_option( 'visibloc_breakpoint_mobile', $mobile_breakpoint );
-        }
+        return;
+    }
+}
 
-        if ( null !== $tablet_breakpoint && $tablet_breakpoint !== $current_tablet_bp ) {
-            update_option( 'visibloc_breakpoint_tablet', $tablet_breakpoint );
-        }
+function visibloc_jlg_handle_supported_blocks_request( array $data ) {
+    $supported_blocks = isset( $data['supported_blocks'] ) ? (array) $data['supported_blocks'] : [];
 
-        visibloc_jlg_clear_caches();
-        wp_safe_redirect( admin_url( 'admin.php?page=visi-bloc-jlg-help&status=updated' ) );
-        exit;
+    visibloc_jlg_update_supported_blocks( $supported_blocks );
+    visibloc_jlg_clear_caches();
+
+    return visibloc_jlg_create_settings_redirect_result( 'updated' );
+}
+
+function visibloc_jlg_handle_export_settings_request( array $data ) { // phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UnusedVariable
+    visibloc_jlg_export_settings_snapshot();
+
+    return [
+        'should_exit' => true,
+    ];
+}
+
+function visibloc_jlg_handle_import_settings_request( array $data ) {
+    $payload = isset( $data['payload'] ) ? $data['payload'] : '';
+
+    $import_result = visibloc_jlg_import_settings_snapshot( $payload );
+    $status        = is_wp_error( $import_result ) ? 'settings_import_failed' : 'settings_imported';
+
+    $redirect_args = [];
+
+    if ( is_wp_error( $import_result ) ) {
+        $error_code = $import_result->get_error_code();
+
+        if ( is_string( $error_code ) && '' !== $error_code ) {
+            $redirect_args['error_code'] = rawurlencode( $error_code );
+        }
     }
 
-    if ( wp_verify_nonce( $nonce, 'visibloc_save_fallback' ) ) {
-        $raw_settings = [
-            'mode'     => isset( $_POST['visibloc_fallback_mode'] )
-                ? wp_unslash( $_POST['visibloc_fallback_mode'] )
-                : 'none',
-            'text'     => isset( $_POST['visibloc_fallback_text'] )
-                ? wp_unslash( $_POST['visibloc_fallback_text'] )
-                : '',
-            'block_id' => isset( $_POST['visibloc_fallback_block_id'] )
-                ? wp_unslash( $_POST['visibloc_fallback_block_id'] )
-                : 0,
+    return visibloc_jlg_create_settings_redirect_result( $status, $redirect_args );
+}
+
+function visibloc_jlg_handle_toggle_debug_request( array $data ) { // phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UnusedVariable
+    $current_status = get_option( 'visibloc_debug_mode', 'off' );
+    update_option( 'visibloc_debug_mode', ( $current_status === 'on' ) ? 'off' : 'on' );
+    visibloc_jlg_clear_caches();
+
+    return visibloc_jlg_create_settings_redirect_result( 'updated' );
+}
+
+function visibloc_jlg_handle_breakpoints_request( array $data ) {
+    $mobile_breakpoint = isset( $data['mobile_breakpoint'] ) ? $data['mobile_breakpoint'] : null;
+    $tablet_breakpoint = isset( $data['tablet_breakpoint'] ) ? $data['tablet_breakpoint'] : null;
+    $mobile_invalid    = ! empty( $data['mobile_invalid'] );
+    $tablet_invalid    = ! empty( $data['tablet_invalid'] );
+
+    if ( $mobile_invalid || $tablet_invalid ) {
+        return visibloc_jlg_create_settings_redirect_result( 'invalid_breakpoints' );
+    }
+
+    $current_mobile_bp = get_option( 'visibloc_breakpoint_mobile', 781 );
+    $current_tablet_bp = get_option( 'visibloc_breakpoint_tablet', 1024 );
+
+    $new_mobile_bp = ( null !== $mobile_breakpoint ) ? $mobile_breakpoint : $current_mobile_bp;
+    $new_tablet_bp = ( null !== $tablet_breakpoint ) ? $tablet_breakpoint : $current_tablet_bp;
+
+    if ( $new_mobile_bp < 1 || $new_tablet_bp < 1 || $new_tablet_bp <= $new_mobile_bp ) {
+        return visibloc_jlg_create_settings_redirect_result( 'invalid_breakpoints' );
+    }
+
+    if ( null !== $mobile_breakpoint && $mobile_breakpoint !== $current_mobile_bp ) {
+        update_option( 'visibloc_breakpoint_mobile', $mobile_breakpoint );
+    }
+
+    if ( null !== $tablet_breakpoint && $tablet_breakpoint !== $current_tablet_bp ) {
+        update_option( 'visibloc_breakpoint_tablet', $tablet_breakpoint );
+    }
+
+    visibloc_jlg_clear_caches();
+
+    return visibloc_jlg_create_settings_redirect_result( 'updated' );
+}
+
+function visibloc_jlg_handle_fallback_request( array $data ) {
+    $settings = isset( $data['settings'] ) && is_array( $data['settings'] ) ? $data['settings'] : [];
+
+    update_option( 'visibloc_fallback_settings', $settings );
+    visibloc_jlg_clear_caches();
+
+    return visibloc_jlg_create_settings_redirect_result( 'updated' );
+}
+
+function visibloc_jlg_handle_permissions_request( array $data ) {
+    if ( ! function_exists( 'get_editable_roles' ) ) {
+        require_once ABSPATH . 'wp-admin/includes/user.php';
+    }
+
+    $roles           = isset( $data['roles'] ) ? (array) $data['roles'] : [];
+    $editable_roles  = array_keys( (array) get_editable_roles() );
+    $editable_roles  = array_map( 'sanitize_key', $editable_roles );
+    $sanitized_roles = array_values( array_unique( array_intersect( $editable_roles, $roles ) ) );
+
+    if ( ! in_array( 'administrator', $sanitized_roles, true ) ) {
+        $sanitized_roles[] = 'administrator';
+    }
+
+    update_option( 'visibloc_preview_roles', $sanitized_roles );
+    visibloc_jlg_clear_caches();
+
+    return visibloc_jlg_create_settings_redirect_result( 'updated' );
+}
+
+function visibloc_jlg_create_settings_redirect_result( $status = null, array $query_args = [] ) {
+    $base_url = admin_url( 'admin.php?page=visi-bloc-jlg-help' );
+
+    if ( null !== $status && '' !== $status ) {
+        $query_args['status'] = $status;
+    }
+
+    if ( empty( $query_args ) ) {
+        return [
+            'redirect_to' => $base_url,
         ];
-
-        $normalized_settings = visibloc_jlg_normalize_fallback_settings( $raw_settings );
-
-        update_option( 'visibloc_fallback_settings', $normalized_settings );
-        visibloc_jlg_clear_caches();
-        wp_safe_redirect( admin_url( 'admin.php?page=visi-bloc-jlg-help&status=updated' ) );
-        exit;
     }
 
-    if ( wp_verify_nonce( $nonce, 'visibloc_save_permissions' ) ) {
-        if ( ! function_exists( 'get_editable_roles' ) ) {
-            require_once ABSPATH . 'wp-admin/includes/user.php';
-        }
+    return [
+        'redirect_to' => add_query_arg( $query_args, $base_url ),
+    ];
+}
 
-        $editable_roles = array_keys( (array) get_editable_roles() );
-        $editable_roles = array_map( 'sanitize_key', $editable_roles );
+function visibloc_jlg_normalize_breakpoint_from_request( $field_name, &$invalid_flag ) {
+    $invalid_flag = false;
 
-        $sanitized_roles = array_values( array_unique( array_intersect( $editable_roles, $submitted_roles ) ) );
-
-        // On s'assure que l'administrateur est toujours inclus
-        if ( ! in_array( 'administrator', $sanitized_roles, true ) ) {
-            $sanitized_roles[] = 'administrator';
-        }
-
-        update_option( 'visibloc_preview_roles', $sanitized_roles );
-        visibloc_jlg_clear_caches();
-        wp_safe_redirect( admin_url( 'admin.php?page=visi-bloc-jlg-help&status=updated' ) );
-        exit;
+    if ( ! isset( $_POST[ $field_name ] ) ) {
+        return null;
     }
+
+    $raw_value = trim( wp_unslash( $_POST[ $field_name ] ) );
+
+    if ( '' === $raw_value ) {
+        return null;
+    }
+
+    $normalized = absint( $raw_value );
+
+    if ( $normalized < 1 ) {
+        $invalid_flag = true;
+
+        return null;
+    }
+
+    return $normalized;
 }
 
 function visibloc_jlg_get_settings_snapshot() {
