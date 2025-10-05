@@ -24,6 +24,7 @@ import {
     FlexItem,
     TextareaControl,
     TextControl,
+    Tooltip,
 } from '@wordpress/components';
 import { __, sprintf, _n } from '@wordpress/i18n';
 import { __experimentalGetSettings, dateI18n, format as formatDate } from '@wordpress/date';
@@ -33,20 +34,34 @@ import './editor-styles.css';
 
 const DEFAULT_SUPPORTED_BLOCKS = ['core/group'];
 
-const StatusBadge = ({ label, variant = '', screenReaderText = '' }) => {
+const StatusBadge = ({ label, variant = '', screenReaderText = '', description = '' }) => {
     const classNames = ['visibloc-status-badge'];
+    const hasDescription = typeof description === 'string' && description.trim().length > 0;
 
     if (typeof variant === 'string' && variant.trim()) {
         classNames.push(`visibloc-status-badge--${variant.trim()}`);
     }
 
-    return (
+    const content = (
         <span className={classNames.join(' ')}>
-            {label}
+            <span className="visibloc-status-badge__label">{label}</span>
+            {hasDescription ? (
+                <span className="visibloc-status-badge__description">{description}</span>
+            ) : null}
             {screenReaderText ? (
                 <span className="screen-reader-text">{screenReaderText}</span>
             ) : null}
         </span>
+    );
+
+    if (!hasDescription) {
+        return content;
+    }
+
+    return (
+        <Tooltip text={description}>
+            {content}
+        </Tooltip>
     );
 };
 
@@ -354,6 +369,10 @@ const getBlockHasFallback = (attrs) => {
 
     return Boolean(fallbackSettings && fallbackSettings.hasContent);
 };
+
+const blockVisibilityState = new Map();
+const pendingListViewUpdates = new Map();
+let listViewRafHandle = null;
 
 const DAY_OF_WEEK_LOOKUP = (() => {
     const entries = getVisiBlocArray('daysOfWeek');
@@ -681,7 +700,7 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             return <BlockEdit {...props} />;
         }
 
-        const { attributes, setAttributes, isSelected } = props;
+        const { attributes, setAttributes, isSelected, clientId } = props;
         const {
             isHidden,
             deviceVisibility,
@@ -698,6 +717,7 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
 
         const advancedVisibility = normalizeAdvancedVisibility(rawAdvancedVisibility);
         const fallbackSettings = getVisiBlocObject('fallbackSettings') || {};
+        const hasFallback = getBlockHasFallback(attributes);
         const hasGlobalFallback = Boolean(fallbackSettings && fallbackSettings.hasContent);
         const globalFallbackSummary = fallbackSettings && typeof fallbackSettings.summary === 'string'
             ? fallbackSettings.summary
@@ -1376,6 +1396,104 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             return summaries[fallbackBehavior] || summaries.inherit;
         })();
 
+        const hiddenDescriptionParts = [];
+
+        if (isHidden) {
+            hiddenDescriptionParts.push(__('Bloc masqué manuellement.', 'visi-bloc-jlg'));
+        }
+
+        if (deviceVisibilitySummary) {
+            hiddenDescriptionParts.push(
+                sprintf(__('Appareils : %s', 'visi-bloc-jlg'), deviceVisibilitySummary),
+            );
+        }
+
+        if (isSchedulingEnabled) {
+            hiddenDescriptionParts.push(
+                sprintf(__('Programmation : %s', 'visi-bloc-jlg'), scheduleSummary),
+            );
+        }
+
+        if (rolesSummary) {
+            hiddenDescriptionParts.push(
+                sprintf(__('Rôles ciblés : %s', 'visi-bloc-jlg'), rolesSummary),
+            );
+        }
+
+        if (advancedRulesSummary) {
+            hiddenDescriptionParts.push(
+                sprintf(__('Règles avancées : %s', 'visi-bloc-jlg'), advancedRulesSummary),
+            );
+        }
+
+        const fallbackDescriptionParts = [];
+
+        if (hasFallback) {
+            if (fallbackSummary) {
+                fallbackDescriptionParts.push(
+                    sprintf(__('Type : %s', 'visi-bloc-jlg'), fallbackSummary),
+                );
+            }
+
+            if (fallbackBehavior === 'inherit') {
+                if (globalFallbackSummary) {
+                    fallbackDescriptionParts.push(
+                        sprintf(__('Repli global : %s', 'visi-bloc-jlg'), globalFallbackSummary),
+                    );
+                } else if (hasGlobalFallback) {
+                    fallbackDescriptionParts.push(
+                        __('Utilise le contenu de repli global.', 'visi-bloc-jlg'),
+                    );
+                } else {
+                    fallbackDescriptionParts.push(
+                        __('Aucun repli global défini.', 'visi-bloc-jlg'),
+                    );
+                }
+            } else if (fallbackBehavior === 'text') {
+                const trimmedText = typeof fallbackCustomText === 'string'
+                    ? fallbackCustomText.trim()
+                    : '';
+
+                if (trimmedText) {
+                    fallbackDescriptionParts.push(trimmedText);
+                }
+            } else if (fallbackBehavior === 'block' && fallbackBlockId) {
+                const matchingFallbackBlock = fallbackBlockOptions.find(
+                    (option) => option.value === String(fallbackBlockId),
+                );
+
+                if (matchingFallbackBlock && matchingFallbackBlock.label) {
+                    fallbackDescriptionParts.push(
+                        sprintf(__('Bloc : %s', 'visi-bloc-jlg'), matchingFallbackBlock.label),
+                    );
+                }
+            }
+        }
+
+        if (clientId) {
+            const hiddenDescription = hiddenDescriptionParts.join('\n').trim();
+            const fallbackDescription = fallbackDescriptionParts.join('\n').trim();
+            const previousState = blockVisibilityState.get(clientId) || {};
+            const nextState = {
+                ...previousState,
+                isHidden: Boolean(isHidden),
+                hasFallback,
+                hiddenDescription,
+                fallbackDescription,
+            };
+
+            blockVisibilityState.set(clientId, nextState);
+
+            if (
+                previousState.isHidden !== nextState.isHidden ||
+                previousState.hasFallback !== nextState.hasFallback ||
+                previousState.hiddenDescription !== nextState.hiddenDescription ||
+                previousState.fallbackDescription !== nextState.fallbackDescription
+            ) {
+                queueListViewUpdate(clientId, nextState);
+            }
+        }
+
         return (
             <Fragment>
                 <BlockEdit {...props} />
@@ -1807,10 +1925,6 @@ function addSaveClasses(extraProps, blockType, attributes) {
     };
 }
 
-const blockVisibilityState = new Map();
-const pendingListViewUpdates = new Map();
-let listViewRafHandle = null;
-
 function getIsListViewOpened() {
     const editPostStore = select('core/edit-post');
 
@@ -1884,8 +1998,8 @@ function flushListViewUpdates() {
     pendingListViewUpdates.clear();
 
     if (unresolvedUpdates.size) {
-        unresolvedUpdates.forEach((isHidden, clientId) => {
-            pendingListViewUpdates.set(clientId, isHidden);
+        unresolvedUpdates.forEach((state, clientId) => {
+            pendingListViewUpdates.set(clientId, state);
         });
     }
 
@@ -1906,7 +2020,9 @@ function queueListViewUpdate(clientId, state) {
     if (
         pendingState &&
         pendingState.isHidden === state.isHidden &&
-        pendingState.hasFallback === state.hasFallback
+        pendingState.hasFallback === state.hasFallback &&
+        pendingState.hiddenDescription === state.hiddenDescription &&
+        pendingState.fallbackDescription === state.fallbackDescription
     ) {
         return;
     }
@@ -1951,14 +2067,20 @@ function syncListView() {
             const hasFallback = getBlockHasFallback(block.attributes);
             const previousState = blockVisibilityState.get(clientId) || {};
 
+            const nextState = {
+                ...previousState,
+                isHidden,
+                hasFallback,
+            };
+
             if (
-                previousState.isHidden !== isHidden ||
-                previousState.hasFallback !== hasFallback
+                previousState.isHidden !== nextState.isHidden ||
+                previousState.hasFallback !== nextState.hasFallback
             ) {
-                queueListViewUpdate(clientId, { isHidden, hasFallback });
+                queueListViewUpdate(clientId, nextState);
             }
 
-            blockVisibilityState.set(clientId, { isHidden, hasFallback });
+            blockVisibilityState.set(clientId, nextState);
             seenSupportedBlocks.add(clientId);
         }
 
@@ -2004,6 +2126,17 @@ addFilter(
             const className = typeof props.className === 'string' ? props.className : '';
             const hasHiddenBadge = className.includes('bloc-editeur-cache');
             const hasFallbackBadge = className.includes('bloc-editeur-repli');
+            const visibilityState = props.clientId
+                ? blockVisibilityState.get(props.clientId) || {}
+                : {};
+            const hiddenDescription =
+                typeof visibilityState.hiddenDescription === 'string'
+                    ? visibilityState.hiddenDescription
+                    : '';
+            const fallbackDescription =
+                typeof visibilityState.fallbackDescription === 'string'
+                    ? visibilityState.fallbackDescription
+                    : '';
 
             if (!hasHiddenBadge && !hasFallbackBadge) {
                 return <BlockListBlock {...props} />;
@@ -2023,6 +2156,7 @@ addFilter(
                             'Ce bloc est masqué pour les visiteurs du site.',
                             'visi-bloc-jlg',
                         )}
+                        description={hiddenDescription}
                     />,
                 );
             }
@@ -2037,6 +2171,7 @@ addFilter(
                             'Le contenu de repli est affiché à la place du bloc original.',
                             'visi-bloc-jlg',
                         )}
+                        description={fallbackDescription}
                     />,
                 );
             }
