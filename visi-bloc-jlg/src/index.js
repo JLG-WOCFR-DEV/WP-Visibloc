@@ -15,6 +15,9 @@ import {
     DateTimePicker,
     Notice,
     Button,
+    DropdownMenu,
+    MenuGroup,
+    MenuItem,
     BaseControl,
     Flex,
     FlexBlock,
@@ -1623,20 +1626,35 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                 {advancedVisibility.rules.map((rule, index) =>
                                     renderAdvancedRule(rule, index),
                                 )}
-                                <Button
-                                    variant="secondary"
-                                    onClick={() =>
-                                        updateAdvancedVisibility((current) => ({
-                                            ...current,
-                                            rules: [
-                                                ...current.rules,
-                                                createDefaultRuleForType('post_type'),
-                                            ],
-                                        }))
-                                    }
+                                <DropdownMenu
+                                    text={__('Ajouter une règle de…', 'visi-bloc-jlg')}
+                                    label={__('Ajouter une règle de…', 'visi-bloc-jlg')}
+                                    toggleProps={{ variant: 'secondary' }}
                                 >
-                                    {__('Ajouter une règle', 'visi-bloc-jlg')}
-                                </Button>
+                                    {({ onClose }) => (
+                                        <MenuGroup
+                                            label={__('Types de règles disponibles', 'visi-bloc-jlg')}
+                                        >
+                                            {ADVANCED_RULE_TYPE_OPTIONS.map((option) => (
+                                                <MenuItem
+                                                    key={option.value}
+                                                    onClick={() => {
+                                                        updateAdvancedVisibility((current) => ({
+                                                            ...current,
+                                                            rules: [
+                                                                ...current.rules,
+                                                                createDefaultRuleForType(option.value),
+                                                            ],
+                                                        }));
+                                                        onClose();
+                                                    }}
+                                                >
+                                                    {option.label}
+                                                </MenuItem>
+                                            ))}
+                                        </MenuGroup>
+                                    )}
+                                </DropdownMenu>
                                 <p className="components-help-text">
                                     {__(
                                         'Ces règles permettent d’affiner la visibilité selon le contexte du contenu, le modèle ou un horaire récurrent.',
