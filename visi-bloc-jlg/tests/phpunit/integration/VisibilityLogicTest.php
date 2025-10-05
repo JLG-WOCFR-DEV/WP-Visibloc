@@ -172,9 +172,111 @@ class VisibilityLogicTest extends TestCase {
 
         $output = visibloc_jlg_render_block_filter( '<p>Hidden admin content</p>', $block );
 
-        $this->assertStringContainsString( 'bloc-cache-apercu', $output );
-        $this->assertStringContainsString( 'vb-label-top', $output );
+        $this->assertStringContainsString( 'bloc-role-apercu', $output );
+        $this->assertStringContainsString( 'Restriction par rôle', $output );
         $this->assertStringContainsString( '<p>Hidden admin content</p>', $output );
+    }
+
+    public function test_advanced_rule_combined_with_fallback_displays_custom_markup(): void {
+        global $post;
+
+        $previous_post = isset( $post ) ? $post : null;
+        $post          = new WP_Post(
+            [
+                'ID'          => 123,
+                'post_type'   => 'page',
+                'post_status' => 'publish',
+            ]
+        );
+
+        try {
+            $block = [
+                'blockName' => 'core/group',
+                'attrs'     => [
+                    'advancedVisibility' => [
+                        'logic' => 'AND',
+                        'rules' => [
+                            [
+                                'type'     => 'logged_in_status',
+                                'operator' => 'is',
+                                'value'    => 'logged_in',
+                            ],
+                        ],
+                    ],
+                    'fallbackEnabled'     => true,
+                    'fallbackBehavior'    => 'text',
+                    'fallbackCustomText'  => 'Fallback pour règles avancées',
+                ],
+            ];
+
+            $output = visibloc_jlg_render_block_filter( '<p>Contenu avancé</p>', $block );
+
+            $this->assertStringContainsString( 'Fallback pour règles avancées', $output );
+            $this->assertStringNotContainsString( 'Contenu avancé', $output );
+        } finally {
+            $post = $previous_post;
+        }
+    }
+
+    public function test_inverted_schedule_shows_preview_notice_without_fallback(): void {
+        global $visibloc_test_state;
+
+        $visibloc_test_state['effective_user_id']             = 7;
+        $visibloc_test_state['current_user']                  = new Visibloc_Test_User( 7, [ 'administrator' ] );
+        $visibloc_test_state['can_preview_users'][7]          = true;
+        $visibloc_test_state['can_impersonate_users'][7]      = true;
+        $visibloc_test_state['allowed_preview_roles']         = [ 'administrator' ];
+        $visibloc_test_state['preview_role']                  = '';
+
+        $block = [
+            'blockName' => 'core/group',
+            'attrs'     => [
+                'isSchedulingEnabled' => true,
+                'publishStartDate'    => '2024-05-01T10:00:00',
+                'publishEndDate'      => '2024-04-01T10:00:00',
+            ],
+        ];
+
+        $output = visibloc_jlg_render_block_filter( '<p>Programmation inversée</p>', $block );
+
+        $this->assertStringContainsString( 'bloc-schedule-error', $output );
+        $this->assertStringContainsString( 'Invalid schedule', $output );
+        $this->assertStringContainsString( '<p>Programmation inversée</p>', $output );
+        $this->assertStringNotContainsString( 'bloc-fallback-apercu', $output );
+    }
+
+    public function test_role_restriction_with_global_fallback_displays_replacement(): void {
+        $previous_settings = $GLOBALS['visibloc_test_options']['visibloc_fallback_settings'] ?? null;
+
+        try {
+            $GLOBALS['visibloc_test_options']['visibloc_fallback_settings'] = [
+                'mode' => 'text',
+                'text' => 'Fallback global actif',
+            ];
+            visibloc_jlg_get_fallback_settings( true );
+            visibloc_jlg_get_global_fallback_markup( true );
+
+            $block = [
+                'blockName' => 'core/group',
+                'attrs'     => [
+                    'visibilityRoles' => [ 'subscriber' ],
+                ],
+            ];
+
+            $output = visibloc_jlg_render_block_filter( '<p>Contenu restreint</p>', $block );
+
+            $this->assertStringContainsString( 'Fallback global actif', $output );
+            $this->assertStringNotContainsString( 'Contenu restreint', $output );
+        } finally {
+            if ( null === $previous_settings ) {
+                unset( $GLOBALS['visibloc_test_options']['visibloc_fallback_settings'] );
+            } else {
+                $GLOBALS['visibloc_test_options']['visibloc_fallback_settings'] = $previous_settings;
+            }
+
+            visibloc_jlg_get_fallback_settings( true );
+            visibloc_jlg_get_global_fallback_markup( true );
+        }
     }
 
     /**
