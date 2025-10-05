@@ -94,7 +94,7 @@
             }
 
             nextLink.classList.add(activeClass);
-            nextLink.setAttribute('aria-current', 'true');
+            nextLink.setAttribute('aria-current', 'page');
             currentActiveKey = sectionKey;
             currentActiveLink = nextLink;
         };
@@ -104,56 +104,117 @@
             setActiveLink(fallbackKey);
         }
 
-        if (typeof window.IntersectionObserver !== 'function') {
-            return;
-        }
+        navLinks.forEach(function (link) {
+            link.addEventListener('click', function () {
+                var hash = link.hash ? decodeURIComponent(link.hash.substring(1)) : '';
 
-        var updateActiveFromRatios = function () {
-            var bestKey = null;
-            var bestRatio = -1;
+                if (hash && Object.prototype.hasOwnProperty.call(linkBySection, hash)) {
+                    setActiveLink(hash);
+                }
+            });
+        });
+
+        if (typeof window.IntersectionObserver === 'function') {
+            var updateActiveFromRatios = function () {
+                var bestKey = null;
+                var bestRatio = -1;
+
+                observedSectionKeys.forEach(function (key) {
+                    var ratio = ratioBySection[key] || 0;
+
+                    if (ratio > bestRatio + 0.0001) {
+                        bestRatio = ratio;
+                        bestKey = key;
+                    }
+                });
+
+                if (bestKey && bestRatio > 0) {
+                    setActiveLink(bestKey);
+                }
+            };
+
+            var observer = new IntersectionObserver(
+                function (entries) {
+                    entries.forEach(function (entry) {
+                        var target = entry.target;
+                        var key = target.getAttribute('data-visibloc-section') || target.id;
+
+                        if (!key || !Object.prototype.hasOwnProperty.call(ratioBySection, key)) {
+                            return;
+                        }
+
+                        var ratio = entry.isIntersecting ? entry.intersectionRatio : 0;
+                        ratioBySection[key] = ratio;
+                    });
+
+                    updateActiveFromRatios();
+                },
+                {
+                    threshold: [0, 0.1, 0.25, 0.5, 0.75, 1],
+                    rootMargin: '0px 0px -40% 0px',
+                }
+            );
 
             observedSectionKeys.forEach(function (key) {
-                var ratio = ratioBySection[key] || 0;
+                var section = sectionByKey[key];
 
-                if (ratio > bestRatio + 0.0001) {
-                    bestRatio = ratio;
-                    bestKey = key;
+                if (section) {
+                    observer.observe(section);
                 }
             });
 
-            if (bestKey && bestRatio > 0) {
-                setActiveLink(bestKey);
+            return;
+        }
+
+        var fallbackAnimationId = null;
+        var requestFallbackUpdate = function () {
+            if (fallbackAnimationId) {
+                return;
             }
-        };
 
-        var observer = new IntersectionObserver(
-            function (entries) {
-                entries.forEach(function (entry) {
-                    var target = entry.target;
-                    var key = target.getAttribute('data-visibloc-section') || target.id;
+            var raf = window.requestAnimationFrame || function (callback) {
+                return window.setTimeout(callback, 16);
+            };
 
-                    if (!key || !Object.prototype.hasOwnProperty.call(ratioBySection, key)) {
+            fallbackAnimationId = raf(function () {
+                fallbackAnimationId = null;
+
+                var viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+                var bestKey = null;
+                var bestVisible = -1;
+
+                observedSectionKeys.forEach(function (key) {
+                    var section = sectionByKey[key];
+
+                    if (!section) {
                         return;
                     }
 
-                    var ratio = entry.isIntersecting ? entry.intersectionRatio : 0;
-                    ratioBySection[key] = ratio;
+                    var rect = section.getBoundingClientRect();
+                    var top = rect.top;
+                    var bottom = rect.bottom;
+
+                    if (viewportHeight <= 0) {
+                        return;
+                    }
+
+                    var visible = Math.min(bottom, viewportHeight) - Math.max(top, 0);
+                    visible = visible > 0 ? visible : 0;
+
+                    if (visible > bestVisible + 0.5) {
+                        bestVisible = visible;
+                        bestKey = key;
+                    }
                 });
 
-                updateActiveFromRatios();
-            },
-            {
-                threshold: [0, 0.1, 0.25, 0.5, 0.75, 1],
-                rootMargin: '0px 0px -40% 0px',
-            }
-        );
+                if (bestKey && bestVisible > 0) {
+                    setActiveLink(bestKey);
+                }
+            });
+        };
 
-        observedSectionKeys.forEach(function (key) {
-            var section = sectionByKey[key];
-
-            if (section) {
-                observer.observe(section);
-            }
-        });
+        requestFallbackUpdate();
+        window.addEventListener('scroll', requestFallbackUpdate, { passive: true });
+        window.addEventListener('resize', requestFallbackUpdate);
     });
 })();
