@@ -318,14 +318,20 @@ function visibloc_jlg_get_user_visibility_context( $preview_context, &$can_previ
             $applied_preview_role = 'guest';
         } elseif ( '' !== $preview_role ) {
             static $allowed_preview_roles_cache = null;
-
-            if ( null === $allowed_preview_roles_cache ) {
-                $allowed_preview_roles_cache = function_exists( 'visibloc_jlg_get_allowed_preview_roles' )
-                    ? (array) visibloc_jlg_get_allowed_preview_roles()
-                    : [];
-            }
-
+            static $allowed_preview_roles_key = null;
             static $role_exists_cache = [];
+
+            $current_allowed_roles = function_exists( 'visibloc_jlg_get_allowed_preview_roles' )
+                ? (array) visibloc_jlg_get_allowed_preview_roles()
+                : [];
+
+            $allowed_roles_key = md5( wp_json_encode( array_values( $current_allowed_roles ) ) );
+
+            if ( null === $allowed_preview_roles_key || $allowed_preview_roles_key !== $allowed_roles_key ) {
+                $allowed_preview_roles_cache = $current_allowed_roles;
+                $allowed_preview_roles_key   = $allowed_roles_key;
+                $role_exists_cache           = [];
+            }
 
             if ( ! array_key_exists( $preview_role, $role_exists_cache ) ) {
                 $role_exists_cache[ $preview_role ] = (bool) get_role( $preview_role );

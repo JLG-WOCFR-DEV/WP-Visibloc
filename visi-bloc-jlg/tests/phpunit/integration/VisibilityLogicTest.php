@@ -252,6 +252,76 @@ class VisibilityLogicTest extends TestCase {
         );
     }
 
+    public function test_editor_taxonomy_term_limit_can_be_filtered(): void {
+        global $visibloc_test_taxonomies, $visibloc_test_terms;
+
+        $previous_taxonomies = $visibloc_test_taxonomies;
+        $previous_terms      = $visibloc_test_terms;
+        $hook                = 'visibloc_jlg_editor_terms_query_args';
+        $previous_filters    = $GLOBALS['visibloc_test_filters'][ $hook ] ?? null;
+
+        $visibloc_test_taxonomies = [
+            'genre' => [
+                'args'   => [ 'public' => true ],
+                'object' => (object) [
+                    'label'  => 'Genres',
+                    'labels' => (object) [ 'singular_name' => 'Genre' ],
+                ],
+            ],
+        ];
+
+        $visibloc_test_terms = [ 'genre' => [] ];
+
+        for ( $index = 1; $index <= 201; $index++ ) {
+            $visibloc_test_terms['genre'][] = [
+                'term_id' => $index,
+                'name'    => sprintf( 'Term %03d', $index ),
+                'slug'    => sprintf( 'term-%03d', $index ),
+            ];
+        }
+
+        try {
+            $unfiltered = visibloc_jlg_get_editor_taxonomies();
+
+            $this->assertCount( 1, $unfiltered, 'Expected a single registered taxonomy.' );
+
+            $unfiltered_terms = array_values( $unfiltered[0]['terms'] );
+
+            $this->assertCount( 200, $unfiltered_terms, 'The default term query should limit results to 200 entries.' );
+            $this->assertSame( 'term-200', $unfiltered_terms[199]['value'] );
+
+            $filter = function ( $args, $taxonomy_slug ) {
+                $this->assertSame( 'genre', $taxonomy_slug, 'The filter should receive the current taxonomy slug.' );
+                $args['number']  = 250;
+                $args['orderby'] = 'slug';
+                $args['order']   = 'DESC';
+
+                return $args;
+            };
+
+            add_filter( $hook, $filter, 10, 2 );
+
+            $filtered = visibloc_jlg_get_editor_taxonomies();
+
+            $this->assertCount( 1, $filtered, 'The filtered request should still reference the expected taxonomy.' );
+
+            $filtered_terms = array_values( $filtered[0]['terms'] );
+
+            $this->assertCount( 201, $filtered_terms, 'Raising the term limit should expose the additional taxonomy entry.' );
+            $this->assertSame( 'Term 001', $filtered_terms[0]['label'], 'Sanitized terms should remain alphabetically sorted.' );
+            $this->assertSame( 'term-201', $filtered_terms[200]['value'] );
+        } finally {
+            if ( null === $previous_filters ) {
+                unset( $GLOBALS['visibloc_test_filters'][ $hook ] );
+            } else {
+                $GLOBALS['visibloc_test_filters'][ $hook ] = $previous_filters;
+            }
+
+            $visibloc_test_taxonomies = $previous_taxonomies;
+            $visibloc_test_terms      = $previous_terms;
+        }
+    }
+
     public function test_visibility_roles_accepts_logged_out_string_marker(): void {
         $block = [
             'blockName' => 'core/group',
