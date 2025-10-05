@@ -591,6 +591,24 @@ function visibloc_jlg_render_supported_blocks_section( $registered_block_types, 
                                 data-visibloc-blocks-target="visibloc-supported-blocks-list"
                                 aria-controls="visibloc-supported-blocks-list"
                             />
+                            <div class="visibloc-supported-blocks-actions" style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
+                                <button
+                                    type="button"
+                                    class="button button-secondary"
+                                    data-visibloc-select-all
+                                    data-visibloc-blocks-target="visibloc-supported-blocks-list"
+                                >
+                                    <?php esc_html_e( 'Tout sélectionner', 'visi-bloc-jlg' ); ?>
+                                </button>
+                                <button
+                                    type="button"
+                                    class="button button-secondary"
+                                    data-visibloc-select-none
+                                    data-visibloc-blocks-target="visibloc-supported-blocks-list"
+                                >
+                                    <?php esc_html_e( 'Tout désélectionner', 'visi-bloc-jlg' ); ?>
+                                </button>
+                            </div>
                             <p id="<?php echo esc_attr( $search_description_id ); ?>" class="description" style="margin-top: 4px;">
                                 <?php esc_html_e( 'Saisissez un terme pour filtrer la liste des blocs disponibles.', 'visi-bloc-jlg' ); ?>
                             </p>
@@ -600,7 +618,10 @@ function visibloc_jlg_render_supported_blocks_section( $registered_block_types, 
                             class="visibloc-supported-blocks-list"
                             data-visibloc-blocks-container
                         >
-                            <?php foreach ( $registered_block_types as $block ) :
+                            <?php
+                            $selected_blocks = 0;
+
+                            foreach ( $registered_block_types as $block ) :
                                 $block_name  = isset( $block['name'] ) && is_string( $block['name'] ) ? $block['name'] : '';
                                 $block_label = isset( $block['label'] ) && is_string( $block['label'] ) ? $block['label'] : $block_name;
 
@@ -615,6 +636,10 @@ function visibloc_jlg_render_supported_blocks_section( $registered_block_types, 
                                 $search_value = function_exists( 'remove_accents' )
                                     ? remove_accents( $search_text )
                                     : $search_text;
+
+                                if ( $is_checked ) {
+                                    $selected_blocks++;
+                                }
 
                                 $search_value = function_exists( 'mb_strtolower' )
                                     ? mb_strtolower( $search_value, 'UTF-8' )
@@ -637,16 +662,17 @@ function visibloc_jlg_render_supported_blocks_section( $registered_block_types, 
                                 </label>
                             <?php endforeach; ?>
                             <?php
-                            $count_template        = __( 'Blocs visibles : %d', 'visi-bloc-jlg' );
+                            $count_template        = __( 'Blocs visibles : %1$d — Sélectionnés : %2$d', 'visi-bloc-jlg' );
                             $count_template_attr   = esc_attr( $count_template );
                             $total_blocks          = count( $registered_block_types );
-                            $count_template_output = sprintf( $count_template, (int) $total_blocks );
+                            $count_template_output = sprintf( $count_template, (int) $total_blocks, (int) $selected_blocks );
                             ?>
                             <p
                                 class="visibloc-supported-blocks-count"
                                 data-visibloc-blocks-count
                                 data-visibloc-count-template="<?php echo $count_template_attr; ?>"
                                 aria-live="polite"
+                                role="status"
                             >
                                 <?php echo esc_html( $count_template_output ); ?>
                             </p>
