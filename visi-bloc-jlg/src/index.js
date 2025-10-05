@@ -1,5 +1,5 @@
 /* global VisiBlocData */
-import { Fragment, cloneElement, Children } from '@wordpress/element';
+import { Fragment, cloneElement, Children, useMemo } from '@wordpress/element';
 import { addFilter, applyFilters } from '@wordpress/hooks';
 import { createHigherOrderComponent } from '@wordpress/compose';
 import { BlockControls, InspectorControls } from '@wordpress/block-editor';
@@ -28,7 +28,7 @@ import {
 } from '@wordpress/components';
 import { __, sprintf, _n } from '@wordpress/i18n';
 import { __experimentalGetSettings, dateI18n, format as formatDate } from '@wordpress/date';
-import { subscribe, select } from '@wordpress/data';
+import { subscribe, select, useSelect } from '@wordpress/data';
 
 import './editor-styles.css';
 
@@ -284,6 +284,95 @@ const DEVICE_VISIBILITY_FLAT_OPTIONS = DEVICE_VISIBILITY_OPTIONS.reduce(
     },
     [],
 );
+
+const PREVIEW_DEVICE_DEFAULT = 'desktop';
+const PREVIEW_DEVICE_SLUGS = new Set(['desktop', 'tablet', 'mobile']);
+const PREVIEW_DEVICE_LABELS = Object.freeze({
+    desktop: __('desktop', 'visi-bloc-jlg'),
+    tablet: __('tablette', 'visi-bloc-jlg'),
+    mobile: __('mobile', 'visi-bloc-jlg'),
+});
+
+const normalizePreviewDeviceType = (value) => {
+    if (typeof value !== 'string') {
+        return PREVIEW_DEVICE_DEFAULT;
+    }
+
+    const normalized = value.trim().toLowerCase();
+
+    if (PREVIEW_DEVICE_SLUGS.has(normalized)) {
+        return normalized;
+    }
+
+    return PREVIEW_DEVICE_DEFAULT;
+};
+
+const getPreviewDeviceFromEditPostStore = (editPostStore) => {
+    if (
+        editPostStore &&
+        typeof editPostStore.__experimentalGetPreviewDeviceType === 'function'
+    ) {
+        const rawValue = editPostStore.__experimentalGetPreviewDeviceType();
+
+        return normalizePreviewDeviceType(rawValue);
+    }
+
+    return PREVIEW_DEVICE_DEFAULT;
+};
+
+const getDeviceVisibilityOverlayInfo = (visibilitySetting, previewDeviceType) => {
+    const normalizedDevice = normalizePreviewDeviceType(previewDeviceType);
+
+    if (
+        !visibilitySetting ||
+        visibilitySetting === DEVICE_VISIBILITY_DEFAULT_OPTION.id ||
+        !PREVIEW_DEVICE_SLUGS.has(normalizedDevice)
+    ) {
+        return null;
+    }
+
+    const deviceLabel = PREVIEW_DEVICE_LABELS[normalizedDevice];
+
+    if (!deviceLabel) {
+        return null;
+    }
+
+    const shouldHideOnPreviewDevice = (() => {
+        switch (visibilitySetting) {
+            case 'desktop-only':
+                return normalizedDevice !== 'desktop';
+            case 'tablet-only':
+                return normalizedDevice !== 'tablet';
+            case 'mobile-only':
+                return normalizedDevice !== 'mobile';
+            case 'hide-on-desktop':
+                return normalizedDevice === 'desktop';
+            case 'hide-on-tablet':
+                return normalizedDevice === 'tablet';
+            case 'hide-on-mobile':
+                return normalizedDevice === 'mobile';
+            default:
+                return false;
+        }
+    })();
+
+    if (!shouldHideOnPreviewDevice) {
+        return null;
+    }
+
+    return {
+        device: normalizedDevice,
+        deviceLabel,
+        message: sprintf(
+            __('Masqué sur %s (aperçu actuel).', 'visi-bloc-jlg'),
+            deviceLabel,
+        ),
+        resetAriaLabel: sprintf(
+            __('Réinitialiser la visibilité pour afficher sur %s', 'visi-bloc-jlg'),
+            deviceLabel,
+        ),
+    };
+};
 
 const SUPPORTED_ADVANCED_RULE_TYPES = [
     'post_type',
@@ -714,6 +803,23 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             fallbackCustomText = '',
             fallbackBlockId,
         } = attributes;
+
+        const previewDevice = useSelect(
+            (selectFn) => getPreviewDeviceFromEditPostStore(selectFn('core/edit-post')),
+            [],
+        );
+        const deviceOverlayInfo = useMemo(
+            () => getDeviceVisibilityOverlayInfo(deviceVisibility, previewDevice),
+            [deviceVisibility, previewDevice],
+        );
+        const deviceOverlayClassName = [
+            'visibloc-block-edit-wrapper',
+            deviceOverlayInfo ? 'visibloc-block-edit-wrapper--has-overlay' : '',
+        ]
+            .filter(Boolean)
+            .join(' ');
+        const handleDeviceVisibilityReset = () =>
+            setAttributes({ deviceVisibility: DEVICE_VISIBILITY_DEFAULT_OPTION.id });
 
         const advancedVisibility = normalizeAdvancedVisibility(rawAdvancedVisibility);
         const fallbackSettings = getVisiBlocObject('fallbackSettings') || {};
@@ -1496,7 +1602,33 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
 
         return (
             <Fragment>
-                <BlockEdit {...props} />
+                <div className={deviceOverlayClassName}>
+                    <BlockEdit {...props} />
+                    {deviceOverlayInfo ? (
+                        <div
+                            className="visibloc-device-visibility-overlay"
+                            role="note"
+                            aria-live="polite"
+                            aria-atomic="true"
+                        >
+                            <p className="visibloc-device-visibility-overlay__message">
+                                {deviceOverlayInfo.message}
+                            </p>
+                            <div className="visibloc-device-visibility-overlay__actions">
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    isSmall
+                                    onClick={handleDeviceVisibilityReset}
+                                    className="visibloc-device-visibility-overlay__reset"
+                                    aria-label={deviceOverlayInfo.resetAriaLabel}
+                                >
+                                    {__('Réinitialiser la visibilité', 'visi-bloc-jlg')}
+                                </Button>
+                            </div>
+                        </div>
+                    ) : null}
+                </div>
                 {isSelected && (
                     <Fragment>
                         <BlockControls>
