@@ -14,8 +14,9 @@ if ( ! defined( 'WPINC' ) ) {
 $GLOBALS['visibloc_posts']            = [];
 $GLOBALS['visibloc_test_options']     = [];
 $GLOBALS['visibloc_test_transients']  = [];
-$GLOBALS['visibloc_test_taxonomies']  = [];
-$GLOBALS['visibloc_test_terms']       = [];
+$GLOBALS['visibloc_test_stats']        = [
+    'get_posts_calls' => 0,
+];
 
 $GLOBALS['visibloc_test_request_environment'] = [
     'is_admin'    => false,
@@ -151,6 +152,14 @@ function visibloc_test_reset_state() {
         'current_time'            => null,
     ];
 
+    $GLOBALS['visibloc_posts']           = [];
+    $GLOBALS['visibloc_test_options']    = [];
+    $GLOBALS['visibloc_test_transients'] = [];
+    $GLOBALS['visibloc_test_object_cache'] = [];
+    $GLOBALS['visibloc_test_stats']      = [
+        'get_posts_calls' => 0,
+    ];
+
     visibloc_test_reset_request_environment();
 
     if ( function_exists( 'visibloc_jlg_get_fallback_settings' ) ) {
@@ -161,154 +170,13 @@ function visibloc_test_reset_state() {
         visibloc_jlg_get_global_fallback_markup( true );
     }
 
-    $GLOBALS['visibloc_test_taxonomies'] = [];
-    $GLOBALS['visibloc_test_terms']      = [];
-}
-
-if ( ! function_exists( 'get_taxonomies' ) ) {
-    function get_taxonomies( $args = [], $output = 'names' ) {
-        $taxonomies = $GLOBALS['visibloc_test_taxonomies'] ?? [];
-
-        if ( ! is_array( $args ) ) {
-            $args = [];
-        }
-
-        $output = 'objects' === $output ? 'objects' : 'names';
-        $results = [];
-
-        foreach ( $taxonomies as $slug => $taxonomy ) {
-            $taxonomy_args   = isset( $taxonomy['args'] ) && is_array( $taxonomy['args'] ) ? $taxonomy['args'] : [];
-            $taxonomy_object = isset( $taxonomy['object'] ) ? $taxonomy['object'] : null;
-
-            $matches = true;
-
-            foreach ( $args as $key => $value ) {
-                $current = $taxonomy_args[ $key ] ?? null;
-
-                if ( null === $current && is_object( $taxonomy_object ) && isset( $taxonomy_object->{$key} ) ) {
-                    $current = $taxonomy_object->{$key};
-                }
-
-                if ( $current !== $value ) {
-                    $matches = false;
-                    break;
-                }
-            }
-
-            if ( ! $matches ) {
-                continue;
-            }
-
-            if ( 'objects' === $output ) {
-                if ( ! is_object( $taxonomy_object ) ) {
-                    $taxonomy_object = (object) $taxonomy_args;
-                }
-
-                $taxonomy_object->name = $slug;
-
-                if ( ! isset( $taxonomy_object->labels ) || ! is_object( $taxonomy_object->labels ) ) {
-                    $taxonomy_object->labels = (object) [];
-                }
-
-                $results[ $slug ] = $taxonomy_object;
-            } else {
-                $results[] = $slug;
-            }
-        }
-
-        return $results;
+    if ( function_exists( 'visibloc_jlg_get_fallback_blocks_cache_version' ) ) {
+        visibloc_jlg_get_fallback_blocks_cache_version( true );
     }
-}
 
-if ( ! function_exists( 'taxonomy_exists' ) ) {
-    function taxonomy_exists( $slug ) {
-        if ( ! is_string( $slug ) || '' === $slug ) {
-            return false;
-        }
-
-        $taxonomies = $GLOBALS['visibloc_test_taxonomies'] ?? [];
-
-        return isset( $taxonomies[ $slug ] );
-    }
-}
-
-if ( ! function_exists( 'get_terms' ) ) {
-    function get_terms( $args = [] ) {
-        if ( ! is_array( $args ) ) {
-            $args = [];
-        }
-
-        $taxonomy_arg = $args['taxonomy'] ?? [];
-
-        if ( is_string( $taxonomy_arg ) && '' !== $taxonomy_arg ) {
-            $taxonomy_slugs = [ $taxonomy_arg ];
-        } elseif ( is_array( $taxonomy_arg ) ) {
-            $taxonomy_slugs = array_filter(
-                array_map( 'strval', $taxonomy_arg ),
-                static function ( $value ) {
-                    return '' !== $value;
-                }
-            );
-        } else {
-            $taxonomy_slugs = [];
-        }
-
-        $terms = [];
-
-        foreach ( $taxonomy_slugs as $slug ) {
-            if ( empty( $GLOBALS['visibloc_test_terms'][ $slug ] ) || ! is_array( $GLOBALS['visibloc_test_terms'][ $slug ] ) ) {
-                continue;
-            }
-
-            foreach ( $GLOBALS['visibloc_test_terms'][ $slug ] as $term ) {
-                $term_data = is_array( $term ) ? $term : [];
-                $term_data['taxonomy'] = $slug;
-
-                if ( ! isset( $term_data['slug'] ) && isset( $term_data['term_id'] ) ) {
-                    $term_data['slug'] = 'term-' . $term_data['term_id'];
-                }
-
-                $terms[] = new WP_Term( $term_data );
-            }
-        }
-
-        $orderby = isset( $args['orderby'] ) ? (string) $args['orderby'] : 'name';
-        $order   = isset( $args['order'] ) ? strtoupper( (string) $args['order'] ) : 'ASC';
-        $order   = in_array( $order, [ 'ASC', 'DESC' ], true ) ? $order : 'ASC';
-
-        usort(
-            $terms,
-            static function ( $a, $b ) use ( $orderby, $order ) {
-                $key = 'name';
-
-                if ( in_array( $orderby, [ 'slug', 'name', 'term_id', 'id' ], true ) ) {
-                    if ( 'slug' === $orderby ) {
-                        $key = 'slug';
-                    } elseif ( in_array( $orderby, [ 'term_id', 'id' ], true ) ) {
-                        $key = 'term_id';
-                    }
-                }
-
-                $value_a = $a->{$key} ?? '';
-                $value_b = $b->{$key} ?? '';
-
-                if ( is_numeric( $value_a ) && is_numeric( $value_b ) ) {
-                    $result = (int) $value_a <=> (int) $value_b;
-                } else {
-                    $result = strcasecmp( (string) $value_a, (string) $value_b );
-                }
-
-                return 'DESC' === $order ? -$result : $result;
-            }
-        );
-
-        $number = isset( $args['number'] ) ? (int) $args['number'] : 0;
-
-        if ( $number > 0 ) {
-            $terms = array_slice( $terms, 0, $number );
-        }
-
-        return $terms;
+    if ( function_exists( 'visibloc_jlg_get_user_visibility_context' ) ) {
+        $preview_cache_reset = false;
+        visibloc_jlg_get_user_visibility_context( [], $preview_cache_reset, true );
     }
 }
 
@@ -868,6 +736,15 @@ if ( ! function_exists( 'get_posts' ) ) {
         }
 
         $args      = array_merge( $defaults, $args );
+
+        if ( isset( $GLOBALS['visibloc_test_stats'] ) ) {
+            if ( ! isset( $GLOBALS['visibloc_test_stats']['get_posts_calls'] ) ) {
+                $GLOBALS['visibloc_test_stats']['get_posts_calls'] = 0;
+            }
+
+            $GLOBALS['visibloc_test_stats']['get_posts_calls']++;
+        }
+
         $posts     = $GLOBALS['visibloc_posts'] ?? [];
         $post_type = $args['post_type'];
 
@@ -890,6 +767,11 @@ if ( ! function_exists( 'get_posts' ) ) {
         }
 
         $matching = [];
+        $search   = '';
+
+        if ( isset( $args['s'] ) && ( is_string( $args['s'] ) || is_numeric( $args['s'] ) ) ) {
+            $search = strtolower( trim( (string) $args['s'] ) );
+        }
 
         foreach ( $posts as $post_id => $post ) {
             $type  = $post['post_type'] ?? 'post';
@@ -901,6 +783,15 @@ if ( ! function_exists( 'get_posts' ) ) {
 
             if ( null !== $post_statuses && ! in_array( $state, $post_statuses, true ) ) {
                 continue;
+            }
+
+            if ( '' !== $search ) {
+                $title   = strtolower( (string) ( $post['post_title'] ?? '' ) );
+                $content = strtolower( (string) ( $post['post_content'] ?? '' ) );
+
+                if ( false === strpos( $title, $search ) && false === strpos( $content, $search ) ) {
+                    continue;
+                }
             }
 
             $post['ID'] = (int) $post_id;
@@ -950,8 +841,15 @@ if ( ! function_exists( 'get_posts' ) ) {
             );
         }
 
-        $offset = max( 0, (int) $args['offset'] );
-        $limit  = (int) $args['numberposts'];
+        $offset   = max( 0, (int) $args['offset'] );
+        $limit    = (int) $args['numberposts'];
+        $paged    = isset( $args['paged'] ) ? max( 0, (int) $args['paged'] ) : 0;
+        $per_page = isset( $args['posts_per_page'] ) ? (int) $args['posts_per_page'] : 0;
+
+        if ( $paged > 0 && $per_page > 0 ) {
+            $offset = max( 0, ( $paged - 1 ) * $per_page );
+            $limit  = $per_page;
+        }
 
         if ( $limit < 0 ) {
             $matching = array_slice( $matching, $offset );

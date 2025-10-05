@@ -11,6 +11,22 @@ delete_option( 'visibloc_supported_blocks' );
 delete_option( 'visibloc_fallback_settings' );
 wp_cache_delete( 'visibloc_fallback_settings', 'visibloc_jlg' );
 
+$fallback_transients = get_option( 'visibloc_fallback_blocks_transients', [] );
+
+if ( is_array( $fallback_transients ) ) {
+    foreach ( array_unique( array_map( 'strval', $fallback_transients ) ) as $transient_key ) {
+        if ( '' === $transient_key ) {
+            continue;
+        }
+
+        delete_transient( $transient_key );
+    }
+}
+
+delete_option( 'visibloc_fallback_blocks_transients' );
+delete_option( 'visibloc_fallback_blocks_cache_version' );
+wp_cache_delete( 'visibloc_fallback_blocks_version', 'visibloc_jlg' );
+
 // Supprime les transients de cache du plugin
 delete_transient( 'visibloc_hidden_posts' );
 delete_transient( 'visibloc_device_posts' );

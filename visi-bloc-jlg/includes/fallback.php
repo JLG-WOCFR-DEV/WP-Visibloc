@@ -122,6 +122,226 @@ function visibloc_jlg_prepare_fallback_text( $text ) {
 }
 
 /**
+ * Generate a new cache version identifier for fallback block lookups.
+ *
+ * @return string
+ */
+function visibloc_jlg_generate_fallback_blocks_cache_version() {
+    if ( function_exists( 'wp_generate_uuid4' ) ) {
+        return wp_generate_uuid4();
+    }
+
+    return uniqid( 'visibloc_fallback_', true );
+}
+
+/**
+ * Retrieve the current cache version used for fallback block listings.
+ *
+ * @param bool $reset Optional. Whether to reset the in-memory cache version.
+ * @return string
+ */
+function visibloc_jlg_get_fallback_blocks_cache_version( $reset = false ) {
+    static $version = null;
+
+    if ( $reset ) {
+        $version = null;
+    }
+
+    if ( null !== $version ) {
+        return $version;
+    }
+
+    $default_version = '1';
+
+    if ( function_exists( 'wp_cache_get' ) ) {
+        $cached_version = wp_cache_get( 'visibloc_fallback_blocks_version', 'visibloc_jlg' );
+
+        if ( false !== $cached_version && '' !== $cached_version ) {
+            $version = (string) $cached_version;
+
+            return $version;
+        }
+    }
+
+    if ( function_exists( 'get_option' ) ) {
+        $stored_version = get_option( 'visibloc_fallback_blocks_cache_version', $default_version );
+
+        if ( is_string( $stored_version ) && '' !== $stored_version ) {
+            $version = $stored_version;
+        } else {
+            $version = (string) $stored_version;
+        }
+    }
+
+    if ( null === $version ) {
+        $version = $default_version;
+    }
+
+    if ( function_exists( 'wp_cache_set' ) ) {
+        wp_cache_set( 'visibloc_fallback_blocks_version', $version, 'visibloc_jlg' );
+    }
+
+    return $version;
+}
+
+/**
+ * Register a transient key storing cached fallback blocks.
+ *
+ * @param string $transient_key Transient identifier.
+ * @return void
+ */
+function visibloc_jlg_register_fallback_blocks_transient( $transient_key ) {
+    if ( '' === $transient_key ) {
+        return;
+    }
+
+    if ( ! function_exists( 'get_option' ) || ! function_exists( 'update_option' ) ) {
+        return;
+    }
+
+    $registry = get_option( 'visibloc_fallback_blocks_transients', [] );
+
+    if ( ! is_array( $registry ) ) {
+        $registry = [];
+    }
+
+    if ( in_array( $transient_key, $registry, true ) ) {
+        return;
+    }
+
+    $registry[] = $transient_key;
+
+    update_option( 'visibloc_fallback_blocks_transients', $registry );
+}
+
+/**
+ * Invalidate cached fallback block listings.
+ *
+ * @return void
+ */
+function visibloc_jlg_invalidate_fallback_blocks_cache() {
+    $new_version = visibloc_jlg_generate_fallback_blocks_cache_version();
+
+    if ( function_exists( 'update_option' ) ) {
+        update_option( 'visibloc_fallback_blocks_cache_version', $new_version );
+    }
+
+    if ( function_exists( 'wp_cache_set' ) ) {
+        wp_cache_set( 'visibloc_fallback_blocks_version', $new_version, 'visibloc_jlg' );
+    }
+
+    visibloc_jlg_get_fallback_blocks_cache_version( true );
+
+    if ( function_exists( 'get_option' ) && function_exists( 'delete_transient' ) ) {
+        $registered_transients = get_option( 'visibloc_fallback_blocks_transients', [] );
+
+        if ( is_array( $registered_transients ) ) {
+            foreach ( array_unique( array_map( 'strval', $registered_transients ) ) as $transient_key ) {
+                if ( '' === $transient_key ) {
+                    continue;
+                }
+
+                delete_transient( $transient_key );
+            }
+        }
+
+        if ( function_exists( 'delete_option' ) ) {
+            delete_option( 'visibloc_fallback_blocks_transients' );
+        }
+    }
+
+    if ( function_exists( 'wp_cache_delete' ) ) {
+        wp_cache_delete( 'visibloc_fallback_blocks_version', 'visibloc_jlg' );
+    }
+}
+
+/**
+ * Determine whether an array has sequential numeric keys.
+ *
+ * @param array $array Array to inspect.
+ * @return bool
+ */
+function visibloc_jlg_is_list( array $array ) {
+    return array_keys( $array ) === range( 0, count( $array ) - 1 );
+}
+
+/**
+ * Normalize an array so that associative keys are sorted for cache hashing.
+ *
+ * @param mixed $value Arbitrary value.
+ * @return mixed
+ */
+function visibloc_jlg_normalize_value_for_cache( $value ) {
+    if ( ! is_array( $value ) ) {
+        return $value;
+    }
+
+    $normalized = [];
+
+    foreach ( $value as $key => $child_value ) {
+        $normalized[ $key ] = visibloc_jlg_normalize_value_for_cache( $child_value );
+    }
+
+    if ( ! visibloc_jlg_is_list( $normalized ) ) {
+        ksort( $normalized );
+    }
+
+    return $normalized;
+}
+
+/**
+ * Retrieve the requested page number for fallback block listings.
+ *
+ * @return int
+ */
+function visibloc_jlg_get_fallback_blocks_requested_page() {
+    if ( ! isset( $_GET['paged'] ) ) {
+        return 0;
+    }
+
+    $raw_value = $_GET['paged'];
+
+    if ( is_string( $raw_value ) || is_numeric( $raw_value ) ) {
+        return max( 0, absint( $raw_value ) );
+    }
+
+    return 0;
+}
+
+/**
+ * Sanitize the search term requested for fallback block listings.
+ *
+ * @return string
+ */
+function visibloc_jlg_get_fallback_blocks_search_term() {
+    if ( ! isset( $_GET['s'] ) ) {
+        return '';
+    }
+
+    $raw_value = $_GET['s'];
+
+    if ( ! is_string( $raw_value ) && ! is_numeric( $raw_value ) ) {
+        return '';
+    }
+
+    $search_term = trim( wp_unslash( (string) $raw_value ) );
+
+    if ( '' === $search_term ) {
+        return '';
+    }
+
+    if ( function_exists( 'sanitize_text_field' ) ) {
+        $search_term = sanitize_text_field( $search_term );
+    } else {
+        $search_term = strip_tags( $search_term );
+        $search_term = preg_replace( '/[\r\n\t]+/', ' ', $search_term );
+        $search_term = trim( $search_term );
+    }
+
+    return $search_term;
+}
+
+/**
  * Render a reusable block fallback.
  *
  * @param int $block_id Reusable block post ID.
@@ -262,10 +482,119 @@ function visibloc_jlg_get_available_fallback_blocks() {
         $query_args = array_merge( $default_args, $query_args );
     }
 
+    $requested_page = visibloc_jlg_get_fallback_blocks_requested_page();
+    $search_term    = visibloc_jlg_get_fallback_blocks_search_term();
+
+    if ( '' !== $search_term ) {
+        $query_args['s'] = $search_term;
+    }
+
+    if ( $requested_page > 0 ) {
+        $per_page = isset( $query_args['posts_per_page'] ) ? (int) $query_args['posts_per_page'] : 0;
+
+        if ( $per_page <= 0 && isset( $query_args['numberposts'] ) ) {
+            $per_page = (int) $query_args['numberposts'];
+        }
+
+        if ( $per_page <= 0 ) {
+            $per_page = (int) apply_filters( 'visibloc_jlg_fallback_blocks_per_page', 50, $query_args, $requested_page );
+        }
+
+        if ( $per_page <= 0 ) {
+            $per_page = 50;
+        }
+
+        $query_args['posts_per_page'] = $per_page;
+        $query_args['numberposts']    = $per_page;
+        $query_args['nopaging']       = false;
+        $query_args['paged']          = $requested_page;
+        $query_args['offset']         = max( 0, ( $requested_page - 1 ) * $per_page );
+    } elseif ( isset( $query_args['paged'] ) && (int) $query_args['paged'] > 0 ) {
+        $per_page = isset( $query_args['posts_per_page'] ) ? (int) $query_args['posts_per_page'] : 0;
+
+        if ( $per_page > 0 ) {
+            $query_args['numberposts'] = $per_page;
+            $query_args['nopaging']    = false;
+            $query_args['offset']      = max( 0, ( (int) $query_args['paged'] - 1 ) * $per_page );
+        }
+    } else {
+        unset( $query_args['paged'] );
+    }
+
+    $site_id = 0;
+
+    if ( function_exists( 'get_current_blog_id' ) ) {
+        $site_id = (int) get_current_blog_id();
+    }
+
+    $locale = '';
+
+    if ( function_exists( 'is_admin' ) && is_admin() && function_exists( 'get_user_locale' ) ) {
+        $locale = (string) get_user_locale();
+    } elseif ( function_exists( 'determine_locale' ) ) {
+        $locale = (string) determine_locale();
+    } elseif ( function_exists( 'get_locale' ) ) {
+        $locale = (string) get_locale();
+    }
+
+    $locale = preg_replace( '/[^A-Za-z0-9_\-]/', '', $locale );
+
+    if ( '' === $locale ) {
+        $locale = 'default';
+    }
+
+    $cache_version = visibloc_jlg_get_fallback_blocks_cache_version();
+    $cache_ttl     = defined( 'HOUR_IN_SECONDS' ) ? HOUR_IN_SECONDS : 3600;
+    $normalized_query_args = visibloc_jlg_normalize_value_for_cache( $query_args );
+    $cache_payload = [
+        'site'       => $site_id,
+        'locale'     => $locale,
+        'query_args' => $normalized_query_args,
+    ];
+
+    $payload_json = function_exists( 'wp_json_encode' ) ? wp_json_encode( $cache_payload ) : json_encode( $cache_payload );
+    $payload_json = is_string( $payload_json ) ? $payload_json : '';
+    $cache_hash   = md5( $payload_json );
+    $cache_key    = sprintf( 'fallback_blocks:%s:%s', $cache_version, $cache_hash );
+    $cache_group  = 'visibloc_jlg';
+
+    if ( function_exists( 'wp_cache_get' ) ) {
+        $cached_blocks = wp_cache_get( $cache_key, $cache_group );
+
+        if ( false !== $cached_blocks && is_array( $cached_blocks ) ) {
+            return $cached_blocks;
+        }
+    }
+
+    $transient_key = sprintf( 'visibloc_fallback_blocks_%s', $cache_hash );
+
+    if ( function_exists( 'get_transient' ) ) {
+        $transient_value = get_transient( $transient_key );
+
+        if ( false !== $transient_value && is_array( $transient_value ) ) {
+            if ( function_exists( 'wp_cache_set' ) ) {
+                wp_cache_set( $cache_key, $transient_value, $cache_group, $cache_ttl );
+            }
+
+            return $transient_value;
+        }
+    }
+
     $posts = get_posts( $query_args );
 
     if ( empty( $posts ) ) {
-        return [];
+        $blocks = [];
+
+        if ( function_exists( 'wp_cache_set' ) ) {
+            wp_cache_set( $cache_key, $blocks, $cache_group, $cache_ttl );
+        }
+
+        if ( function_exists( 'set_transient' ) ) {
+            set_transient( $transient_key, $blocks, $cache_ttl );
+            visibloc_jlg_register_fallback_blocks_transient( $transient_key );
+        }
+
+        return $blocks;
     }
 
     $blocks = [];
@@ -285,6 +614,15 @@ function visibloc_jlg_get_available_fallback_blocks() {
             'value' => (int) $post->ID,
             'label' => $label,
         ];
+    }
+
+    if ( function_exists( 'wp_cache_set' ) ) {
+        wp_cache_set( $cache_key, $blocks, $cache_group, $cache_ttl );
+    }
+
+    if ( function_exists( 'set_transient' ) ) {
+        set_transient( $transient_key, $blocks, $cache_ttl );
+        visibloc_jlg_register_fallback_blocks_transient( $transient_key );
     }
 
     return $blocks;
@@ -362,4 +700,31 @@ function visibloc_jlg_get_editor_fallback_settings() {
  */
 function visibloc_jlg_get_editor_fallback_blocks() {
     return visibloc_jlg_get_available_fallback_blocks();
+}
+
+add_action( 'save_post_wp_block', 'visibloc_jlg_invalidate_fallback_blocks_cache' );
+add_action( 'delete_post', 'visibloc_jlg_maybe_invalidate_fallback_blocks_cache_on_delete' );
+
+/**
+ * Clear fallback block caches when a reusable block is deleted.
+ *
+ * @param int $post_id Deleted post ID.
+ * @return void
+ */
+function visibloc_jlg_maybe_invalidate_fallback_blocks_cache_on_delete( $post_id ) {
+    $post_id = absint( $post_id );
+
+    if ( $post_id <= 0 || ! function_exists( 'get_post' ) ) {
+        return;
+    }
+
+    $post = get_post( $post_id );
+
+    if ( ! ( $post instanceof WP_Post ) ) {
+        return;
+    }
+
+    if ( 'wp_block' === ( $post->post_type ?? '' ) ) {
+        visibloc_jlg_invalidate_fallback_blocks_cache();
+    }
 }
