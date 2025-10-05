@@ -293,7 +293,13 @@ function visibloc_jlg_get_available_fallback_blocks() {
 /**
  * Data passed to the editor for fallback settings.
  *
- * @return array
+ * @return array{
+ *     mode: string,
+ *     hasContent: bool,
+ *     summary: string,
+ *     blockId: int,
+ *     previewHtml: string,
+ * }
  */
 function visibloc_jlg_get_editor_fallback_settings() {
     $settings   = visibloc_jlg_get_fallback_settings();
@@ -310,11 +316,42 @@ function visibloc_jlg_get_editor_fallback_settings() {
         }
     }
 
+    $preview_html = '';
+
+    if ( $has_markup ) {
+        $raw_markup = '';
+
+        if ( 'text' === $settings['mode'] ) {
+            $raw_markup = visibloc_jlg_prepare_fallback_text( $settings['text'] );
+        } elseif ( 'block' === $settings['mode'] ) {
+            $raw_markup = visibloc_jlg_render_reusable_block_fallback( $settings['block_id'] );
+        }
+
+        if ( '' !== $raw_markup ) {
+            $allowed_length = (int) apply_filters( 'visibloc_jlg_editor_fallback_preview_length', 800 );
+
+            if ( $allowed_length <= 0 ) {
+                $allowed_length = 800;
+            }
+
+            $sanitized_markup = wp_kses_post( $raw_markup );
+
+            if ( '' !== $sanitized_markup ) {
+                $preview_html = trim( wp_html_excerpt( $sanitized_markup, $allowed_length, '&hellip;' ) );
+
+                if ( '' !== $preview_html ) {
+                    $preview_html = balanceTags( $preview_html, true );
+                }
+            }
+        }
+    }
+
     return [
-        'mode'       => $settings['mode'],
-        'hasContent' => $has_markup,
-        'summary'    => $summary,
-        'blockId'    => $settings['mode'] === 'block' ? $settings['block_id'] : 0,
+        'mode'        => $settings['mode'],
+        'hasContent'  => $has_markup,
+        'summary'     => $summary,
+        'blockId'     => $settings['mode'] === 'block' ? $settings['block_id'] : 0,
+        'previewHtml' => $preview_html,
     ];
 }
 
