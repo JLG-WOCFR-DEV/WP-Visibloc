@@ -3,6 +3,28 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 require_once __DIR__ . '/fallback.php';
 
+final class Visibloc_Jlg_Visibility_Decision {
+    public $is_visible;
+
+    public $use_fallback;
+
+    /** @var callable|null */
+    public $preview_transform;
+
+    public $reason;
+
+    public function __construct( $is_visible, $use_fallback = false, $preview_transform = null, $reason = '' ) {
+        $this->is_visible        = (bool) $is_visible;
+        $this->use_fallback      = (bool) $use_fallback;
+        $this->preview_transform = is_callable( $preview_transform ) ? $preview_transform : null;
+        $this->reason            = (string) $reason;
+    }
+
+    public function has_preview_transform() {
+        return null !== $this->preview_transform;
+    }
+}
+
 function visibloc_jlg_get_supported_blocks() {
     $default_blocks   = (array) VISIBLOC_JLG_DEFAULT_SUPPORTED_BLOCKS;
     $option_value     = get_option( 'visibloc_supported_blocks', [] );
@@ -50,15 +72,15 @@ add_filter( 'render_block', 'visibloc_jlg_render_block_visibility_router', 10, 2
 /**
  * Apply Visibloc visibility logic to rendered blocks.
  *
- * La logique est évaluée par couches avec les priorités suivantes :
- * 1. Initialisation du fallback (sans effets de bord tant qu’il n’est pas requis).
- * 2. Programmation (désactive le fallback en cas d’erreur, ou l’active lorsqu’elle masque le bloc).
- * 3. Règles avancées.
- * 4. Rôles.
- * 5. Drapeau manuel.
+ * L’ordre d’évaluation reflète l’expérience attendue côté éditeur :
+ * 1. Préparer le fallback sans le rendre tant qu’aucune règle ne le requiert.
+ * 2. Évaluer la programmation : une fenêtre invalide annule le fallback mais doit signaler l’erreur en aperçu.
+ * 3. Appliquer les règles avancées, qui peuvent activer le fallback.
+ * 4. Vérifier les rôles.
+ * 5. Lire le drapeau manuel.
  *
- * Dès qu’une étape masque le bloc, l’évaluation s’arrête et, si un aperçu est disponible,
- * celui-ci indique explicitement la raison du masquage.
+ * La première règle qui masque le bloc renvoie immédiatement le contenu d’aperçu ou le fallback.
+ * En mode aperçu, chaque couche doit communiquer explicitement la raison de l’état affiché.
  *
  * @param string $block_content Rendered block markup.
  * @param array  $block         Block instance data.
@@ -96,7 +118,9 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
     $user_visibility_context   = visibloc_jlg_get_user_visibility_context( $preview_context, $can_preview_hidden_blocks );
     $preview_transforms        = [];
 
-    $schedule_decision = visibloc_jlg_should_display_for_schedule(
+    $decisions = [];
+
+    $decisions[] = visibloc_jlg_should_display_for_schedule(
         [
             'is_enabled' => $has_schedule,
             'start_time' => visibloc_jlg_parse_schedule_datetime( $attrs['publishStartDate'] ?? null ),
@@ -109,31 +133,16 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         ]
     );
 
-    $rendered = visibloc_jlg_process_visibility_decision( $schedule_decision, $block_content, $get_fallback_markup, $preview_transforms );
+    $decisions[] = visibloc_jlg_should_display_for_advanced_rules( $advanced_visibility, $user_visibility_context, $can_preview_hidden_blocks );
+    $decisions[] = visibloc_jlg_should_display_for_roles( $visibility_roles, $user_visibility_context, $can_preview_hidden_blocks );
+    $decisions[] = visibloc_jlg_should_display_for_manual_flag( $has_hidden_flag, $can_preview_hidden_blocks );
 
-    if ( null !== $rendered ) {
-        return $rendered;
-    }
+    foreach ( $decisions as $decision ) {
+        $rendered = visibloc_jlg_process_visibility_decision( $decision, $block_content, $get_fallback_markup, $preview_transforms );
 
-    $advanced_decision = visibloc_jlg_should_display_for_advanced_rules( $advanced_visibility, $user_visibility_context, $can_preview_hidden_blocks );
-    $rendered          = visibloc_jlg_process_visibility_decision( $advanced_decision, $block_content, $get_fallback_markup, $preview_transforms );
-
-    if ( null !== $rendered ) {
-        return $rendered;
-    }
-
-    $roles_decision = visibloc_jlg_should_display_for_roles( $visibility_roles, $user_visibility_context, $can_preview_hidden_blocks );
-    $rendered       = visibloc_jlg_process_visibility_decision( $roles_decision, $block_content, $get_fallback_markup, $preview_transforms );
-
-    if ( null !== $rendered ) {
-        return $rendered;
-    }
-
-    $manual_decision = visibloc_jlg_should_display_for_manual_flag( $has_hidden_flag, $can_preview_hidden_blocks );
-    $rendered        = visibloc_jlg_process_visibility_decision( $manual_decision, $block_content, $get_fallback_markup, $preview_transforms );
-
-    if ( null !== $rendered ) {
-        return $rendered;
+        if ( null !== $rendered ) {
+            return $rendered;
+        }
     }
 
     if ( ! empty( $preview_transforms ) ) {
@@ -186,12 +195,7 @@ function visibloc_jlg_create_fallback_loader( array $attrs ) {
 }
 
 function visibloc_jlg_visibility_decision( $is_visible, $use_fallback = false, $preview_transform = null, $reason = '' ) {
-    return [
-        'is_visible'        => (bool) $is_visible,
-        'use_fallback'      => (bool) $use_fallback,
-        'preview_transform' => is_callable( $preview_transform ) ? $preview_transform : null,
-        'reason'            => (string) $reason,
-    ];
+    return new Visibloc_Jlg_Visibility_Decision( $is_visible, $use_fallback, $preview_transform, $reason );
 }
 
 function visibloc_jlg_should_display_for_schedule( array $schedule, array $context ) {
@@ -210,7 +214,7 @@ function visibloc_jlg_should_display_for_schedule( array $schedule, array $conte
                 $schedule_error_label = __( 'Invalid schedule', 'visi-bloc-jlg' );
 
                 return sprintf(
-                    '<div class="bloc-schedule-error vb-label-top">%s%s</div>',
+                    '<div class="bloc-schedule-error vb-label-top" data-visibloc-reason="schedule-invalid">%s%s</div>',
                     visibloc_jlg_render_status_badge(
                         $schedule_error_label,
                         'schedule-error',
@@ -242,7 +246,7 @@ function visibloc_jlg_should_display_for_schedule( array $schedule, array $conte
             );
 
             $transform = static function ( $content ) use ( $info ) {
-                return '<div class="bloc-schedule-apercu vb-label-top">'
+                return '<div class="bloc-schedule-apercu vb-label-top" data-visibloc-reason="schedule-window">'
                     . visibloc_jlg_render_status_badge(
                         $info,
                         'schedule',
@@ -286,7 +290,7 @@ function visibloc_jlg_should_display_for_advanced_rules( array $advanced_visibil
             $advanced_label = __( 'Règles avancées actives', 'visi-bloc-jlg' );
 
             return sprintf(
-                '<div class="bloc-advanced-apercu vb-label-top">%s%s</div>',
+                '<div class="bloc-advanced-apercu vb-label-top" data-visibloc-reason="advanced-rules">%s%s</div>',
                 visibloc_jlg_render_status_badge(
                     $advanced_label,
                     'advanced',
@@ -335,7 +339,7 @@ function visibloc_jlg_should_display_for_roles( array $visibility_roles, array $
             $label = __( 'Restriction par rôle', 'visi-bloc-jlg' );
 
             return sprintf(
-                '<div class="bloc-role-apercu vb-label-top">%s%s</div>',
+                '<div class="bloc-role-apercu vb-label-top" data-visibloc-reason="roles">%s%s</div>',
                 visibloc_jlg_render_status_badge(
                     $label,
                     'roles',
@@ -361,7 +365,7 @@ function visibloc_jlg_should_display_for_manual_flag( $has_hidden_flag, $can_pre
             $hidden_preview_label = __( 'Hidden block', 'visi-bloc-jlg' );
 
             return sprintf(
-                '<div class="bloc-cache-apercu vb-label-top">%s%s</div>',
+                '<div class="bloc-cache-apercu vb-label-top" data-visibloc-reason="manual-flag">%s%s</div>',
                 visibloc_jlg_render_status_badge(
                     $hidden_preview_label,
                     'hidden',
@@ -377,26 +381,26 @@ function visibloc_jlg_should_display_for_manual_flag( $has_hidden_flag, $can_pre
     return visibloc_jlg_visibility_decision( false, true, null, 'manual-flag' );
 }
 
-function visibloc_jlg_process_visibility_decision( array $decision, $block_content, callable $get_fallback_markup, array &$preview_transforms ) {
-    if ( isset( $decision['preview_transform'] ) && null !== $decision['preview_transform'] ) {
-        $preview_transforms[] = $decision['preview_transform'];
+function visibloc_jlg_process_visibility_decision( Visibloc_Jlg_Visibility_Decision $decision, $block_content, callable $get_fallback_markup, array &$preview_transforms ) {
+    if ( $decision->has_preview_transform() ) {
+        $preview_transforms[] = $decision->preview_transform;
     }
 
-    if ( $decision['is_visible'] ) {
+    if ( $decision->is_visible ) {
         return null;
     }
 
     if ( ! empty( $preview_transforms ) ) {
         $preview_markup = visibloc_jlg_apply_preview_transforms( $preview_transforms, $block_content );
 
-        if ( ! empty( $decision['use_fallback'] ) ) {
-            $preview_markup = visibloc_jlg_wrap_preview_with_fallback_notice( $preview_markup, $get_fallback_markup() );
+        if ( $decision->use_fallback ) {
+            $preview_markup = visibloc_jlg_wrap_preview_with_fallback_notice( $preview_markup, $get_fallback_markup(), $decision->reason );
         }
 
         return $preview_markup;
     }
 
-    if ( ! empty( $decision['use_fallback'] ) ) {
+    if ( $decision->use_fallback ) {
         return $get_fallback_markup();
     }
 
@@ -415,15 +419,24 @@ function visibloc_jlg_apply_preview_transforms( array $transforms, $block_conten
     return $preview_markup;
 }
 
-function visibloc_jlg_wrap_preview_with_fallback_notice( $preview_markup, $fallback_markup ) {
+function visibloc_jlg_wrap_preview_with_fallback_notice( $preview_markup, $fallback_markup, $reason = '' ) {
     if ( '' === $fallback_markup ) {
         return $preview_markup;
     }
 
     $label = __( 'Contenu de repli actif', 'visi-bloc-jlg' );
+    $reason_attr = '';
+
+    if ( '' !== $reason ) {
+        $reason_attr = sprintf(
+            ' data-visibloc-reason="%s"',
+            esc_attr( $reason )
+        );
+    }
 
     return sprintf(
-        '<div class="bloc-fallback-apercu vb-label-top" data-visibloc-fallback="1">%s%s<div class="bloc-fallback-apercu__replacement">%s</div></div>',
+        '<div class="bloc-fallback-apercu vb-label-top" data-visibloc-fallback="1"%s>%s%s<div class="bloc-fallback-apercu__replacement">%s</div></div>',
+        $reason_attr,
         visibloc_jlg_render_status_badge(
             $label,
             'fallback',
