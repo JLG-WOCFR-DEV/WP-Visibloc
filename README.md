@@ -39,6 +39,7 @@ npm run build
 1. Sign in as a user who can view hidden blocks but is not allowed to impersonate other roles (for example a non-administrator after enabling their role on the plugin settings screen).
 2. Manually add the cookie `visibloc_preview_role=administrator` (for example through the browser developer tools).
 3. Confirm that `current_user_can( 'manage_options' )` still returns `false`, including when the check is performed through XML-RPC if your stack exposes it.
+4. In the block editor, open “Règles de visibilité avancées”, use **Ajouter une règle de…** to insert each rule type, and verify that the new rule is appended in order and receives keyboard focus.
 
 ## Automated testing
 
