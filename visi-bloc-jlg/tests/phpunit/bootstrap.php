@@ -14,6 +14,9 @@ if ( ! defined( 'WPINC' ) ) {
 $GLOBALS['visibloc_posts']            = [];
 $GLOBALS['visibloc_test_options']     = [];
 $GLOBALS['visibloc_test_transients']  = [];
+$GLOBALS['visibloc_test_stats']        = [
+    'get_posts_calls' => 0,
+];
 
 $GLOBALS['visibloc_test_request_environment'] = [
     'is_admin'    => false,
@@ -138,6 +141,14 @@ function visibloc_test_reset_state() {
         'current_time'            => null,
     ];
 
+    $GLOBALS['visibloc_posts']           = [];
+    $GLOBALS['visibloc_test_options']    = [];
+    $GLOBALS['visibloc_test_transients'] = [];
+    $GLOBALS['visibloc_test_object_cache'] = [];
+    $GLOBALS['visibloc_test_stats']      = [
+        'get_posts_calls' => 0,
+    ];
+
     visibloc_test_reset_request_environment();
 
     if ( function_exists( 'visibloc_jlg_get_fallback_settings' ) ) {
@@ -146,6 +157,15 @@ function visibloc_test_reset_state() {
 
     if ( function_exists( 'visibloc_jlg_get_global_fallback_markup' ) ) {
         visibloc_jlg_get_global_fallback_markup( true );
+    }
+
+    if ( function_exists( 'visibloc_jlg_get_fallback_blocks_cache_version' ) ) {
+        visibloc_jlg_get_fallback_blocks_cache_version( true );
+    }
+
+    if ( function_exists( 'visibloc_jlg_get_user_visibility_context' ) ) {
+        $preview_cache_reset = false;
+        visibloc_jlg_get_user_visibility_context( [], $preview_cache_reset, true );
     }
 }
 
@@ -705,6 +725,15 @@ if ( ! function_exists( 'get_posts' ) ) {
         }
 
         $args      = array_merge( $defaults, $args );
+
+        if ( isset( $GLOBALS['visibloc_test_stats'] ) ) {
+            if ( ! isset( $GLOBALS['visibloc_test_stats']['get_posts_calls'] ) ) {
+                $GLOBALS['visibloc_test_stats']['get_posts_calls'] = 0;
+            }
+
+            $GLOBALS['visibloc_test_stats']['get_posts_calls']++;
+        }
+
         $posts     = $GLOBALS['visibloc_posts'] ?? [];
         $post_type = $args['post_type'];
 
@@ -727,6 +756,11 @@ if ( ! function_exists( 'get_posts' ) ) {
         }
 
         $matching = [];
+        $search   = '';
+
+        if ( isset( $args['s'] ) && ( is_string( $args['s'] ) || is_numeric( $args['s'] ) ) ) {
+            $search = strtolower( trim( (string) $args['s'] ) );
+        }
 
         foreach ( $posts as $post_id => $post ) {
             $type  = $post['post_type'] ?? 'post';
@@ -738,6 +772,15 @@ if ( ! function_exists( 'get_posts' ) ) {
 
             if ( null !== $post_statuses && ! in_array( $state, $post_statuses, true ) ) {
                 continue;
+            }
+
+            if ( '' !== $search ) {
+                $title   = strtolower( (string) ( $post['post_title'] ?? '' ) );
+                $content = strtolower( (string) ( $post['post_content'] ?? '' ) );
+
+                if ( false === strpos( $title, $search ) && false === strpos( $content, $search ) ) {
+                    continue;
+                }
             }
 
             $post['ID'] = (int) $post_id;
@@ -787,8 +830,15 @@ if ( ! function_exists( 'get_posts' ) ) {
             );
         }
 
-        $offset = max( 0, (int) $args['offset'] );
-        $limit  = (int) $args['numberposts'];
+        $offset   = max( 0, (int) $args['offset'] );
+        $limit    = (int) $args['numberposts'];
+        $paged    = isset( $args['paged'] ) ? max( 0, (int) $args['paged'] ) : 0;
+        $per_page = isset( $args['posts_per_page'] ) ? (int) $args['posts_per_page'] : 0;
+
+        if ( $paged > 0 && $per_page > 0 ) {
+            $offset = max( 0, ( $paged - 1 ) * $per_page );
+            $limit  = $per_page;
+        }
 
         if ( $limit < 0 ) {
             $matching = array_slice( $matching, $offset );

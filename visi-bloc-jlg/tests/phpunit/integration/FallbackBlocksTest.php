@@ -106,4 +106,119 @@ class FallbackBlocksTest extends TestCase {
             'Integrators should be able to narrow the query through the filter.'
         );
     }
+
+    public function test_available_fallback_blocks_are_cached_until_invalidated(): void {
+        for ( $index = 1; $index <= 3; $index++ ) {
+            $GLOBALS['visibloc_posts'][ $index ] = [
+                'post_title'   => sprintf( 'Reusable block %02d', $index ),
+                'post_content' => '<!-- wp:paragraph --><p>Cached paragraph</p><!-- /wp:paragraph -->',
+                'post_type'    => 'wp_block',
+                'post_status'  => 'publish',
+            ];
+        }
+
+        $GLOBALS['visibloc_test_stats']['get_posts_calls'] = 0;
+
+        $first_result = visibloc_jlg_get_available_fallback_blocks();
+
+        $this->assertSame(
+            1,
+            $GLOBALS['visibloc_test_stats']['get_posts_calls'] ?? 0,
+            'The initial lookup should perform a query.'
+        );
+
+        $second_result = visibloc_jlg_get_available_fallback_blocks();
+
+        $this->assertSame(
+            1,
+            $GLOBALS['visibloc_test_stats']['get_posts_calls'] ?? 0,
+            'The cached lookup should not trigger another query.'
+        );
+        $this->assertSame( $first_result, $second_result, 'Cached results should match the initial payload.' );
+
+        visibloc_jlg_invalidate_fallback_blocks_cache();
+
+        $third_result = visibloc_jlg_get_available_fallback_blocks();
+
+        $this->assertSame(
+            2,
+            $GLOBALS['visibloc_test_stats']['get_posts_calls'] ?? 0,
+            'Invalidating the cache should force the next lookup to run a query again.'
+        );
+        $this->assertSame( $first_result, $third_result, 'Invalidation should not alter the resulting payload.' );
+    }
+
+    public function test_requested_pagination_is_honored(): void {
+        for ( $index = 1; $index <= 25; $index++ ) {
+            $GLOBALS['visibloc_posts'][ $index ] = [
+                'post_title'   => sprintf( 'Reusable block %03d', $index ),
+                'post_content' => '<!-- wp:paragraph --><p>Paginated paragraph</p><!-- /wp:paragraph -->',
+                'post_type'    => 'wp_block',
+                'post_status'  => 'publish',
+            ];
+        }
+
+        $_GET['paged'] = '2';
+
+        add_filter(
+            'visibloc_jlg_available_fallback_blocks_query_args',
+            static function ( $args ) {
+                if ( ! is_array( $args ) ) {
+                    return $args;
+                }
+
+                $args['posts_per_page'] = 5;
+
+                return $args;
+            }
+        );
+
+        try {
+            $page_two = visibloc_jlg_get_available_fallback_blocks();
+        } finally {
+            unset( $_GET['paged'] );
+            remove_all_filters( 'visibloc_jlg_available_fallback_blocks_query_args' );
+            visibloc_test_reset_state();
+        }
+
+        $this->assertCount(
+            5,
+            $page_two,
+            'Pagination should limit the number of retrieved blocks.'
+        );
+
+        $this->assertSame(
+            range( 6, 10 ),
+            array_column( $page_two, 'value' ),
+            'The second page should begin where the first one stopped.'
+        );
+    }
+
+    public function test_search_parameter_limits_results(): void {
+        for ( $index = 1; $index <= 8; $index++ ) {
+            $GLOBALS['visibloc_posts'][ $index ] = [
+                'post_title'   => sprintf( 'Reusable block %03d', $index ),
+                'post_content' => sprintf( '<!-- wp:paragraph --><p>Search paragraph %03d</p><!-- /wp:paragraph -->', $index ),
+                'post_type'    => 'wp_block',
+                'post_status'  => 'publish',
+            ];
+        }
+
+        $_GET['s'] = 'block 003';
+
+        try {
+            $matching = visibloc_jlg_get_available_fallback_blocks();
+        } finally {
+            unset( $_GET['s'] );
+            visibloc_test_reset_state();
+        }
+
+        $this->assertCount(
+            1,
+            $matching,
+            'The search term should narrow the results to matching blocks.'
+        );
+
+        $this->assertSame( 3, $matching[0]['value'], 'The matching block ID should be returned.' );
+    }
 }
