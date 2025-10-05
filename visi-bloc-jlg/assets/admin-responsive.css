@@ -83,24 +83,10 @@
     transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.visibloc-help-nav__link--active {
-    background: #135e96;
-    border-color: #135e96;
-    color: #fff;
-    cursor: default;
-}
-
 .visibloc-help-nav__link:hover,
 .visibloc-help-nav__link:focus {
     background: #2271b1;
     border-color: #2271b1;
-    color: #fff;
-}
-
-.visibloc-help-nav__link--active:hover,
-.visibloc-help-nav__link--active:focus {
-    background: #0a4b78;
-    border-color: #0a4b78;
     color: #fff;
 }
 
@@ -109,7 +95,30 @@
     outline: none;
 }
 
-.visibloc-help-nav__link--active:focus-visible {
+.visibloc-help-nav__link--active,
+.visibloc-help-nav__link[aria-current="page"],
+.visibloc-help-nav__link[aria-current="true"] {
+    background: #135e96;
+    border-color: #135e96;
+    color: #fff;
+    cursor: default;
+    font-weight: 700;
+}
+
+.visibloc-help-nav__link--active:hover,
+.visibloc-help-nav__link--active:focus,
+.visibloc-help-nav__link[aria-current="page"]:hover,
+.visibloc-help-nav__link[aria-current="page"]:focus,
+.visibloc-help-nav__link[aria-current="true"]:hover,
+.visibloc-help-nav__link[aria-current="true"]:focus {
+    background: #0a4b78;
+    border-color: #0a4b78;
+    color: #fff;
+}
+
+.visibloc-help-nav__link--active:focus-visible,
+.visibloc-help-nav__link[aria-current="page"]:focus-visible,
+.visibloc-help-nav__link[aria-current="true"]:focus-visible {
     box-shadow: 0 0 0 2px #fff, 0 0 0 4px #0a4b78;
 }
 
