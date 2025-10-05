@@ -279,6 +279,141 @@ class VisibilityLogicTest extends TestCase {
         }
     }
 
+    public function test_preview_exposes_reason_for_advanced_rule_with_fallback(): void {
+        global $post, $visibloc_test_state;
+
+        $previous_post     = isset( $post ) ? $post : null;
+        $previous_state    = $visibloc_test_state;
+        $visibloc_test_state['effective_user_id']           = 9;
+        $visibloc_test_state['current_user']                = new Visibloc_Test_User( 9, [ 'administrator' ] );
+        $visibloc_test_state['can_preview_users'][9]        = true;
+        $visibloc_test_state['can_impersonate_users'][9]    = true;
+        $visibloc_test_state['allowed_preview_roles']       = [ 'administrator' ];
+        $visibloc_test_state['preview_role']                = '';
+
+        $post = new WP_Post(
+            [
+                'ID'          => 456,
+                'post_type'   => 'page',
+                'post_status' => 'publish',
+            ]
+        );
+
+        try {
+            $block = [
+                'blockName' => 'core/group',
+                'attrs'     => [
+                    'advancedVisibility' => [
+                        'logic' => 'AND',
+                        'rules' => [
+                            [
+                                'type'     => 'logged_in_status',
+                                'operator' => 'is',
+                                'value'    => 'logged_out',
+                            ],
+                        ],
+                    ],
+                    'fallbackEnabled'    => true,
+                    'fallbackBehavior'   => 'text',
+                    'fallbackCustomText' => 'Aperçu de repli',
+                ],
+            ];
+
+            $output = visibloc_jlg_render_block_filter( '<p>Contenu avancé</p>', $block );
+
+            $this->assertStringContainsString( 'bloc-advanced-apercu', $output );
+            $this->assertStringContainsString( 'bloc-fallback-apercu', $output );
+            $this->assertStringContainsString( 'data-visibloc-reason="advanced-rules"', $output );
+            $this->assertStringContainsString( 'Aperçu de repli', $output );
+        } finally {
+            $post                = $previous_post;
+            $visibloc_test_state = $previous_state;
+            $can_preview         = false;
+            visibloc_jlg_get_user_visibility_context( [], $can_preview, true );
+        }
+    }
+
+    public function test_preview_exposes_reason_for_inverted_schedule(): void {
+        global $visibloc_test_state;
+
+        $previous_state = $visibloc_test_state;
+        $visibloc_test_state['effective_user_id']             = 7;
+        $visibloc_test_state['current_user']                  = new Visibloc_Test_User( 7, [ 'administrator' ] );
+        $visibloc_test_state['can_preview_users'][7]          = true;
+        $visibloc_test_state['can_impersonate_users'][7]      = true;
+        $visibloc_test_state['allowed_preview_roles']         = [ 'administrator' ];
+        $visibloc_test_state['preview_role']                  = '';
+
+        try {
+            $block = [
+                'blockName' => 'core/group',
+                'attrs'     => [
+                    'isSchedulingEnabled' => true,
+                    'publishStartDate'    => '2024-05-01T10:00:00',
+                    'publishEndDate'      => '2024-04-01T10:00:00',
+                ],
+            ];
+
+            $output = visibloc_jlg_render_block_filter( '<p>Programmation inversée</p>', $block );
+
+            $this->assertStringContainsString( 'bloc-schedule-error', $output );
+            $this->assertStringContainsString( 'data-visibloc-reason="schedule-invalid"', $output );
+        } finally {
+            $visibloc_test_state = $previous_state;
+            $can_preview         = false;
+            visibloc_jlg_get_user_visibility_context( [], $can_preview, true );
+        }
+    }
+
+    public function test_preview_exposes_reason_for_role_restriction_with_global_fallback(): void {
+        global $visibloc_test_state;
+
+        $previous_state     = $visibloc_test_state;
+        $previous_settings  = $GLOBALS['visibloc_test_options']['visibloc_fallback_settings'] ?? null;
+
+        $visibloc_test_state['effective_user_id']             = 5;
+        $visibloc_test_state['current_user']                  = new Visibloc_Test_User( 5, [ 'administrator' ] );
+        $visibloc_test_state['can_preview_users'][5]          = true;
+        $visibloc_test_state['can_impersonate_users'][5]      = true;
+        $visibloc_test_state['allowed_preview_roles']         = [ 'administrator' ];
+        $visibloc_test_state['preview_role']                  = '';
+
+        try {
+            $GLOBALS['visibloc_test_options']['visibloc_fallback_settings'] = [
+                'mode' => 'text',
+                'text' => 'Fallback global aperçu',
+            ];
+            visibloc_jlg_get_fallback_settings( true );
+            visibloc_jlg_get_global_fallback_markup( true );
+
+            $block = [
+                'blockName' => 'core/group',
+                'attrs'     => [
+                    'visibilityRoles' => [ 'subscriber' ],
+                ],
+            ];
+
+            $output = visibloc_jlg_render_block_filter( '<p>Contenu restreint</p>', $block );
+
+            $this->assertStringContainsString( 'bloc-role-apercu', $output );
+            $this->assertStringContainsString( 'bloc-fallback-apercu', $output );
+            $this->assertStringContainsString( 'data-visibloc-reason="roles"', $output );
+            $this->assertStringContainsString( 'Fallback global aperçu', $output );
+        } finally {
+            if ( null === $previous_settings ) {
+                unset( $GLOBALS['visibloc_test_options']['visibloc_fallback_settings'] );
+            } else {
+                $GLOBALS['visibloc_test_options']['visibloc_fallback_settings'] = $previous_settings;
+            }
+
+            $visibloc_test_state = $previous_state;
+            visibloc_jlg_get_fallback_settings( true );
+            visibloc_jlg_get_global_fallback_markup( true );
+            $can_preview         = false;
+            visibloc_jlg_get_user_visibility_context( [], $can_preview, true );
+        }
+    }
+
     /**
      * @dataProvider visibloc_falsey_attribute_provider
      */
