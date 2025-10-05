@@ -47,57 +47,135 @@ function visibloc_jlg_render_block_visibility_router( $block_content, $block ) {
 
 add_filter( 'render_block', 'visibloc_jlg_render_block_visibility_router', 10, 2 );
 
+/**
+ * Apply Visibloc visibility logic to rendered blocks.
+ *
+ * La logique est évaluée par couches avec les priorités suivantes :
+ * 1. Initialisation du fallback (sans effets de bord tant qu’il n’est pas requis).
+ * 2. Programmation (désactive le fallback en cas d’erreur, ou l’active lorsqu’elle masque le bloc).
+ * 3. Règles avancées.
+ * 4. Rôles.
+ * 5. Drapeau manuel.
+ *
+ * Dès qu’une étape masque le bloc, l’évaluation s’arrête et, si un aperçu est disponible,
+ * celui-ci indique explicitement la raison du masquage.
+ *
+ * @param string $block_content Rendered block markup.
+ * @param array  $block         Block instance data.
+ *
+ * @return string
+ */
 function visibloc_jlg_render_block_filter( $block_content, $block ) {
-    if ( empty( $block['attrs'] ) ) { return $block_content; }
-
-    $attrs = $block['attrs'];
-
-    $visibility_roles = [];
-
-    if ( array_key_exists( 'visibilityRoles', $attrs ) ) {
-        $raw_visibility_roles = $attrs['visibilityRoles'];
-
-        if ( is_array( $raw_visibility_roles ) ) {
-            $visibility_roles = $raw_visibility_roles;
-        } elseif ( is_string( $raw_visibility_roles ) ) {
-            $visibility_roles = '' === trim( $raw_visibility_roles ) ? [] : [ $raw_visibility_roles ];
-        } elseif ( is_scalar( $raw_visibility_roles ) ) {
-            $visibility_roles = [ $raw_visibility_roles ];
-        }
-
-        $visibility_roles = array_values(
-            array_filter(
-                array_map(
-                    static function ( $raw_role ) {
-                        if ( ! is_scalar( $raw_role ) ) {
-                            return null;
-                        }
-
-                        $sanitized_role = sanitize_key( (string) $raw_role );
-
-                        return '' === $sanitized_role ? null : $sanitized_role;
-                    },
-                    $visibility_roles
-                ),
-                static function ( $role ) {
-                    return null !== $role;
-                }
-            )
-        );
-    }
-
-    $advanced_visibility   = visibloc_jlg_normalize_advanced_visibility( $attrs['advancedVisibility'] ?? null );
-    $has_advanced_rules    = ! empty( $advanced_visibility['rules'] );
-    $has_hidden_flag       = isset( $attrs['isHidden'] ) ? visibloc_jlg_normalize_boolean( $attrs['isHidden'] ) : false;
-    $has_schedule_enabled  = isset( $attrs['isSchedulingEnabled'] ) ? visibloc_jlg_normalize_boolean( $attrs['isSchedulingEnabled'] ) : false;
-
-    if ( ! $has_hidden_flag && ! $has_schedule_enabled && empty( $visibility_roles ) && ! $has_advanced_rules ) {
+    if ( empty( $block['attrs'] ) ) {
         return $block_content;
     }
 
-    $fallback_markup = null;
+    $attrs = $block['attrs'];
+
+    $visibility_roles   = visibloc_jlg_normalize_visibility_roles( $attrs['visibilityRoles'] ?? [] );
+    $advanced_visibility = visibloc_jlg_normalize_advanced_visibility( $attrs['advancedVisibility'] ?? null );
+    $has_advanced_rules = ! empty( $advanced_visibility['rules'] );
+    $has_hidden_flag    = isset( $attrs['isHidden'] ) ? visibloc_jlg_normalize_boolean( $attrs['isHidden'] ) : false;
+    $has_schedule       = isset( $attrs['isSchedulingEnabled'] ) ? visibloc_jlg_normalize_boolean( $attrs['isSchedulingEnabled'] ) : false;
+
+    if ( ! $has_hidden_flag && ! $has_schedule && empty( $visibility_roles ) && ! $has_advanced_rules ) {
+        return $block_content;
+    }
+
+    $get_fallback_markup = visibloc_jlg_create_fallback_loader( $attrs );
+
+    $preview_context = function_exists( 'visibloc_jlg_get_preview_runtime_context' )
+        ? visibloc_jlg_get_preview_runtime_context()
+        : [
+            'can_preview_hidden_blocks' => false,
+            'should_apply_preview_role' => false,
+            'preview_role'              => '',
+        ];
+
+    $can_preview_hidden_blocks = ! empty( $preview_context['can_preview_hidden_blocks'] );
+    $user_visibility_context   = visibloc_jlg_get_user_visibility_context( $preview_context, $can_preview_hidden_blocks );
+    $preview_transforms        = [];
+
+    $schedule_decision = visibloc_jlg_should_display_for_schedule(
+        [
+            'is_enabled' => $has_schedule,
+            'start_time' => visibloc_jlg_parse_schedule_datetime( $attrs['publishStartDate'] ?? null ),
+            'end_time'   => visibloc_jlg_parse_schedule_datetime( $attrs['publishEndDate'] ?? null ),
+        ],
+        [
+            'current_time'    => current_datetime()->getTimestamp(),
+            'can_preview'     => $can_preview_hidden_blocks,
+            'datetime_format' => visibloc_jlg_get_wp_datetime_format(),
+        ]
+    );
+
+    $rendered = visibloc_jlg_process_visibility_decision( $schedule_decision, $block_content, $get_fallback_markup, $preview_transforms );
+
+    if ( null !== $rendered ) {
+        return $rendered;
+    }
+
+    $advanced_decision = visibloc_jlg_should_display_for_advanced_rules( $advanced_visibility, $user_visibility_context, $can_preview_hidden_blocks );
+    $rendered          = visibloc_jlg_process_visibility_decision( $advanced_decision, $block_content, $get_fallback_markup, $preview_transforms );
+
+    if ( null !== $rendered ) {
+        return $rendered;
+    }
+
+    $roles_decision = visibloc_jlg_should_display_for_roles( $visibility_roles, $user_visibility_context, $can_preview_hidden_blocks );
+    $rendered       = visibloc_jlg_process_visibility_decision( $roles_decision, $block_content, $get_fallback_markup, $preview_transforms );
+
+    if ( null !== $rendered ) {
+        return $rendered;
+    }
+
+    $manual_decision = visibloc_jlg_should_display_for_manual_flag( $has_hidden_flag, $can_preview_hidden_blocks );
+    $rendered        = visibloc_jlg_process_visibility_decision( $manual_decision, $block_content, $get_fallback_markup, $preview_transforms );
+
+    if ( null !== $rendered ) {
+        return $rendered;
+    }
+
+    if ( ! empty( $preview_transforms ) ) {
+        return visibloc_jlg_apply_preview_transforms( $preview_transforms, $block_content );
+    }
+
+    return $block_content;
+}
+
+function visibloc_jlg_normalize_visibility_roles( $raw_roles ) {
+    if ( is_string( $raw_roles ) ) {
+        $raw_roles = '' === trim( $raw_roles ) ? [] : [ $raw_roles ];
+    } elseif ( is_scalar( $raw_roles ) ) {
+        $raw_roles = [ $raw_roles ];
+    }
+
+    if ( ! is_array( $raw_roles ) ) {
+        return [];
+    }
+
+    $normalized = [];
+
+    foreach ( $raw_roles as $role ) {
+        if ( ! is_scalar( $role ) ) {
+            continue;
+        }
+
+        $sanitized = sanitize_key( (string) $role );
+
+        if ( '' !== $sanitized ) {
+            $normalized[] = $sanitized;
+        }
+    }
+
+    return array_values( array_unique( $normalized ) );
+}
+
+function visibloc_jlg_create_fallback_loader( array $attrs ) {
     $fallback_initialized = false;
-    $get_fallback_markup = static function () use ( &$fallback_markup, &$fallback_initialized, $attrs ) {
+    $fallback_markup      = null;
+
+    return static function () use ( &$fallback_initialized, &$fallback_markup, $attrs ) {
         if ( ! $fallback_initialized ) {
             $fallback_markup      = visibloc_jlg_get_block_fallback_markup( $attrs );
             $fallback_initialized = true;
@@ -105,163 +183,236 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
 
         return $fallback_markup;
     };
+}
 
-    $preview_context = function_exists( 'visibloc_jlg_get_preview_runtime_context' )
-        ? visibloc_jlg_get_preview_runtime_context()
-        : [
-            'can_preview_hidden_blocks'  => false,
-            'should_apply_preview_role'  => false,
-            'preview_role'               => '',
-        ];
+function visibloc_jlg_visibility_decision( $is_visible, $use_fallback = false, $preview_transform = null, $reason = '' ) {
+    return [
+        'is_visible'        => (bool) $is_visible,
+        'use_fallback'      => (bool) $use_fallback,
+        'preview_transform' => is_callable( $preview_transform ) ? $preview_transform : null,
+        'reason'            => (string) $reason,
+    ];
+}
 
-    $can_preview_hidden_blocks = ! empty( $preview_context['can_preview_hidden_blocks'] );
-    $hidden_preview_markup = null;
-    $has_preview_markup = false;
-
-    $user_visibility_context = visibloc_jlg_get_user_visibility_context( $preview_context, $can_preview_hidden_blocks );
-
-    if ( $has_hidden_flag && $can_preview_hidden_blocks ) {
-        $hidden_preview_label = __( 'Hidden block', 'visi-bloc-jlg' );
-        $hidden_preview_markup = sprintf(
-            '<div class="bloc-cache-apercu vb-label-top">%s%s</div>',
-            visibloc_jlg_render_status_badge(
-                $hidden_preview_label,
-                'hidden',
-                __( 'Ce bloc est masqué pour les visiteurs du site.', 'visi-bloc-jlg' )
-            ),
-            $block_content
-        );
-        $has_preview_markup = true;
+function visibloc_jlg_should_display_for_schedule( array $schedule, array $context ) {
+    if ( empty( $schedule['is_enabled'] ) ) {
+        return visibloc_jlg_visibility_decision( true, false, null, 'schedule-disabled' );
     }
 
-    if ( $has_schedule_enabled ) {
-        $current_time = current_datetime()->getTimestamp();
+    $start_time   = $schedule['start_time'];
+    $end_time     = $schedule['end_time'];
+    $can_preview  = ! empty( $context['can_preview'] );
+    $current_time = isset( $context['current_time'] ) ? (int) $context['current_time'] : time();
 
-        $start_time = visibloc_jlg_parse_schedule_datetime( $attrs['publishStartDate'] ?? null );
-        $end_time   = visibloc_jlg_parse_schedule_datetime( $attrs['publishEndDate'] ?? null );
-
-        if ( null !== $start_time && null !== $end_time && $start_time > $end_time ) {
-            if ( $can_preview_hidden_blocks ) {
+    if ( null !== $start_time && null !== $end_time && $start_time > $end_time ) {
+        if ( $can_preview ) {
+            $transform = static function ( $content ) {
                 $schedule_error_label = __( 'Invalid schedule', 'visi-bloc-jlg' );
-                $schedule_error_markup = sprintf(
+
+                return sprintf(
                     '<div class="bloc-schedule-error vb-label-top">%s%s</div>',
                     visibloc_jlg_render_status_badge(
                         $schedule_error_label,
                         'schedule-error',
                         __( 'La programmation actuelle empêche l’affichage de ce bloc.', 'visi-bloc-jlg' )
                     ),
-                    $has_preview_markup && null !== $hidden_preview_markup
-                        ? $hidden_preview_markup
-                        : $block_content
+                    $content
                 );
-                $hidden_preview_markup = $schedule_error_markup;
-                $has_preview_markup    = true;
-            }
+            };
 
-            $has_schedule_enabled = false;
+            return visibloc_jlg_visibility_decision( true, false, $transform, 'schedule-invalid' );
         }
 
-        if ( $has_schedule_enabled ) {
-            $is_before_start = null !== $start_time && $current_time < $start_time;
-            $is_after_end = null !== $end_time && $current_time > $end_time;
-            if ( $is_before_start || $is_after_end ) {
-                if ( $can_preview_hidden_blocks ) {
-                    $datetime_format = visibloc_jlg_get_wp_datetime_format();
-                    $start_date_fr = $start_time ? wp_date( $datetime_format, $start_time ) : __( 'N/A', 'visi-bloc-jlg' );
-                    $end_date_fr = $end_time ? wp_date( $datetime_format, $end_time ) : __( 'N/A', 'visi-bloc-jlg' );
-                    $info = sprintf(
-                        /* translators: 1: start date, 2: end date. */
-                        __( 'Programmé (Début:%1$s | Fin:%2$s)', 'visi-bloc-jlg' ),
-                        $start_date_fr,
-                        $end_date_fr
-                    );
-                    $schedule_preview_markup = '<div class="bloc-schedule-apercu vb-label-top">' .
-                        visibloc_jlg_render_status_badge(
-                            $info,
-                            'schedule',
-                            sprintf(
-                                /* translators: %s: scheduling information. */
-                                __( 'Ce bloc est programmé : %s', 'visi-bloc-jlg' ),
-                                $info
-                            )
-                        ) . (
-                            $has_preview_markup && null !== $hidden_preview_markup
-                                ? $hidden_preview_markup
-                                : $block_content
-                        ) .
-                    '</div>';
-
-                    return visibloc_jlg_wrap_preview_with_fallback_notice( $schedule_preview_markup, $get_fallback_markup() );
-                }
-                return $get_fallback_markup();
-            }
-        }
+        return visibloc_jlg_visibility_decision( true, false, null, 'schedule-invalid' );
     }
 
-    if ( $has_advanced_rules ) {
-        $advanced_rules_match = visibloc_jlg_evaluate_advanced_visibility(
-            $advanced_visibility,
-            [
-                'user' => $user_visibility_context,
-            ]
-        );
+    $is_before_start = null !== $start_time && $current_time < $start_time;
+    $is_after_end    = null !== $end_time && $current_time > $end_time;
 
-        if ( ! $advanced_rules_match ) {
-            if ( $can_preview_hidden_blocks ) {
-                $advanced_label = __( 'Règles avancées actives', 'visi-bloc-jlg' );
-                $advanced_markup = sprintf(
-                    '<div class="bloc-advanced-apercu vb-label-top">%s%s</div>',
-                    visibloc_jlg_render_status_badge(
-                        $advanced_label,
-                        'advanced',
-                        __( 'Des règles avancées masquent ce bloc pour les visiteurs.', 'visi-bloc-jlg' )
-                    ),
-                    $has_preview_markup && null !== $hidden_preview_markup
-                        ? $hidden_preview_markup
-                        : $block_content
-                );
+    if ( $is_before_start || $is_after_end ) {
+        if ( $can_preview ) {
+            $datetime_format = isset( $context['datetime_format'] ) ? (string) $context['datetime_format'] : get_option( 'date_format', 'Y-m-d' );
+            $start_date_fr   = $start_time ? wp_date( $datetime_format, $start_time ) : __( 'N/A', 'visi-bloc-jlg' );
+            $end_date_fr     = $end_time ? wp_date( $datetime_format, $end_time ) : __( 'N/A', 'visi-bloc-jlg' );
+            $info            = sprintf(
+                /* translators: 1: start date, 2: end date. */
+                __( 'Programmé (Début:%1$s | Fin:%2$s)', 'visi-bloc-jlg' ),
+                $start_date_fr,
+                $end_date_fr
+            );
 
-                $hidden_preview_markup = $advanced_markup;
-                $has_preview_markup    = true;
-            } else {
-                return $get_fallback_markup();
-            }
+            $transform = static function ( $content ) use ( $info ) {
+                return '<div class="bloc-schedule-apercu vb-label-top">'
+                    . visibloc_jlg_render_status_badge(
+                        $info,
+                        'schedule',
+                        sprintf(
+                            /* translators: %s: scheduling information. */
+                            __( 'Ce bloc est programmé : %s', 'visi-bloc-jlg' ),
+                            $info
+                        )
+                    )
+                    . $content
+                    . '</div>';
+            };
+
+            return visibloc_jlg_visibility_decision( false, true, $transform, 'schedule-window' );
         }
+
+        return visibloc_jlg_visibility_decision( false, true, null, 'schedule-window' );
     }
 
-    if ( ! empty( $visibility_roles ) ) {
-        $is_logged_in = ! empty( $user_visibility_context['is_logged_in'] );
-        $user_roles   = isset( $user_visibility_context['roles'] ) && is_array( $user_visibility_context['roles'] )
-            ? $user_visibility_context['roles']
-            : [];
+    return visibloc_jlg_visibility_decision( true, false, null, 'schedule-window' );
+}
 
-        $is_visible = false;
-        // Manual check: without preview access the cookie must not affect visibility.
-        if ( in_array( 'logged-out', $visibility_roles, true ) && ! $is_logged_in ) $is_visible = true;
-        if ( ! $is_visible && in_array( 'logged-in', $visibility_roles, true ) && $is_logged_in ) $is_visible = true;
-        if ( ! $is_visible && ! empty( $user_roles ) && count( array_intersect( $user_roles, $visibility_roles ) ) > 0 ) { $is_visible = true; }
-        if ( ! $is_visible ) {
-            if ( $has_preview_markup && null !== $hidden_preview_markup ) {
-                return visibloc_jlg_wrap_preview_with_fallback_notice( $hidden_preview_markup, $get_fallback_markup() );
-            }
-
-            return $get_fallback_markup();
-        }
+function visibloc_jlg_should_display_for_advanced_rules( array $advanced_visibility, array $user_visibility_context, $can_preview_hidden_blocks ) {
+    if ( empty( $advanced_visibility['rules'] ) ) {
+        return visibloc_jlg_visibility_decision( true, false, null, 'advanced-rules' );
     }
 
-    if ( $has_hidden_flag ) {
-        if ( $has_preview_markup && null !== $hidden_preview_markup ) {
-            return visibloc_jlg_wrap_preview_with_fallback_notice( $hidden_preview_markup, $get_fallback_markup() );
+    $advanced_rules_match = visibloc_jlg_evaluate_advanced_visibility(
+        $advanced_visibility,
+        [
+            'user' => $user_visibility_context,
+        ]
+    );
+
+    if ( $advanced_rules_match ) {
+        return visibloc_jlg_visibility_decision( true, false, null, 'advanced-rules' );
+    }
+
+    if ( $can_preview_hidden_blocks ) {
+        $transform = static function ( $content ) {
+            $advanced_label = __( 'Règles avancées actives', 'visi-bloc-jlg' );
+
+            return sprintf(
+                '<div class="bloc-advanced-apercu vb-label-top">%s%s</div>',
+                visibloc_jlg_render_status_badge(
+                    $advanced_label,
+                    'advanced',
+                    __( 'Des règles avancées masquent ce bloc pour les visiteurs.', 'visi-bloc-jlg' )
+                ),
+                $content
+            );
+        };
+
+        return visibloc_jlg_visibility_decision( false, true, $transform, 'advanced-rules' );
+    }
+
+    return visibloc_jlg_visibility_decision( false, true, null, 'advanced-rules' );
+}
+
+function visibloc_jlg_should_display_for_roles( array $visibility_roles, array $user_visibility_context, $can_preview_hidden_blocks ) {
+    if ( empty( $visibility_roles ) ) {
+        return visibloc_jlg_visibility_decision( true, false, null, 'roles' );
+    }
+
+    $is_logged_in = ! empty( $user_visibility_context['is_logged_in'] );
+    $user_roles   = isset( $user_visibility_context['roles'] ) && is_array( $user_visibility_context['roles'] )
+        ? $user_visibility_context['roles']
+        : [];
+
+    $is_visible = false;
+
+    if ( in_array( 'logged-out', $visibility_roles, true ) && ! $is_logged_in ) {
+        $is_visible = true;
+    }
+
+    if ( ! $is_visible && in_array( 'logged-in', $visibility_roles, true ) && $is_logged_in ) {
+        $is_visible = true;
+    }
+
+    if ( ! $is_visible && ! empty( $user_roles ) && array_intersect( $user_roles, $visibility_roles ) ) {
+        $is_visible = true;
+    }
+
+    if ( $is_visible ) {
+        return visibloc_jlg_visibility_decision( true, false, null, 'roles' );
+    }
+
+    if ( $can_preview_hidden_blocks ) {
+        $transform = static function ( $content ) {
+            $label = __( 'Restriction par rôle', 'visi-bloc-jlg' );
+
+            return sprintf(
+                '<div class="bloc-role-apercu vb-label-top">%s%s</div>',
+                visibloc_jlg_render_status_badge(
+                    $label,
+                    'roles',
+                    __( 'Ce bloc est réservé à des rôles spécifiques.', 'visi-bloc-jlg' )
+                ),
+                $content
+            );
+        };
+
+        return visibloc_jlg_visibility_decision( false, true, $transform, 'roles' );
+    }
+
+    return visibloc_jlg_visibility_decision( false, true, null, 'roles' );
+}
+
+function visibloc_jlg_should_display_for_manual_flag( $has_hidden_flag, $can_preview_hidden_blocks ) {
+    if ( ! $has_hidden_flag ) {
+        return visibloc_jlg_visibility_decision( true, false, null, 'manual-flag' );
+    }
+
+    if ( $can_preview_hidden_blocks ) {
+        $transform = static function ( $content ) {
+            $hidden_preview_label = __( 'Hidden block', 'visi-bloc-jlg' );
+
+            return sprintf(
+                '<div class="bloc-cache-apercu vb-label-top">%s%s</div>',
+                visibloc_jlg_render_status_badge(
+                    $hidden_preview_label,
+                    'hidden',
+                    __( 'Ce bloc est masqué pour les visiteurs du site.', 'visi-bloc-jlg' )
+                ),
+                $content
+            );
+        };
+
+        return visibloc_jlg_visibility_decision( false, true, $transform, 'manual-flag' );
+    }
+
+    return visibloc_jlg_visibility_decision( false, true, null, 'manual-flag' );
+}
+
+function visibloc_jlg_process_visibility_decision( array $decision, $block_content, callable $get_fallback_markup, array &$preview_transforms ) {
+    if ( isset( $decision['preview_transform'] ) && null !== $decision['preview_transform'] ) {
+        $preview_transforms[] = $decision['preview_transform'];
+    }
+
+    if ( $decision['is_visible'] ) {
+        return null;
+    }
+
+    if ( ! empty( $preview_transforms ) ) {
+        $preview_markup = visibloc_jlg_apply_preview_transforms( $preview_transforms, $block_content );
+
+        if ( ! empty( $decision['use_fallback'] ) ) {
+            $preview_markup = visibloc_jlg_wrap_preview_with_fallback_notice( $preview_markup, $get_fallback_markup() );
         }
 
+        return $preview_markup;
+    }
+
+    if ( ! empty( $decision['use_fallback'] ) ) {
         return $get_fallback_markup();
     }
 
-    if ( $has_preview_markup && null !== $hidden_preview_markup ) {
-        return visibloc_jlg_wrap_preview_with_fallback_notice( $hidden_preview_markup, $get_fallback_markup() );
+    return '';
+}
+
+function visibloc_jlg_apply_preview_transforms( array $transforms, $block_content ) {
+    $preview_markup = $block_content;
+
+    foreach ( $transforms as $transform ) {
+        if ( is_callable( $transform ) ) {
+            $preview_markup = $transform( $preview_markup );
+        }
     }
 
-    return $block_content;
+    return $preview_markup;
 }
 
 function visibloc_jlg_wrap_preview_with_fallback_notice( $preview_markup, $fallback_markup ) {
