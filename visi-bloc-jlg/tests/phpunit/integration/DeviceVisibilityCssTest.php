@@ -173,9 +173,9 @@ class DeviceVisibilityCssTest extends TestCase {
         $cache_key = sprintf( '%s:%d:%d:%d', VISIBLOC_JLG_VERSION, 0, 600, 1024 );
 
         wp_cache_set(
-            'visibloc_device_css_cache',
+            VISIBLOC_JLG_DEVICE_CSS_CACHE_KEY,
             [ $cache_key => $expected ],
-            'visibloc_jlg'
+            VISIBLOC_JLG_DEVICE_CSS_CACHE_GROUP
         );
 
         $css = visibloc_jlg_generate_device_visibility_css( false, 600, 1024 );
@@ -186,11 +186,11 @@ class DeviceVisibilityCssTest extends TestCase {
     public function test_cached_css_transient_is_reused_between_calls(): void {
         $initial_css = visibloc_jlg_generate_device_visibility_css( false, 600, 1024 );
         $cache_key   = sprintf( '%s:%d:%d:%d', VISIBLOC_JLG_VERSION, 0, 600, 1024 );
-        $transient   = sprintf( 'visibloc_device_css_%s', $cache_key );
+        $transient   = VISIBLOC_JLG_DEVICE_CSS_TRANSIENT_PREFIX . $cache_key;
 
         $this->assertSame( $initial_css, get_transient( $transient ) );
 
-        wp_cache_delete( 'visibloc_device_css_cache', 'visibloc_jlg' );
+        wp_cache_delete( VISIBLOC_JLG_DEVICE_CSS_CACHE_KEY, VISIBLOC_JLG_DEVICE_CSS_CACHE_GROUP );
 
         $cached_value = '/* transient cached css */';
         set_transient( $transient, $cached_value, 0 );
@@ -203,18 +203,18 @@ class DeviceVisibilityCssTest extends TestCase {
     public function test_clear_caches_removes_cached_device_css(): void {
         $initial = visibloc_jlg_generate_device_visibility_css( false, 600, 1024 );
 
-        $cache = wp_cache_get( 'visibloc_device_css_cache', 'visibloc_jlg' );
+        $cache = wp_cache_get( VISIBLOC_JLG_DEVICE_CSS_CACHE_KEY, VISIBLOC_JLG_DEVICE_CSS_CACHE_GROUP );
         $this->assertIsArray( $cache );
         $cache_key = sprintf( '%s:%d:%d:%d', VISIBLOC_JLG_VERSION, 0, 600, 1024 );
         $this->assertArrayHasKey( $cache_key, $cache );
         $this->assertSame( $initial, $cache[ $cache_key ] );
 
-        $transient_key = sprintf( 'visibloc_device_css_%s', $cache_key );
+        $transient_key = VISIBLOC_JLG_DEVICE_CSS_TRANSIENT_PREFIX . $cache_key;
         $this->assertSame( $initial, get_transient( $transient_key ) );
 
         visibloc_jlg_clear_caches();
 
-        $cache_after_clear = wp_cache_get( 'visibloc_device_css_cache', 'visibloc_jlg' );
+        $cache_after_clear = wp_cache_get( VISIBLOC_JLG_DEVICE_CSS_CACHE_KEY, VISIBLOC_JLG_DEVICE_CSS_CACHE_GROUP );
         $this->assertFalse( $cache_after_clear );
         $this->assertFalse( get_transient( $transient_key ) );
     }

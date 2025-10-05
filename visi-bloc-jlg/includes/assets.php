@@ -20,6 +20,7 @@ if ( ! defined( 'VISIBLOC_JLG_MISSING_EDITOR_ASSETS_TRANSIENT' ) ) {
     define( 'VISIBLOC_JLG_MISSING_EDITOR_ASSETS_TRANSIENT', 'visibloc_jlg_missing_editor_assets' );
 }
 
+require_once __DIR__ . '/cache-constants.php';
 require_once __DIR__ . '/fallback.php';
 
 add_action( 'wp_enqueue_scripts', 'visibloc_jlg_enqueue_public_styles' );
@@ -754,8 +755,8 @@ function visibloc_jlg_generate_device_visibility_css( $can_preview, $mobile_bp =
     $mobile_bp = $mobile_bp > 0 ? $mobile_bp : $default_mobile_bp;
     $tablet_bp = $tablet_bp > 0 ? $tablet_bp : $default_tablet_bp;
 
-    $cache_group = 'visibloc_jlg';
-    $cache_key   = 'visibloc_device_css_cache';
+    $cache_group = VISIBLOC_JLG_DEVICE_CSS_CACHE_GROUP;
+    $cache_key   = VISIBLOC_JLG_DEVICE_CSS_CACHE_KEY;
     $bucket_key  = sprintf(
         '%s:%d:%d:%d',
         VISIBLOC_JLG_VERSION,
@@ -764,7 +765,7 @@ function visibloc_jlg_generate_device_visibility_css( $can_preview, $mobile_bp =
         (int) $tablet_bp
     );
 
-    $transient_key = sprintf( 'visibloc_device_css_%s', $bucket_key );
+    $transient_key = VISIBLOC_JLG_DEVICE_CSS_TRANSIENT_PREFIX . $bucket_key;
 
     if ( function_exists( 'get_transient' ) ) {
         $transient_css = get_transient( $transient_key );
@@ -789,27 +790,40 @@ function visibloc_jlg_generate_device_visibility_css( $can_preview, $mobile_bp =
     $cached_css[ $bucket_key ] = $css;
 
     if ( function_exists( 'set_transient' ) ) {
-        $transient_expiration = defined( 'DAY_IN_SECONDS' ) ? DAY_IN_SECONDS : 86400;
         // The transient expiration prevents stale CSS in case visibloc_jlg_clear_caches() is not triggered.
-        set_transient( $transient_key, $css, $transient_expiration );
+        set_transient( $transient_key, $css, VISIBLOC_JLG_DEVICE_CSS_TRANSIENT_EXPIRATION );
     }
 
-    if ( function_exists( 'get_option' ) && function_exists( 'update_option' ) ) {
-        $registered_buckets = get_option( 'visibloc_device_css_transients', [] );
-
-        if ( ! is_array( $registered_buckets ) ) {
-            $registered_buckets = [];
-        }
-
-        if ( ! in_array( $bucket_key, $registered_buckets, true ) ) {
-            $registered_buckets[] = $bucket_key;
-            update_option( 'visibloc_device_css_transients', $registered_buckets );
-        }
-    }
+    visibloc_jlg_register_device_css_bucket( $bucket_key );
 
     wp_cache_set( $cache_key, $cached_css, $cache_group );
 
     return $css;
+}
+
+/**
+ * Keep track of generated CSS buckets so visibloc_jlg_clear_caches() can remove them.
+ *
+ * @param string $bucket_key Unique bucket identifier.
+ * @return void
+ */
+function visibloc_jlg_register_device_css_bucket( $bucket_key ) {
+    if ( ! function_exists( 'get_option' ) || ! function_exists( 'update_option' ) ) {
+        return;
+    }
+
+    $registered_buckets = get_option( VISIBLOC_JLG_DEVICE_CSS_BUCKET_OPTION, [] );
+
+    if ( ! is_array( $registered_buckets ) ) {
+        $registered_buckets = [];
+    }
+
+    if ( in_array( $bucket_key, $registered_buckets, true ) ) {
+        return;
+    }
+
+    $registered_buckets[] = $bucket_key;
+    update_option( VISIBLOC_JLG_DEVICE_CSS_BUCKET_OPTION, $registered_buckets );
 }
 
 function visibloc_jlg_build_visibility_blocks( $mobile_bp, $tablet_bp ) {

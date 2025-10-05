@@ -1,6 +1,8 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+require_once __DIR__ . '/cache-constants.php';
+
 require_once __DIR__ . '/block-utils.php';
 require_once __DIR__ . '/fallback.php';
 
@@ -1639,7 +1641,7 @@ function visibloc_jlg_clear_caches( $unused_post_id = null ) {
     $bucket_keys_to_clear = [];
 
     if ( function_exists( 'get_option' ) ) {
-        $registered_buckets = get_option( 'visibloc_device_css_transients', [] );
+        $registered_buckets = get_option( VISIBLOC_JLG_DEVICE_CSS_BUCKET_OPTION, [] );
 
         if ( is_array( $registered_buckets ) ) {
             $bucket_keys_to_clear = array_merge( $bucket_keys_to_clear, $registered_buckets );
@@ -1647,7 +1649,7 @@ function visibloc_jlg_clear_caches( $unused_post_id = null ) {
     }
 
     if ( function_exists( 'wp_cache_get' ) ) {
-        $cached_css = wp_cache_get( 'visibloc_device_css_cache', 'visibloc_jlg' );
+        $cached_css = wp_cache_get( VISIBLOC_JLG_DEVICE_CSS_CACHE_KEY, VISIBLOC_JLG_DEVICE_CSS_CACHE_GROUP );
 
         if ( is_array( $cached_css ) ) {
             $bucket_keys_to_clear = array_merge( $bucket_keys_to_clear, array_keys( $cached_css ) );
@@ -1677,16 +1679,16 @@ function visibloc_jlg_clear_caches( $unused_post_id = null ) {
 
     if ( function_exists( 'delete_transient' ) ) {
         foreach ( array_unique( $bucket_keys_to_clear ) as $bucket_key ) {
-            delete_transient( sprintf( 'visibloc_device_css_%s', $bucket_key ) );
+            delete_transient( VISIBLOC_JLG_DEVICE_CSS_TRANSIENT_PREFIX . $bucket_key );
         }
     }
 
     if ( function_exists( 'delete_option' ) ) {
-        delete_option( 'visibloc_device_css_transients' );
+        delete_option( VISIBLOC_JLG_DEVICE_CSS_BUCKET_OPTION );
     }
 
     if ( function_exists( 'wp_cache_delete' ) ) {
-        wp_cache_delete( 'visibloc_device_css_cache', 'visibloc_jlg' );
+        wp_cache_delete( VISIBLOC_JLG_DEVICE_CSS_CACHE_KEY, VISIBLOC_JLG_DEVICE_CSS_CACHE_GROUP );
     }
 }
 
