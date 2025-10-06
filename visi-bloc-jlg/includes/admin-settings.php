@@ -1633,6 +1633,10 @@ function visibloc_jlg_clear_caches( $unused_post_id = null ) {
         visibloc_jlg_invalidate_fallback_blocks_cache();
     }
 
+    if ( function_exists( 'visibloc_jlg_clear_editor_data_cache' ) ) {
+        visibloc_jlg_clear_editor_data_cache();
+    }
+
     delete_transient( 'visibloc_hidden_posts' );
     delete_transient( 'visibloc_device_posts' );
     delete_transient( 'visibloc_scheduled_posts' );

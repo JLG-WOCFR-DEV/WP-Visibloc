@@ -14,6 +14,12 @@ if ( ! defined( 'WPINC' ) ) {
 $GLOBALS['visibloc_posts']            = [];
 $GLOBALS['visibloc_test_options']     = [];
 $GLOBALS['visibloc_test_transients']  = [];
+$GLOBALS['visibloc_test_post_types']  = [];
+$GLOBALS['visibloc_test_taxonomies']  = [];
+$GLOBALS['visibloc_test_terms']       = [];
+$GLOBALS['visibloc_test_page_templates'] = [];
+$GLOBALS['visibloc_test_woocommerce_attribute_taxonomies'] = [];
+$GLOBALS['visibloc_test_counters']    = [];
 $GLOBALS['visibloc_test_stats']        = [
     'get_posts_calls' => 0,
 ];
@@ -44,6 +50,17 @@ if ( ! class_exists( 'WP_Term' ) ) {
             foreach ( $data as $key => $value ) {
                 $this->{$key} = $value;
             }
+        }
+    }
+}
+
+if ( ! class_exists( 'WP_Theme' ) ) {
+    #[AllowDynamicProperties]
+    class WP_Theme {
+        public function get_page_templates() {
+            $templates = $GLOBALS['visibloc_test_page_templates'] ?? [];
+
+            return is_array( $templates ) ? $templates : [];
         }
     }
 }
@@ -79,6 +96,20 @@ function visibloc_test_set_request_environment( array $overrides ) {
             $_SERVER['REQUEST_URI'] = $state['request_uri'];
         }
     }
+}
+
+function visibloc_test_track_counter( $key ) {
+    $key = (string) $key;
+
+    if ( '' === $key ) {
+        return;
+    }
+
+    if ( ! isset( $GLOBALS['visibloc_test_counters'][ $key ] ) ) {
+        $GLOBALS['visibloc_test_counters'][ $key ] = 0;
+    }
+
+    $GLOBALS['visibloc_test_counters'][ $key ]++;
 }
 
 if ( ! function_exists( 'is_admin' ) ) {
@@ -156,6 +187,12 @@ function visibloc_test_reset_state() {
     $GLOBALS['visibloc_test_options']    = [];
     $GLOBALS['visibloc_test_transients'] = [];
     $GLOBALS['visibloc_test_object_cache'] = [];
+    $GLOBALS['visibloc_test_post_types']  = [];
+    $GLOBALS['visibloc_test_taxonomies']  = [];
+    $GLOBALS['visibloc_test_terms']       = [];
+    $GLOBALS['visibloc_test_page_templates'] = [];
+    $GLOBALS['visibloc_test_woocommerce_attribute_taxonomies'] = [];
+    $GLOBALS['visibloc_test_counters']    = [];
     $GLOBALS['visibloc_test_stats']      = [
         'get_posts_calls' => 0,
     ];
@@ -177,6 +214,173 @@ function visibloc_test_reset_state() {
     if ( function_exists( 'visibloc_jlg_get_user_visibility_context' ) ) {
         $preview_cache_reset = false;
         visibloc_jlg_get_user_visibility_context( [], $preview_cache_reset, true );
+    }
+
+    if ( function_exists( 'visibloc_jlg_clear_editor_data_cache' ) ) {
+        visibloc_jlg_clear_editor_data_cache();
+    }
+}
+
+if ( ! function_exists( 'get_post_types' ) ) {
+    function get_post_types( $args = [], $output = 'names' ) {
+        global $visibloc_test_post_types;
+
+        visibloc_test_track_counter( 'get_post_types' );
+
+        $definitions = is_array( $visibloc_test_post_types ?? null ) ? $visibloc_test_post_types : [];
+        $filtered     = [];
+
+        foreach ( $definitions as $slug => $definition ) {
+            $definition_args   = isset( $definition['args'] ) && is_array( $definition['args'] ) ? $definition['args'] : [];
+            $definition_object = $definition['object'] ?? (object) [];
+            $matches           = true;
+
+            foreach ( (array) $args as $key => $value ) {
+                if ( ! array_key_exists( $key, $definition_args ) || $definition_args[ $key ] !== $value ) {
+                    $matches = false;
+                    break;
+                }
+            }
+
+            if ( ! $matches ) {
+                continue;
+            }
+
+            if ( 'objects' === $output ) {
+                $filtered[ $slug ] = $definition_object;
+            } else {
+                $filtered[] = $slug;
+            }
+        }
+
+        return $filtered;
+    }
+}
+
+if ( ! function_exists( 'get_taxonomies' ) ) {
+    function get_taxonomies( $args = [], $output = 'names' ) {
+        global $visibloc_test_taxonomies;
+
+        visibloc_test_track_counter( 'get_taxonomies' );
+
+        $definitions = is_array( $visibloc_test_taxonomies ?? null ) ? $visibloc_test_taxonomies : [];
+        $filtered    = [];
+
+        foreach ( $definitions as $slug => $definition ) {
+            $definition_args   = isset( $definition['args'] ) && is_array( $definition['args'] ) ? $definition['args'] : [];
+            $definition_object = $definition['object'] ?? (object) [];
+            $matches           = true;
+
+            foreach ( (array) $args as $key => $value ) {
+                if ( ! array_key_exists( $key, $definition_args ) || $definition_args[ $key ] !== $value ) {
+                    $matches = false;
+                    break;
+                }
+            }
+
+            if ( ! $matches ) {
+                continue;
+            }
+
+            if ( 'objects' === $output ) {
+                $filtered[ $slug ] = $definition_object;
+            } else {
+                $filtered[] = $slug;
+            }
+        }
+
+        return $filtered;
+    }
+}
+
+if ( ! function_exists( 'taxonomy_exists' ) ) {
+    function taxonomy_exists( $taxonomy ) {
+        global $visibloc_test_taxonomies;
+
+        $definitions = is_array( $visibloc_test_taxonomies ?? null ) ? $visibloc_test_taxonomies : [];
+
+        return array_key_exists( $taxonomy, $definitions );
+    }
+}
+
+if ( ! function_exists( 'get_terms' ) ) {
+    function get_terms( $args = [] ) {
+        global $visibloc_test_terms;
+
+        visibloc_test_track_counter( 'get_terms' );
+
+        if ( ! is_array( $args ) ) {
+            return [];
+        }
+
+        $taxonomy = $args['taxonomy'] ?? '';
+        $limit    = isset( $args['number'] ) ? (int) $args['number'] : 0;
+        $order    = strtoupper( $args['order'] ?? 'ASC' );
+        $orderby  = $args['orderby'] ?? 'name';
+
+        $registered_terms = $visibloc_test_terms[ $taxonomy ] ?? [];
+        $items            = [];
+
+        foreach ( $registered_terms as $term ) {
+            $items[] = new WP_Term(
+                [
+                    'term_id' => $term['term_id'] ?? 0,
+                    'name'    => $term['name'] ?? '',
+                    'slug'    => $term['slug'] ?? '',
+                ]
+            );
+        }
+
+        $comparator = static function ( WP_Term $a, WP_Term $b ) use ( $orderby ) {
+            $value_a = $a->{$orderby} ?? '';
+            $value_b = $b->{$orderby} ?? '';
+
+            return strcasecmp( (string) $value_a, (string) $value_b );
+        };
+
+        usort( $items, $comparator );
+
+        if ( 'DESC' === $order ) {
+            $items = array_reverse( $items );
+        }
+
+        if ( $limit > 0 ) {
+            $items = array_slice( $items, 0, $limit );
+        }
+
+        return $items;
+    }
+}
+
+if ( ! function_exists( 'wp_get_theme' ) ) {
+    function wp_get_theme() {
+        return new WP_Theme();
+    }
+}
+
+if ( ! function_exists( 'wc_get_attribute_taxonomies' ) ) {
+    function wc_get_attribute_taxonomies() {
+        visibloc_test_track_counter( 'wc_get_attribute_taxonomies' );
+
+        return is_array( $GLOBALS['visibloc_test_woocommerce_attribute_taxonomies'] ?? null )
+            ? $GLOBALS['visibloc_test_woocommerce_attribute_taxonomies']
+            : [];
+    }
+}
+
+if ( ! function_exists( 'wc_attribute_taxonomy_name' ) ) {
+    function wc_attribute_taxonomy_name( $taxonomy ) {
+        $taxonomy = (string) $taxonomy;
+
+        if ( '' === $taxonomy ) {
+            return '';
+        }
+
+        if ( 0 === strpos( $taxonomy, 'pa_' ) ) {
+            return $taxonomy;
+        }
+
+        return 'pa_' . $taxonomy;
     }
 }
 
@@ -303,6 +507,32 @@ function remove_all_filters( $hook, $priority = false ) {
     $priority = (int) $priority;
 
     if ( isset( $GLOBALS['visibloc_test_filters'][ $hook ][ $priority ] ) ) {
+        unset( $GLOBALS['visibloc_test_filters'][ $hook ][ $priority ] );
+    }
+
+    if ( empty( $GLOBALS['visibloc_test_filters'][ $hook ] ) ) {
+        unset( $GLOBALS['visibloc_test_filters'][ $hook ] );
+    }
+}
+
+function remove_filter( $hook, $callback, $priority = 10 ) {
+    if ( ! isset( $GLOBALS['visibloc_test_filters'][ $hook ] ) ) {
+        return;
+    }
+
+    $priority = is_numeric( $priority ) ? (int) $priority : 10;
+
+    if ( ! isset( $GLOBALS['visibloc_test_filters'][ $hook ][ $priority ] ) ) {
+        return;
+    }
+
+    foreach ( $GLOBALS['visibloc_test_filters'][ $hook ][ $priority ] as $index => $details ) {
+        if ( $details['callback'] === $callback ) {
+            unset( $GLOBALS['visibloc_test_filters'][ $hook ][ $priority ][ $index ] );
+        }
+    }
+
+    if ( empty( $GLOBALS['visibloc_test_filters'][ $hook ][ $priority ] ) ) {
         unset( $GLOBALS['visibloc_test_filters'][ $hook ][ $priority ] );
     }
 
@@ -1055,6 +1285,8 @@ if ( ! function_exists( 'wp_roles' ) ) {
     if ( ! class_exists( 'Visibloc_Test_Roles_Registry' ) ) {
         class Visibloc_Test_Roles_Registry {
             public function get_names() {
+                visibloc_test_track_counter( 'wp_roles_get_names' );
+
                 $names = [];
 
                 foreach ( $GLOBALS['visibloc_test_state']['roles'] as $slug => $details ) {
