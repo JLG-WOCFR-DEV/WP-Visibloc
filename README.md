@@ -2,14 +2,43 @@
 
 Visi-Bloc – JLG is a WordPress plugin that adds advanced visibility controls to Gutenberg blocks. It lets administrators show or hide blocks for particular audiences, schedule their display, or preview the site as different user roles.
 
-## Features
-- **Role-based visibility** – restrict blocks to selected roles or to logged-in/out visitors.
-- **Scheduling** – set start and end dates for blocks to appear.
-- **Manual hide** – hide blocks from the front end while still previewable to permitted roles.
-- **Global fallback content** – define the markup shown when a block is hidden and keep it in sync through settings export/import snapshots.
-- **Device visibility utilities** – apply classes like `vb-hide-on-mobile`, `vb-mobile-only`, `vb-tablet-only`, or `vb-desktop-only` to control display by screen width. The generated CSS now includes a `display` fallback to support browsers that lack `display: revert`.
-- **Role preview switcher** – administrators (or roles explicitly granted via the `visibloc_jlg_allowed_impersonator_roles` filter) can preview the site as another role from the toolbar.
-- **Accessible mobile role switcher** – the front-end dialog now traps keyboard focus, keeps the toggle expanded until dismissed, and marks the rest of the page with `inert`/`aria-hidden` while open to avoid accidental interactions.
+## Fonctionnalités
+
+### Contrôles de visibilité dans l’éditeur
+- **Restriction par rôle ou statut de connexion** – ciblez les visiteurs connectés/déconnectés et les rôles WordPress autorisés à voir le bloc, avec des badges d’aperçu lorsqu’une règle masque le contenu.
+- **Planification temporelle** – activez l’option « Programmer l’affichage » pour définir des dates de début et de fin respectant le fuseau de WordPress et expliquer en aperçu pourquoi le bloc est masqué en dehors de la fenêtre.
+- **Masquage manuel** – retirez immédiatement un bloc du front-end tout en gardant un contour et une explication en mode prévisualisation pour les rôles autorisés.
+- **Règles avancées** – combinez plusieurs conditions (type de publication, taxonomie, modèle, créneaux récurrents, statut de connexion, groupes de rôles, contenu du panier WooCommerce, paramètres d’URL) avec une logique AND/OR pour affiner l’affichage.
+- **Compatibilité blocs personnalisés** – sélectionnez précisément quels types de blocs héritent des contrôles Visibloc via la page d’options.
+
+### Contenu de substitution et affichage par appareil
+- **Fallback global configurable** – choisissez de ne rien afficher, d’injecter un message HTML personnalisé ou de réutiliser un bloc Gutenberg publié lorsqu’un bloc est masqué.
+- **Classes CSS prêtes à l’emploi** – ajoutez `vb-hide-on-mobile`, `vb-mobile-only`, `vb-tablet-only` ou `vb-desktop-only` à n’importe quel bloc et laissez le plugin générer les media queries adaptées.
+- **Seuils responsive personnalisables** – ajustez les largeurs mobile/tablette via le panneau d’administration et profitez d’une feuille de style recalculée dynamiquement.
+
+### Outils d’aperçu et d’administration
+- **Commutateur de rôle** – autorisez certains rôles à se glisser dans la peau d’un autre depuis la barre d’admin, avec conservation du statut réel pour les appels techniques.
+- **Sélecteur mobile accessible** – le panneau front-end gère le focus clavier, verrouille le scroll et rend le reste de la page inert/aria-hidden tant qu’il est ouvert.
+- **Snapshots de configuration** – exportez/importez l’ensemble des réglages (blocs pris en charge, seuils responsive, fallback, rôles autorisés, mode debug) pour synchroniser plusieurs environnements.
+- **Panneau d’aide unifié** – gérez les blocs pris en charge, les seuils responsive, le fallback, les permissions d’aperçu et le mode debug depuis une unique page dans l’administration.
+- **Gestion du cache** – régénérez à la demande l’index des blocs groupés et videz les caches liés aux fallbacks, aux feuilles de style et aux aperçus lorsque la configuration change.
+
+### Intégrations et outils développeur
+- **Filtres extensibles** – ajustez la requête listant les blocs de fallback, la liste des rôles pouvant impersoner ou encore les blocs pris en charge via les hooks fournis.
+- **Commande WP-CLI** – reconstruisez l’index des blocs groupés (`wp visibloc rebuild-index`) dans vos scripts de déploiement.
+- **API utilitaires** – accédez à des helpers PHP (`visibloc_jlg_normalize_boolean`, `visibloc_jlg_get_sanitized_query_arg`, etc.) pour intégrer Visibloc dans vos développements.
+
+## Comparaison avec des solutions professionnelles et pistes d’amélioration
+
+Des extensions commerciales de personnalisation de contenu (p. ex. Block Visibility Pro, If-So, LogicHop) mettent souvent l’accent sur des segments marketing avancés et des intégrations SaaS. Visi-Bloc – JLG couvre déjà les besoins essentiels de ciblage éditorial, mais plusieurs axes lui permettraient de rivaliser avec ces outils :
+
+- **Ciblage géographique et par appareil enrichi** – proposer des conditions basées sur la localisation (IP/Géolocalisation), le navigateur ou la détection de périphériques spécifiques (iOS/Android) irait au-delà des media queries actuellement disponibles.
+- **Segments marketing dynamiques** – offrir une intégration native avec les plateformes de marketing automation / CRM (HubSpot, Brevo, Mailchimp) pour déclencher l’affichage selon l’appartenance à une campagne ou à une liste.
+- **Tests et analytics** – ajouter l’A/B testing, le suivi de conversion et des rapports sur la visibilité réelle des blocs aiderait les équipes marketing à mesurer l’efficacité des règles.
+- **Conditions supplémentaires** – enrichir le builder avec des déclencheurs basés sur les cookies (valeur exacte, présence ou date de dernière mise à jour), le nombre de visites ou de pages vues, l’état d’abonnement à WooCommerce/EDD (panier récurrent, statut de membre, niveau d’adhésion) ou encore l’appartenance à un groupe BuddyPress/BuddyBoss. Chaque condition devrait être paramétrable (comparaison, opérateurs, durée de conservation) et combinable avec les règles existantes via une interface uniforme.
+- **API REST et webhooks** – exposer et piloter les règles de visibilité via l’API REST ou des webhooks permettrait de synchroniser les scénarios depuis des workflows externes. Des points d’entrée sécurisés (CRUD sur les règles, déclenchement de prévisualisation, validation) et des webhooks sortants sur les changements majeurs (création, publication, expiration) faciliteraient l’automatisation avec des outils comme Make, Zapier ou n8n.
+- **Expérience éditeur guidée** – proposer des recettes préconfigurées (modèles de règles prêtes à l’emploi) et un assistant onboarding réduirait la marche d’apprentissage pour les équipes non techniques. Un catalogue de scénarios (ex. « réserver un bloc aux nouveaux inscrits », « promouvoir une offre récurrente à J+3 ») et un tutoriel pas-à-pas directement dans l’éditeur guideraient la prise en main tout en recommandant les bonnes pratiques.
+
 
 ## Installation
 1. Download or clone this repository into `wp-content/plugins/` of your WordPress installation.
