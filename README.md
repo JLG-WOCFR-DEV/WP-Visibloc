@@ -8,7 +8,7 @@ Visi-Bloc – JLG is a WordPress plugin that adds advanced visibility controls t
 - **Restriction par rôle ou statut de connexion** – ciblez les visiteurs connectés/déconnectés et les rôles WordPress autorisés à voir le bloc, avec des badges d’aperçu lorsqu’une règle masque le contenu.
 - **Planification temporelle** – activez l’option « Programmer l’affichage » pour définir des dates de début et de fin respectant le fuseau de WordPress et expliquer en aperçu pourquoi le bloc est masqué en dehors de la fenêtre.
 - **Masquage manuel** – retirez immédiatement un bloc du front-end tout en gardant un contour et une explication en mode prévisualisation pour les rôles autorisés.
-- **Règles avancées** – combinez plusieurs conditions (type de publication, taxonomie, modèle, créneaux récurrents, statut de connexion, groupes de rôles, contenu du panier WooCommerce, paramètres d’URL) avec une logique AND/OR pour affiner l’affichage.
+- **Règles avancées** – combinez plusieurs conditions (type de publication, taxonomie, modèle, créneaux récurrents, statut de connexion, groupes de rôles, cookies, contenu du panier WooCommerce, paramètres d’URL) avec une logique AND/OR pour affiner l’affichage.
 - **Compatibilité blocs personnalisés** – sélectionnez précisément quels types de blocs héritent des contrôles Visibloc via la page d’options.
 
 ### Contenu de substitution et affichage par appareil
@@ -45,7 +45,7 @@ Des extensions commerciales de personnalisation de contenu (p. ex. Block Visibil
 
 ### Diagnostic UI/UX actuel
 
-- **Point forts** – L’expérience se fond dans le panneau latéral de Gutenberg, ce qui limite la rupture de parcours pour un éditeur habitué à WordPress. Les règles avancées sont modulaires (type de contenu, taxonomie, récurrence, statut de connexion, groupes de rôles, paramètres d’URL, panier WooCommerce, etc.) et peuvent être combinées en logique AND/OR, offrant une grande puissance sans avoir à quitter l’éditeur.
+- **Point forts** – L’expérience se fond dans le panneau latéral de Gutenberg, ce qui limite la rupture de parcours pour un éditeur habitué à WordPress. Les règles avancées sont modulaires (type de contenu, taxonomie, récurrence, statut de connexion, groupes de rôles, cookies, paramètres d’URL, panier WooCommerce, etc.) et peuvent être combinées en logique AND/OR, offrant une grande puissance sans avoir à quitter l’éditeur.
 - **Limites identifiées** – La création de scénarios repose sur une configuration bloc par bloc et sur une compréhension approfondie des réglages disponibles. Il n’existe ni guide interactif ni vue d’ensemble des règles en place, ce qui peut entraîner un manque de visibilité et des erreurs de paramétrage pour les équipes marketing ou produit débutantes.
 - **Accessibilité et feedback** – Les messages d’explication en mode aperçu et le commutateur de rôle dans la barre d’admin donnent des retours utiles, mais il manque des visualisations plus explicites (timeline, alertes contextuelles, score de couverture) pour comprendre l’impact d’une règle sur le parcours utilisateur ou détecter les conflits.
 
@@ -152,3 +152,23 @@ add_filter(
 
 When using pagination, make sure the fallback block stored in the global settings stays within the returned subset or adjust the
 selector UI accordingly.
+
+### `visibloc_jlg_common_cookies`
+
+Use this filter to customize the list of suggested cookies exposed in the advanced visibility rule builder. Each entry must be an associative array with `value` (cookie name) and an optional `label`:
+
+```php
+add_filter(
+    'visibloc_jlg_common_cookies',
+    static function ( array $cookies ) {
+        $cookies[] = [
+            'value' => 'ab_test_variant',
+            'label' => 'AB test variant',
+        ];
+
+        return $cookies;
+    }
+);
+```
+
+The plugin automatically ignores invalid entries and ensures that cookie names are non-empty strings.

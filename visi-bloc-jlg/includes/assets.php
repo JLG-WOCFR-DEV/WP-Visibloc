@@ -420,6 +420,7 @@ function visibloc_jlg_enqueue_editor_assets() {
             'loginStatuses'    => visibloc_jlg_get_editor_login_statuses(),
             'woocommerceTaxonomies' => visibloc_jlg_get_editor_woocommerce_taxonomies(),
             'commonQueryParams' => visibloc_jlg_get_editor_common_query_params(),
+            'commonCookies'     => visibloc_jlg_get_editor_common_cookies(),
             'fallbackSettings' => visibloc_jlg_get_editor_fallback_settings(),
             'fallbackBlocks'   => visibloc_jlg_get_editor_fallback_blocks(),
         ]
@@ -947,6 +948,42 @@ function visibloc_jlg_get_editor_common_query_params() {
         }
 
         $label = isset( $param['label'] ) ? (string) $param['label'] : $value;
+
+        $sanitized[] = [
+            'value' => $value,
+            'label' => $label,
+        ];
+    }
+
+    return $sanitized;
+}
+
+function visibloc_jlg_get_editor_common_cookies() {
+    $cookies = [
+        [ 'value' => 'woocommerce_cart_hash', 'label' => 'woocommerce_cart_hash' ],
+        [ 'value' => 'woocommerce_items_in_cart', 'label' => 'woocommerce_items_in_cart' ],
+        [ 'value' => 'woocommerce_recently_viewed', 'label' => 'woocommerce_recently_viewed' ],
+        [ 'value' => 'wp-wpml_current_language', 'label' => 'wp-wpml_current_language' ],
+        [ 'value' => 'pll_language', 'label' => 'pll_language' ],
+        [ 'value' => 'visibloc_preview_role', 'label' => 'visibloc_preview_role' ],
+    ];
+
+    $cookies = apply_filters( 'visibloc_jlg_common_cookies', $cookies );
+
+    $sanitized = [];
+
+    foreach ( (array) $cookies as $cookie ) {
+        if ( ! is_array( $cookie ) ) {
+            continue;
+        }
+
+        $value = isset( $cookie['value'] ) ? (string) $cookie['value'] : '';
+
+        if ( '' === $value ) {
+            continue;
+        }
+
+        $label = isset( $cookie['label'] ) ? (string) $cookie['label'] : $value;
 
         $sanitized[] = [
             'value' => $value,

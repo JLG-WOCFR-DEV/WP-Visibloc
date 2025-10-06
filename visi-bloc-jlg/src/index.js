@@ -595,6 +595,7 @@ const SUPPORTED_ADVANCED_RULE_TYPES = [
     'user_role_group',
     'woocommerce_cart',
     'query_param',
+    'cookie',
 ];
 
 const ADVANCED_RULE_TYPE_OPTIONS = [
@@ -606,6 +607,7 @@ const ADVANCED_RULE_TYPE_OPTIONS = [
     { value: 'user_role_group', label: __('Groupe de rôles', 'visi-bloc-jlg') },
     { value: 'woocommerce_cart', label: __('Panier WooCommerce', 'visi-bloc-jlg') },
     { value: 'query_param', label: __('Paramètre d’URL', 'visi-bloc-jlg') },
+    { value: 'cookie', label: __('Cookie', 'visi-bloc-jlg') },
 ];
 
 const DEFAULT_ADVANCED_VISIBILITY = Object.freeze({
@@ -871,6 +873,18 @@ const getDefaultQueryParamRule = () => {
     };
 };
 
+const getDefaultCookieRule = () => {
+    const cookies = getVisiBlocArray('commonCookies');
+
+    return {
+        id: createRuleId(),
+        type: 'cookie',
+        operator: 'equals',
+        name: getFirstOptionValue(cookies),
+        value: '',
+    };
+};
+
 const createDefaultRuleForType = (type) => {
     switch (type) {
         case 'taxonomy':
@@ -887,6 +901,8 @@ const createDefaultRuleForType = (type) => {
             return getDefaultWooCommerceCartRule();
         case 'query_param':
             return getDefaultQueryParamRule();
+        case 'cookie':
+            return getDefaultCookieRule();
         case 'post_type':
         default:
             return getDefaultPostTypeRule();
@@ -975,6 +991,25 @@ const normalizeRule = (rule) => {
             ? rule.operator
             : 'equals';
         normalized.param = typeof rule.param === 'string' ? rule.param : '';
+        normalized.value = typeof rule.value === 'string' ? rule.value : '';
+
+        return normalized;
+    }
+
+    if (type === 'cookie') {
+        const allowedOperators = [
+            'equals',
+            'not_equals',
+            'contains',
+            'not_contains',
+            'exists',
+            'not_exists',
+        ];
+
+        normalized.operator = allowedOperators.includes(rule.operator)
+            ? rule.operator
+            : 'equals';
+        normalized.name = typeof rule.name === 'string' ? rule.name : '';
         normalized.value = typeof rule.value === 'string' ? rule.value : '';
 
         return normalized;
@@ -1794,6 +1829,71 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                             onChange={(newValue) => onUpdateRule({ param: newValue })}
                             help={__(
                                 'Saisissez le nom du paramètre de requête attendu (ex. utm_source).',
+                                'visi-bloc-jlg',
+                            )}
+                        />
+                        {!['exists', 'not_exists'].includes(rule.operator) && (
+                            <TextControl
+                                label={__('Valeur attendue', 'visi-bloc-jlg')}
+                                value={rule.value}
+                                onChange={(newValue) => onUpdateRule({ value: newValue })}
+                            />
+                        )}
+                    </div>
+                );
+            }
+
+            if (rule.type === 'cookie') {
+                const suggestions = getVisiBlocArray('commonCookies').map((item) => ({
+                    value: item.value,
+                    label: item.label || item.value,
+                }));
+
+                const suggestionOptions = [
+                    { value: '', label: __('Personnalisé…', 'visi-bloc-jlg') },
+                    ...suggestions,
+                ];
+
+                const operatorOptions = [
+                    { value: 'equals', label: __('Est égal à', 'visi-bloc-jlg') },
+                    { value: 'not_equals', label: __('Est différent de', 'visi-bloc-jlg') },
+                    { value: 'contains', label: __('Contient', 'visi-bloc-jlg') },
+                    { value: 'not_contains', label: __('Ne contient pas', 'visi-bloc-jlg') },
+                    { value: 'exists', label: __('Existe', 'visi-bloc-jlg') },
+                    { value: 'not_exists', label: __('N’existe pas', 'visi-bloc-jlg') },
+                ];
+
+                const selectedSuggestion = suggestions.some((item) => item.value === rule.name)
+                    ? rule.name
+                    : '';
+
+                return (
+                    <div key={rule.id} className="visibloc-advanced-rule">
+                        {commonHeader}
+                        <SelectControl
+                            label={__('Condition', 'visi-bloc-jlg')}
+                            value={rule.operator}
+                            options={operatorOptions}
+                            onChange={(newOperator) => onUpdateRule({ operator: newOperator })}
+                        />
+                        <SelectControl
+                            label={__('Cookie courant', 'visi-bloc-jlg')}
+                            value={selectedSuggestion}
+                            options={suggestionOptions}
+                            onChange={(newValue) => {
+                                if (!newValue) {
+                                    return;
+                                }
+
+                                onUpdateRule({ name: newValue });
+                            }}
+                        />
+                        <TextControl
+                            label={__('Nom du cookie', 'visi-bloc-jlg')}
+                            value={rule.name}
+                            onChange={(newValue) => onUpdateRule({ name: newValue })}
+                            help={__(
+                                'Saisissez le nom exact du cookie attendu (respect de la casse).',
                                 'visi-bloc-jlg',
                             )}
                         />
