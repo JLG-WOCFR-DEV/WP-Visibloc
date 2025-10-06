@@ -30,7 +30,19 @@ Visi-Bloc – JLG is a WordPress plugin that adds advanced visibility controls t
 
 ## Comparaison avec des solutions professionnelles et pistes d’amélioration
 
-Des extensions commerciales de personnalisation de contenu (p. ex. Block Visibility Pro, If-So, LogicHop) mettent souvent l’accent sur des segments marketing avancés, des connecteurs SaaS prêts à l’emploi et des tableaux de bord orientés performance. À la lumière de ces offres professionnelles, Visi-Bloc – JLG couvre déjà les besoins essentiels de ciblage éditorial, mais plusieurs axes lui permettraient de rivaliser avec ces outils :
+Des extensions commerciales de personnalisation de contenu (p. ex. Block Visibility Pro, If-So, LogicHop) mettent souvent l’accent sur des segments marketing avancés, des connecteurs SaaS prêts à l’emploi et des tableaux de bord orientés performance. Le tableau ci-dessous synthétise les principales différences observées.
+
+### Synthèse comparative avec des applications professionnelles
+
+| Axe | Visi-Bloc – JLG | Block Visibility Pro | If-So | LogicHop |
+| --- | --- | --- | --- | --- |
+| Ciblage de base | Rôles WP, statut de connexion, planification, règles avancées AND/OR | Ciblage par rôle + conditions WooCommerce, Easy Digital Downloads, GeoIP | Scénarios conditionnels visuels, règles basées sur l’appareil et l’URL | Segments dynamiques, intégration CRM/marketing automation |
+| Expérience d’onboarding | Interface Gutenberg native, règles configurées bloc par bloc | Assistant de configuration et bibliothèques de recettes | « Conditions » pré-emballées avec suggestions de cas d’usage | Parcours guidés orientés entonnoir marketing |
+| Analytics & optimisation | Logs techniques limités, pas de reporting d’impact | Statistiques d’affichage et de conversion intégrées | Mesures basiques avec connecteurs Google Analytics/Tag Manager | Tableaux de bord détaillés (conversions, tests A/B) |
+| Automatisation & intégrations | Hooks WordPress, commande WP-CLI, API utilitaires PHP | Intégrations WooCommerce, EDD, Gravity Forms | Webhooks entrants/sortants, connecteurs SaaS | API REST complète, webhooks, synchronisation CRM |
+| Gouvernance & conformité | Gestion des permissions et fallback global | Contrôles d’accès granulaires, audit de règles | Gestion de consentement simplifiée | Gestion multi-sites, rôles marketing dédiés, support RGPD |
+
+### Axes d’amélioration recommandés
 
 - **Parcours utilisateurs préconfigurés** – les solutions pro livrent fréquemment des playbooks prêts à l’emploi (ex. « afficher un bandeau de relance au visiteur récurrent », « cibler les clients VIP ») avec un assistant pas-à-pas. Visi-Bloc gagnerait à proposer une bibliothèque de recettes guidées, accompagnée de tutoriels intégrés dans l’éditeur pour réduire la marche d’apprentissage.
 - **Ciblage géographique et par appareil enrichi** – proposer des conditions basées sur la localisation (IP/Géolocalisation MaxMind, consentement à la géolocalisation HTML5), le navigateur ou la détection de périphériques spécifiques (iOS/Android, desktop tactile) irait au-delà des media queries actuellement disponibles.

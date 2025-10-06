@@ -1,3 +1,4 @@
 node_modules/
 vendor/
 visi-bloc-jlg/languages/*.mo
+.phpunit.result.cache
