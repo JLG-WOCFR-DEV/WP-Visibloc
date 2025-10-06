@@ -875,6 +875,18 @@ class VisibilityLogicTest extends TestCase {
         display: none !important;
     }
 }
+@media (orientation: portrait) {
+    .vb-hide-on-portrait,
+    .vb-landscape-only {
+        display: none !important;
+    }
+}
+@media (orientation: landscape) {
+    .vb-hide-on-landscape,
+    .vb-portrait-only {
+        display: none !important;
+    }
+}
 CSS;
         $this->assertSame( $expected_default_css, trim( $css_without_preview ) );
 

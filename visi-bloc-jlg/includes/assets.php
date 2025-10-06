@@ -1055,6 +1055,19 @@ function visibloc_jlg_build_device_visibility_css( $can_preview, $mobile_bp, $ta
         visibloc_jlg_render_visibility_blocks( $current_blocks, 'display: none !important;' )
     );
 
+    $css_lines[] = '@media (orientation: portrait) {';
+    $css_lines[] = '    .vb-hide-on-portrait,';
+    $css_lines[] = '    .vb-landscape-only {';
+    $css_lines[] = '        display: none !important;';
+    $css_lines[] = '    }';
+    $css_lines[] = '}';
+    $css_lines[] = '@media (orientation: landscape) {';
+    $css_lines[] = '    .vb-hide-on-landscape,';
+    $css_lines[] = '    .vb-portrait-only {';
+    $css_lines[] = '        display: none !important;';
+    $css_lines[] = '    }';
+    $css_lines[] = '}';
+
     $has_custom_breakpoints = ( $mobile_bp !== $default_mobile_bp ) || ( $tablet_bp !== $default_tablet_bp );
 
     if ( $has_custom_breakpoints ) {
@@ -1077,6 +1090,10 @@ function visibloc_jlg_build_device_visibility_css( $can_preview, $mobile_bp, $ta
             '.vb-hide-on-desktop',
             '.vb-hide-on-tablet',
             '.vb-hide-on-mobile',
+            '.vb-portrait-only',
+            '.vb-landscape-only',
+            '.vb-hide-on-portrait',
+            '.vb-hide-on-landscape',
         ];
 
         $selectors_without_pseudo = implode( ', ', $preview_selectors );
@@ -1371,7 +1388,7 @@ function visibloc_jlg_get_display_fallback_for_selector( $selector ) {
         return $fallback;
     }
 
-    if ( preg_match( '/^\\.vb-hide-on-(mobile|tablet|desktop)$/', $selector ) ) {
+    if ( preg_match( '/^\\.vb-hide-on-(mobile|tablet|desktop|portrait|landscape)$/', $selector ) ) {
         return $fallback;
     }
 
