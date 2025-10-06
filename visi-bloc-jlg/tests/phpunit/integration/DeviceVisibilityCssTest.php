@@ -24,6 +24,8 @@ class DeviceVisibilityCssTest extends TestCase {
         $this->assertStringContainsString('@media (max-width: 781px)', $css);
         $this->assertStringContainsString('@media (min-width: 782px) and (max-width: 1024px)', $css);
         $this->assertStringContainsString('@media (min-width: 1025px)', $css);
+        $this->assertStringContainsString('@media (orientation: portrait)', $css);
+        $this->assertStringContainsString('@media (orientation: landscape)', $css);
         $this->assertStringNotContainsString('display: revert !important;', $css);
     }
 
@@ -43,6 +45,7 @@ class DeviceVisibilityCssTest extends TestCase {
         $this->assertStringContainsString('.visibloc-status-badge {', $css);
         $this->assertStringContainsString('.visibloc-status-badge--hidden {', $css);
         $this->assertStringContainsString('@media (max-width: 782px) {', $css);
+        $this->assertStringContainsString('.vb-hide-on-landscape', $css);
     }
 
     public function test_mobile_breakpoint_lower_than_default_unhides_tablet_classes(): void {
@@ -75,6 +78,13 @@ class DeviceVisibilityCssTest extends TestCase {
         $this->assertSame(
             'display: block !important;',
             visibloc_jlg_get_display_fallback_for_selector( '.vb-hide-on-desktop' )
+        );
+    }
+
+    public function test_hide_on_orientation_selectors_use_block_fallback(): void {
+        $this->assertSame(
+            'display: block !important;',
+            visibloc_jlg_get_display_fallback_for_selector( '.vb-hide-on-portrait' )
         );
     }
 

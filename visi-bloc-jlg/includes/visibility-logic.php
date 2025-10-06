@@ -1,6 +1,7 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+require_once __DIR__ . '/datetime-utils.php';
 require_once __DIR__ . '/fallback.php';
 
 final class Visibloc_Jlg_Visibility_Decision {
@@ -120,16 +121,21 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
 
     $decisions = [];
 
+    $schedule_timezone       = visibloc_jlg_normalize_schedule_timezone( $attrs['publishTimezone'] ?? 'site' );
+    $schedule_timezone_label = visibloc_jlg_get_timezone_display_label( $schedule_timezone );
+
     $decisions[] = visibloc_jlg_should_display_for_schedule(
         [
             'is_enabled' => $has_schedule,
-            'start_time' => visibloc_jlg_parse_schedule_datetime( $attrs['publishStartDate'] ?? null ),
-            'end_time'   => visibloc_jlg_parse_schedule_datetime( $attrs['publishEndDate'] ?? null ),
+            'start_time' => visibloc_jlg_parse_schedule_datetime( $attrs['publishStartDate'] ?? null, $schedule_timezone ),
+            'end_time'   => visibloc_jlg_parse_schedule_datetime( $attrs['publishEndDate'] ?? null, $schedule_timezone ),
         ],
         [
             'current_time'    => current_datetime()->getTimestamp(),
             'can_preview'     => $can_preview_hidden_blocks,
             'datetime_format' => visibloc_jlg_get_wp_datetime_format(),
+            'timezone'        => $schedule_timezone,
+            'timezone_label'  => $schedule_timezone_label,
         ]
     );
 
@@ -207,6 +213,8 @@ function visibloc_jlg_should_display_for_schedule( array $schedule, array $conte
     $end_time     = $schedule['end_time'];
     $can_preview  = ! empty( $context['can_preview'] );
     $current_time = isset( $context['current_time'] ) ? (int) $context['current_time'] : time();
+    $preview_timezone_label = isset( $context['timezone_label'] ) ? (string) $context['timezone_label'] : '';
+    $preview_timezone       = visibloc_jlg_resolve_schedule_timezone( $context['timezone'] ?? null );
 
     if ( null !== $start_time && null !== $end_time && $start_time > $end_time ) {
         if ( $can_preview ) {
@@ -236,14 +244,18 @@ function visibloc_jlg_should_display_for_schedule( array $schedule, array $conte
     if ( $is_before_start || $is_after_end ) {
         if ( $can_preview ) {
             $datetime_format = isset( $context['datetime_format'] ) ? (string) $context['datetime_format'] : get_option( 'date_format', 'Y-m-d' );
-            $start_date_fr   = $start_time ? wp_date( $datetime_format, $start_time ) : __( 'N/A', 'visi-bloc-jlg' );
-            $end_date_fr     = $end_time ? wp_date( $datetime_format, $end_time ) : __( 'N/A', 'visi-bloc-jlg' );
+            $start_date_fr   = $start_time ? wp_date( $datetime_format, $start_time, $preview_timezone ) : __( 'N/A', 'visi-bloc-jlg' );
+            $end_date_fr     = $end_time ? wp_date( $datetime_format, $end_time, $preview_timezone ) : __( 'N/A', 'visi-bloc-jlg' );
             $info            = sprintf(
                 /* translators: 1: start date, 2: end date. */
                 __( 'Programmé (Début:%1$s | Fin:%2$s)', 'visi-bloc-jlg' ),
                 $start_date_fr,
                 $end_date_fr
             );
+
+            if ( '' !== $preview_timezone_label ) {
+                $info .= sprintf( ' — %s', $preview_timezone_label );
+            }
 
             $transform = static function ( $content ) use ( $info ) {
                 return '<div class="bloc-schedule-apercu vb-label-top" data-visibloc-reason="schedule-window">'
