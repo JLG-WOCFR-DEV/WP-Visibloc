@@ -23,6 +23,257 @@ if ( ! defined( 'VISIBLOC_JLG_MISSING_EDITOR_ASSETS_TRANSIENT' ) ) {
 require_once __DIR__ . '/cache-constants.php';
 require_once __DIR__ . '/fallback.php';
 
+if ( ! defined( 'VISIBLOC_JLG_EDITOR_DATA_CACHE_GROUP' ) ) {
+    define( 'VISIBLOC_JLG_EDITOR_DATA_CACHE_GROUP', 'visibloc_jlg_editor_data' );
+}
+
+if ( ! defined( 'VISIBLOC_JLG_EDITOR_DATA_TRANSIENT_PREFIX' ) ) {
+    define( 'VISIBLOC_JLG_EDITOR_DATA_TRANSIENT_PREFIX', 'visibloc_editor_data_' );
+}
+
+if ( ! defined( 'VISIBLOC_JLG_EDITOR_DATA_CACHE_TTL' ) ) {
+    $minute = defined( 'MINUTE_IN_SECONDS' ) ? MINUTE_IN_SECONDS : 60;
+    define( 'VISIBLOC_JLG_EDITOR_DATA_CACHE_TTL', 15 * $minute );
+}
+
+/**
+ * Retrieve a normalized locale string for cache segmentation.
+ *
+ * @return string
+ */
+function visibloc_jlg_get_editor_data_locale() {
+    static $locale = null;
+
+    if ( null !== $locale ) {
+        return $locale;
+    }
+
+    $candidates = [];
+
+    if ( function_exists( 'determine_locale' ) ) {
+        $candidates[] = determine_locale();
+    }
+
+    if ( function_exists( 'get_user_locale' ) ) {
+        $candidates[] = get_user_locale();
+    }
+
+    if ( function_exists( 'get_locale' ) ) {
+        $candidates[] = get_locale();
+    }
+
+    foreach ( $candidates as $candidate ) {
+        if ( is_string( $candidate ) && '' !== $candidate ) {
+            $locale = $candidate;
+            break;
+        }
+    }
+
+    if ( null === $locale ) {
+        $locale = 'en_US';
+    }
+
+    return $locale;
+}
+
+/**
+ * Build the cache prefix combining the plugin version and current locale.
+ *
+ * @return string
+ */
+function visibloc_jlg_get_editor_data_cache_prefix() {
+    static $prefix = null;
+
+    if ( null !== $prefix ) {
+        return $prefix;
+    }
+
+    $version = defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : '0.0.0';
+    $locale  = visibloc_jlg_get_editor_data_locale();
+
+    $prefix = sprintf( '%s:%s', $version, $locale );
+
+    return $prefix;
+}
+
+/**
+ * Map a data slug to the bucket key stored in cache engines.
+ *
+ * @param string $slug Data identifier.
+ * @return string
+ */
+function visibloc_jlg_get_editor_data_bucket_key( $slug ) {
+    $slug = is_string( $slug ) ? $slug : (string) $slug;
+
+    if ( '' === $slug ) {
+        $slug = 'default';
+    }
+
+    return visibloc_jlg_get_editor_data_cache_prefix() . ':' . $slug;
+}
+
+/**
+ * Generate the transient key used to persist cached editor data.
+ *
+ * @param string $bucket_key Bucket identifier.
+ * @return string
+ */
+function visibloc_jlg_get_editor_data_transient_key( $bucket_key ) {
+    return VISIBLOC_JLG_EDITOR_DATA_TRANSIENT_PREFIX . md5( $bucket_key );
+}
+
+/**
+ * Determine if the editor data cache is enabled for a given slug.
+ *
+ * @param string $slug Data identifier.
+ * @return bool
+ */
+function visibloc_jlg_is_editor_data_cache_enabled( $slug ) {
+    $enabled = true;
+
+    if ( function_exists( 'apply_filters' ) ) {
+        $enabled = apply_filters( 'visibloc_jlg_use_editor_data_cache', $enabled, $slug );
+    }
+
+    return (bool) $enabled;
+}
+
+/**
+ * Retrieve a cached editor dataset or compute it via the provided callback.
+ *
+ * @param string   $slug        Data identifier.
+ * @param callable $generator   Callback returning the uncached payload.
+ * @param int|null $expiration  Optional cache duration in seconds.
+ * @return mixed
+ */
+function visibloc_jlg_get_cached_editor_data( $slug, callable $generator, $expiration = null ) {
+    if ( ! visibloc_jlg_is_editor_data_cache_enabled( $slug ) ) {
+        return call_user_func( $generator );
+    }
+
+    $bucket_key    = visibloc_jlg_get_editor_data_bucket_key( $slug );
+    $transient_key = visibloc_jlg_get_editor_data_transient_key( $bucket_key );
+    $expiration    = ( null === $expiration ) ? VISIBLOC_JLG_EDITOR_DATA_CACHE_TTL : (int) max( 0, $expiration );
+
+    if ( function_exists( 'wp_cache_get' ) ) {
+        $cached = wp_cache_get( $bucket_key, VISIBLOC_JLG_EDITOR_DATA_CACHE_GROUP );
+
+        if ( false !== $cached ) {
+            return $cached;
+        }
+    }
+
+    if ( function_exists( 'get_transient' ) ) {
+        $transient = get_transient( $transient_key );
+
+        if ( false !== $transient ) {
+            if ( function_exists( 'wp_cache_set' ) ) {
+                wp_cache_set( $bucket_key, $transient, VISIBLOC_JLG_EDITOR_DATA_CACHE_GROUP, $expiration );
+            }
+
+            return $transient;
+        }
+    }
+
+    $data = call_user_func( $generator );
+
+    if ( function_exists( 'wp_cache_set' ) ) {
+        wp_cache_set( $bucket_key, $data, VISIBLOC_JLG_EDITOR_DATA_CACHE_GROUP, $expiration );
+    }
+
+    if ( function_exists( 'set_transient' ) ) {
+        set_transient( $transient_key, $data, $expiration );
+    }
+
+    return $data;
+}
+
+/**
+ * Return the list of cache slugs maintained for editor data.
+ *
+ * @return string[]
+ */
+function visibloc_jlg_get_editor_data_cache_slugs() {
+    return [
+        'post_types',
+        'taxonomies',
+        'templates',
+        'role_groups',
+        'roles',
+        'woocommerce_taxonomies',
+    ];
+}
+
+/**
+ * Determine if callbacks are registered for a given hook.
+ *
+ * @param string $hook Hook name to inspect.
+ * @return bool
+ */
+function visibloc_jlg_has_active_filter( $hook ) {
+    if ( ! is_string( $hook ) || '' === $hook ) {
+        return false;
+    }
+
+    if ( function_exists( 'has_filter' ) ) {
+        return false !== has_filter( $hook );
+    }
+
+    if ( isset( $GLOBALS['visibloc_test_filters'][ $hook ] ) && is_array( $GLOBALS['visibloc_test_filters'][ $hook ] ) ) {
+        foreach ( $GLOBALS['visibloc_test_filters'][ $hook ] as $callbacks ) {
+            if ( ! empty( $callbacks ) ) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Clear cached editor datasets.
+ *
+ * @param string|string[]|null $slugs Optional subset of cache buckets to purge.
+ * @return void
+ */
+function visibloc_jlg_clear_editor_data_cache( $slugs = null ) {
+    $available = visibloc_jlg_get_editor_data_cache_slugs();
+
+    if ( null === $slugs ) {
+        $targets = $available;
+    } else {
+        $slugs   = is_array( $slugs ) ? $slugs : [ $slugs ];
+        $targets = [];
+
+        foreach ( $slugs as $slug ) {
+            $slug = is_string( $slug ) ? $slug : (string) $slug;
+
+            if ( '' === $slug ) {
+                continue;
+            }
+
+            if ( in_array( $slug, $available, true ) ) {
+                $targets[] = $slug;
+            }
+        }
+    }
+
+    $targets = array_values( array_unique( $targets ) );
+
+    foreach ( $targets as $slug ) {
+        $bucket_key    = visibloc_jlg_get_editor_data_bucket_key( $slug );
+        $transient_key = visibloc_jlg_get_editor_data_transient_key( $bucket_key );
+
+        if ( function_exists( 'wp_cache_delete' ) ) {
+            wp_cache_delete( $bucket_key, VISIBLOC_JLG_EDITOR_DATA_CACHE_GROUP );
+        }
+
+        if ( function_exists( 'delete_transient' ) ) {
+            delete_transient( $transient_key );
+        }
+    }
+}
+
 add_action( 'wp_enqueue_scripts', 'visibloc_jlg_enqueue_public_styles' );
 function visibloc_jlg_enqueue_public_styles() {
     $plugin_main_file = __DIR__ . '/../visi-bloc-jlg.php';
@@ -156,7 +407,7 @@ function visibloc_jlg_enqueue_editor_assets() {
         'visibloc-jlg-editor-script',
         'VisiBlocData',
         [
-            'roles'            => wp_roles()->get_names(),
+            'roles'            => visibloc_jlg_get_editor_roles(),
             'supportedBlocks'  => visibloc_jlg_get_supported_blocks(),
             'postTypes'        => visibloc_jlg_get_editor_post_types(),
             'taxonomies'       => visibloc_jlg_get_editor_taxonomies(),
@@ -173,189 +424,207 @@ function visibloc_jlg_enqueue_editor_assets() {
 }
 
 function visibloc_jlg_get_editor_post_types() {
-    $post_types = get_post_types(
-        [
-            'public' => true,
-        ],
-        'objects'
-    );
+    return visibloc_jlg_get_cached_editor_data(
+        'post_types',
+        static function () {
+            $post_types = get_post_types(
+                [
+                    'public' => true,
+                ],
+                'objects'
+            );
 
-    if ( empty( $post_types ) || ! is_array( $post_types ) ) {
-        return [];
-    }
-
-    $items = [];
-
-    foreach ( $post_types as $slug => $post_type ) {
-        if ( ! is_string( $slug ) || '' === $slug ) {
-            continue;
-        }
-
-        $label = $slug;
-
-        if ( is_object( $post_type ) ) {
-            if ( isset( $post_type->labels->singular_name ) && is_string( $post_type->labels->singular_name ) && '' !== $post_type->labels->singular_name ) {
-                $label = $post_type->labels->singular_name;
-            } elseif ( isset( $post_type->label ) && is_string( $post_type->label ) && '' !== $post_type->label ) {
-                $label = $post_type->label;
+            if ( empty( $post_types ) || ! is_array( $post_types ) ) {
+                return [];
             }
-        }
 
-        $items[] = [
-            'value' => $slug,
-            'label' => $label,
-        ];
-    }
+            $items = [];
 
-    usort(
-        $items,
-        static function ( $first, $second ) {
-            return strcasecmp( (string) ( $first['label'] ?? '' ), (string) ( $second['label'] ?? '' ) );
+            foreach ( $post_types as $slug => $post_type ) {
+                if ( ! is_string( $slug ) || '' === $slug ) {
+                    continue;
+                }
+
+                $label = $slug;
+
+                if ( is_object( $post_type ) ) {
+                    if ( isset( $post_type->labels->singular_name ) && is_string( $post_type->labels->singular_name ) && '' !== $post_type->labels->singular_name ) {
+                        $label = $post_type->labels->singular_name;
+                    } elseif ( isset( $post_type->label ) && is_string( $post_type->label ) && '' !== $post_type->label ) {
+                        $label = $post_type->label;
+                    }
+                }
+
+                $items[] = [
+                    'value' => $slug,
+                    'label' => $label,
+                ];
+            }
+
+            usort(
+                $items,
+                static function ( $first, $second ) {
+                    return strcasecmp( (string) ( $first['label'] ?? '' ), (string) ( $second['label'] ?? '' ) );
+                }
+            );
+
+            return $items;
         }
     );
-
-    return $items;
 }
 
 function visibloc_jlg_get_editor_taxonomies() {
-    $taxonomies = get_taxonomies(
-        [
-            'public' => true,
-        ],
-        'objects'
-    );
+    $generator = static function () {
+        $taxonomies = get_taxonomies(
+            [
+                'public' => true,
+            ],
+            'objects'
+        );
 
-    if ( empty( $taxonomies ) || ! is_array( $taxonomies ) ) {
-        return [];
-    }
-
-    $items = [];
-
-    foreach ( $taxonomies as $slug => $taxonomy ) {
-        if ( ! is_string( $slug ) || '' === $slug ) {
-            continue;
+        if ( empty( $taxonomies ) || ! is_array( $taxonomies ) ) {
+            return [];
         }
 
-        $label = $slug;
+        $items = [];
 
-        if ( is_object( $taxonomy ) ) {
-            if ( isset( $taxonomy->labels->singular_name ) && is_string( $taxonomy->labels->singular_name ) && '' !== $taxonomy->labels->singular_name ) {
-                $label = $taxonomy->labels->singular_name;
-            } elseif ( isset( $taxonomy->label ) && is_string( $taxonomy->label ) && '' !== $taxonomy->label ) {
-                $label = $taxonomy->label;
+        foreach ( $taxonomies as $slug => $taxonomy ) {
+            if ( ! is_string( $slug ) || '' === $slug ) {
+                continue;
             }
-        }
 
-        $term_options = [];
+            $label = $slug;
 
-        if ( taxonomy_exists( $slug ) ) {
-            $term_query_args = [
-                'taxonomy'   => $slug,
-                'hide_empty' => false,
-                'number'     => 200, // Default limit for editor term suggestions.
-                'orderby'    => 'name',
-                'order'      => 'ASC',
-            ];
-
-            /**
-             * Filter the query arguments used to retrieve taxonomy terms for the editor.
-             *
-             * The default arguments include a limit of 200 terms to avoid large responses.
-             *
-             * @param array  $term_query_args Query arguments passed to {@see get_terms()}.
-             * @param string $slug            Taxonomy slug being queried.
-             */
-            $term_query_args = apply_filters( 'visibloc_jlg_editor_terms_query_args', $term_query_args, $slug );
-
-            $terms = get_terms( $term_query_args );
-
-            if ( ! is_wp_error( $terms ) && is_array( $terms ) ) {
-                foreach ( $terms as $term ) {
-                    if ( ! $term instanceof WP_Term ) {
-                        continue;
-                    }
-
-                    $term_slug = $term->slug;
-
-                    if ( ! is_string( $term_slug ) || '' === $term_slug ) {
-                        $term_slug = (string) $term->term_id;
-                    }
-
-                    $term_options[] = [
-                        'value' => $term_slug,
-                        'label' => $term->name,
-                    ];
+            if ( is_object( $taxonomy ) ) {
+                if ( isset( $taxonomy->labels->singular_name ) && is_string( $taxonomy->labels->singular_name ) && '' !== $taxonomy->labels->singular_name ) {
+                    $label = $taxonomy->labels->singular_name;
+                } elseif ( isset( $taxonomy->label ) && is_string( $taxonomy->label ) && '' !== $taxonomy->label ) {
+                    $label = $taxonomy->label;
                 }
-
-                usort(
-                    $term_options,
-                    static function ( $first, $second ) {
-                        return strcasecmp( (string) ( $first['label'] ?? '' ), (string) ( $second['label'] ?? '' ) );
-                    }
-                );
             }
+
+            $term_options = [];
+
+            if ( taxonomy_exists( $slug ) ) {
+                $term_query_args = [
+                    'taxonomy'   => $slug,
+                    'hide_empty' => false,
+                    'number'     => 200, // Default limit for editor term suggestions.
+                    'orderby'    => 'name',
+                    'order'      => 'ASC',
+                ];
+
+                /**
+                 * Filter the query arguments used to retrieve taxonomy terms for the editor.
+                 *
+                 * The default arguments include a limit of 200 terms to avoid large responses.
+                 *
+                 * @param array  $term_query_args Query arguments passed to {@see get_terms()}.
+                 * @param string $slug            Taxonomy slug being queried.
+                 */
+                $term_query_args = apply_filters( 'visibloc_jlg_editor_terms_query_args', $term_query_args, $slug );
+
+                $terms = get_terms( $term_query_args );
+
+                if ( ! is_wp_error( $terms ) && is_array( $terms ) ) {
+                    foreach ( $terms as $term ) {
+                        if ( ! $term instanceof WP_Term ) {
+                            continue;
+                        }
+
+                        $term_slug = $term->slug;
+
+                        if ( ! is_string( $term_slug ) || '' === $term_slug ) {
+                            $term_slug = (string) $term->term_id;
+                        }
+
+                        $term_options[] = [
+                            'value' => $term_slug,
+                            'label' => $term->name,
+                        ];
+                    }
+
+                    usort(
+                        $term_options,
+                        static function ( $first, $second ) {
+                            return strcasecmp( (string) ( $first['label'] ?? '' ), (string) ( $second['label'] ?? '' ) );
+                        }
+                    );
+                }
+            }
+
+            $items[] = [
+                'slug'  => $slug,
+                'label' => $label,
+                'terms' => $term_options,
+            ];
         }
 
-        $items[] = [
-            'slug'  => $slug,
-            'label' => $label,
-            'terms' => $term_options,
-        ];
+        usort(
+            $items,
+            static function ( $first, $second ) {
+                return strcasecmp( (string) ( $first['label'] ?? '' ), (string) ( $second['label'] ?? '' ) );
+            }
+        );
+
+        return $items;
+    };
+
+    if ( visibloc_jlg_has_active_filter( 'visibloc_jlg_editor_terms_query_args' ) ) {
+        return $generator();
     }
 
-    usort(
-        $items,
-        static function ( $first, $second ) {
-            return strcasecmp( (string) ( $first['label'] ?? '' ), (string) ( $second['label'] ?? '' ) );
-        }
-    );
-
-    return $items;
+    return visibloc_jlg_get_cached_editor_data( 'taxonomies', $generator );
 }
 
 function visibloc_jlg_get_editor_templates() {
-    $templates = [];
+    return visibloc_jlg_get_cached_editor_data(
+        'templates',
+        static function () {
+            $templates = [];
 
-    if ( function_exists( 'wp_get_theme' ) ) {
-        $theme = wp_get_theme();
+            if ( function_exists( 'wp_get_theme' ) ) {
+                $theme = wp_get_theme();
 
-        if ( $theme instanceof WP_Theme ) {
-            $page_templates = $theme->get_page_templates();
+                if ( $theme instanceof WP_Theme ) {
+                    $page_templates = $theme->get_page_templates();
 
-            if ( is_array( $page_templates ) ) {
-                foreach ( $page_templates as $template_name => $template_file ) {
-                    if ( ! is_string( $template_file ) ) {
-                        continue;
+                    if ( is_array( $page_templates ) ) {
+                        foreach ( $page_templates as $template_name => $template_file ) {
+                            if ( ! is_string( $template_file ) ) {
+                                continue;
+                            }
+
+                            $label = is_string( $template_name ) && '' !== $template_name
+                                ? $template_name
+                                : $template_file;
+
+                            $templates[] = [
+                                'value' => $template_file,
+                                'label' => $label,
+                            ];
+                        }
                     }
-
-                    $label = is_string( $template_name ) && '' !== $template_name
-                        ? $template_name
-                        : $template_file;
-
-                    $templates[] = [
-                        'value' => $template_file,
-                        'label' => $label,
-                    ];
                 }
             }
-        }
-    }
 
-    $default_label = __( 'Modèle par défaut', 'visi-bloc-jlg' );
+            $default_label = __( 'Modèle par défaut', 'visi-bloc-jlg' );
 
-    $templates[] = [
-        'value' => '',
-        'label' => $default_label,
-    ];
+            $templates[] = [
+                'value' => '',
+                'label' => $default_label,
+            ];
 
-    usort(
-        $templates,
-        static function ( $first, $second ) {
-            return strcasecmp( (string) ( $first['label'] ?? '' ), (string) ( $second['label'] ?? '' ) );
+            usort(
+                $templates,
+                static function ( $first, $second ) {
+                    return strcasecmp( (string) ( $first['label'] ?? '' ), (string) ( $second['label'] ?? '' ) );
+                }
+            );
+
+            return $templates;
         }
     );
-
-    return $templates;
 }
 
 function visibloc_jlg_get_editor_days_of_week() {
@@ -382,74 +651,149 @@ function visibloc_jlg_get_editor_days_of_week() {
 }
 
 function visibloc_jlg_get_role_group_definitions() {
-    $roles = function_exists( 'wp_roles' ) ? wp_roles()->get_names() : [];
+    $generator = static function () {
+        $roles = function_exists( 'wp_roles' ) ? wp_roles()->get_names() : [];
 
-    if ( ! is_array( $roles ) ) {
-        $roles = [];
-    }
-
-    $groups = [];
-
-    if ( ! empty( $roles ) ) {
-        $groups[] = [
-            'value' => 'all_registered',
-            'label' => __( 'Utilisateurs connectés (tous)', 'visi-bloc-jlg' ),
-            'roles' => array_keys( $roles ),
-        ];
-    }
-
-    foreach ( $roles as $slug => $label ) {
-        if ( ! is_string( $slug ) || '' === $slug ) {
-            continue;
+        if ( ! is_array( $roles ) ) {
+            $roles = [];
         }
 
-        $groups[] = [
-            'value' => $slug,
-            'label' => $label,
-            'roles' => [ $slug ],
-        ];
-    }
+        $groups = [];
 
-    $groups = apply_filters( 'visibloc_jlg_role_groups', $groups, $roles );
-
-    $sanitized = [];
-
-    foreach ( (array) $groups as $group ) {
-        if ( ! is_array( $group ) ) {
-            continue;
+        if ( ! empty( $roles ) ) {
+            $groups[] = [
+                'value' => 'all_registered',
+                'label' => __( 'Utilisateurs connectés (tous)', 'visi-bloc-jlg' ),
+                'roles' => array_keys( $roles ),
+            ];
         }
 
-        $value = isset( $group['value'] ) ? (string) $group['value'] : '';
+        foreach ( $roles as $slug => $label ) {
+            if ( ! is_string( $slug ) || '' === $slug ) {
+                continue;
+            }
 
-        if ( '' === $value ) {
-            continue;
+            $groups[] = [
+                'value' => $slug,
+                'label' => $label,
+                'roles' => [ $slug ],
+            ];
         }
 
-        $label = isset( $group['label'] ) ? (string) $group['label'] : $value;
-        $roles_list = [];
+        $groups = apply_filters( 'visibloc_jlg_role_groups', $groups, $roles );
 
-        if ( isset( $group['roles'] ) && is_array( $group['roles'] ) ) {
-            foreach ( $group['roles'] as $role_slug ) {
-                if ( is_string( $role_slug ) && '' !== $role_slug ) {
-                    $roles_list[] = $role_slug;
+        $sanitized = [];
+
+        foreach ( (array) $groups as $group ) {
+            if ( ! is_array( $group ) ) {
+                continue;
+            }
+
+            $value = isset( $group['value'] ) ? (string) $group['value'] : '';
+
+            if ( '' === $value ) {
+                continue;
+            }
+
+            $label = isset( $group['label'] ) ? (string) $group['label'] : $value;
+            $roles_list = [];
+
+            if ( isset( $group['roles'] ) && is_array( $group['roles'] ) ) {
+                foreach ( $group['roles'] as $role_slug ) {
+                    if ( is_string( $role_slug ) && '' !== $role_slug ) {
+                        $roles_list[] = $role_slug;
+                    }
                 }
             }
+
+            $roles_list = array_values( array_unique( $roles_list ) );
+
+            $sanitized[] = [
+                'value' => $value,
+                'label' => $label,
+                'roles' => $roles_list,
+            ];
         }
 
-        $roles_list = array_values( array_unique( $roles_list ) );
+        return $sanitized;
+    };
 
-        $sanitized[] = [
-            'value' => $value,
-            'label' => $label,
-            'roles' => $roles_list,
-        ];
+    if ( visibloc_jlg_has_active_filter( 'visibloc_jlg_role_groups' ) ) {
+        return $generator();
     }
 
-    return $sanitized;
+    return visibloc_jlg_get_cached_editor_data( 'role_groups', $generator );
 }
 
 function visibloc_jlg_get_editor_role_groups() {
     return visibloc_jlg_get_role_group_definitions();
+}
+
+/**
+ * Retrieve the list of available roles for editor controls.
+ *
+ * @return array<string, string> Map of role slugs to translated labels.
+ */
+function visibloc_jlg_get_editor_roles() {
+    $generator = static function () {
+        $roles = function_exists( 'wp_roles' ) ? wp_roles()->get_names() : [];
+
+        if ( ! is_array( $roles ) ) {
+            $roles = [];
+        }
+
+        /**
+         * Filters the role labels exposed to the editor visibility controls.
+         *
+         * @since 1.1.1
+         *
+         * @param array<string, string> $roles Associative array of role slugs to labels.
+         */
+        $roles = apply_filters( 'visibloc_jlg_role_labels', $roles );
+
+        $sanitized = [];
+
+        foreach ( (array) $roles as $slug => $label ) {
+            if ( ! is_string( $slug ) ) {
+                continue;
+            }
+
+            $normalized_slug = trim( $slug );
+            $normalized_slug = '' !== $normalized_slug ? sanitize_key( $normalized_slug ) : '';
+
+            if ( '' === $normalized_slug ) {
+                continue;
+            }
+
+            $label_value = '';
+
+            if ( is_string( $label ) && '' !== trim( $label ) ) {
+                $label_value = trim( $label );
+
+                if ( function_exists( 'wp_strip_all_tags' ) ) {
+                    $label_value = wp_strip_all_tags( $label_value );
+                } else {
+                    $label_value = strip_tags( $label_value );
+                }
+
+                $label_value = trim( $label_value );
+            }
+
+            if ( '' === $label_value ) {
+                $label_value = ucwords( str_replace( [ '-', '_' ], ' ', $normalized_slug ) );
+            }
+
+            $sanitized[ $normalized_slug ] = $label_value;
+        }
+
+        return $sanitized;
+    };
+
+    if ( visibloc_jlg_has_active_filter( 'visibloc_jlg_role_labels' ) ) {
+        return $generator();
+    }
+
+    return visibloc_jlg_get_cached_editor_data( 'roles', $generator );
 }
 
 function visibloc_jlg_get_editor_login_statuses() {
@@ -466,90 +810,101 @@ function visibloc_jlg_get_editor_login_statuses() {
 }
 
 function visibloc_jlg_get_editor_woocommerce_taxonomies() {
-    $taxonomies = [
-        'product_cat' => __( 'Catégories de produits', 'visi-bloc-jlg' ),
-        'product_tag' => __( 'Étiquettes de produits', 'visi-bloc-jlg' ),
-    ];
+    $generator = static function () {
+        $taxonomies = [
+            'product_cat' => __( 'Catégories de produits', 'visi-bloc-jlg' ),
+            'product_tag' => __( 'Étiquettes de produits', 'visi-bloc-jlg' ),
+        ];
 
-    if ( function_exists( 'wc_get_attribute_taxonomies' ) && function_exists( 'wc_attribute_taxonomy_name' ) ) {
-        $attribute_taxonomies = wc_get_attribute_taxonomies();
+        if ( function_exists( 'wc_get_attribute_taxonomies' ) && function_exists( 'wc_attribute_taxonomy_name' ) ) {
+            $attribute_taxonomies = wc_get_attribute_taxonomies();
 
-        if ( is_array( $attribute_taxonomies ) ) {
-            foreach ( $attribute_taxonomies as $taxonomy ) {
-                if ( empty( $taxonomy->attribute_name ) ) {
-                    continue;
+            if ( is_array( $attribute_taxonomies ) ) {
+                foreach ( $attribute_taxonomies as $taxonomy ) {
+                    if ( empty( $taxonomy->attribute_name ) ) {
+                        continue;
+                    }
+
+                    $attribute_name = wc_attribute_taxonomy_name( $taxonomy->attribute_name );
+                    $label = ! empty( $taxonomy->attribute_label )
+                        ? $taxonomy->attribute_label
+                        : $attribute_name;
+
+                    $taxonomies[ $attribute_name ] = $label;
                 }
-
-                $attribute_name = wc_attribute_taxonomy_name( $taxonomy->attribute_name );
-                $label = ! empty( $taxonomy->attribute_label )
-                    ? $taxonomy->attribute_label
-                    : $attribute_name;
-
-                $taxonomies[ $attribute_name ] = $label;
             }
         }
-    }
 
-    $taxonomies = apply_filters( 'visibloc_jlg_woocommerce_taxonomies', $taxonomies );
+        $taxonomies = apply_filters( 'visibloc_jlg_woocommerce_taxonomies', $taxonomies );
 
-    $items = [];
+        $items = [];
 
-    foreach ( $taxonomies as $slug => $label ) {
-        if ( ! is_string( $slug ) || '' === $slug ) {
-            continue;
+        foreach ( $taxonomies as $slug => $label ) {
+            if ( ! is_string( $slug ) || '' === $slug ) {
+                continue;
+            }
+
+            $taxonomy_slug = $slug;
+
+            if ( ! taxonomy_exists( $taxonomy_slug ) ) {
+                continue;
+            }
+
+            $term_options = [];
+            $terms = get_terms(
+                [
+                    'taxonomy'   => $taxonomy_slug,
+                    'hide_empty' => false,
+                    'number'     => 200,
+                    'orderby'    => 'name',
+                    'order'      => 'ASC',
+                ]
+            );
+
+            if ( ! is_wp_error( $terms ) ) {
+                foreach ( $terms as $term ) {
+                    if ( ! $term instanceof WP_Term ) {
+                        continue;
+                    }
+
+                    $term_value = $term->slug;
+
+                    if ( '' === $term_value ) {
+                        $term_value = (string) $term->term_id;
+                    }
+
+                    $term_options[] = [
+                        'value' => $term_value,
+                        'label' => $term->name,
+                    ];
+                }
+            }
+
+            $items[] = [
+                'slug'  => $taxonomy_slug,
+                'label' => is_string( $label ) && '' !== $label ? $label : $taxonomy_slug,
+                'terms' => $term_options,
+            ];
         }
 
-        $taxonomy_slug = $slug;
-
-        if ( ! taxonomy_exists( $taxonomy_slug ) ) {
-            continue;
-        }
-
-        $term_options = [];
-        $terms = get_terms(
-            [
-                'taxonomy'   => $taxonomy_slug,
-                'hide_empty' => false,
-                'number'     => 200,
-                'orderby'    => 'name',
-                'order'      => 'ASC',
-            ]
+        usort(
+            $items,
+            static function ( $first, $second ) {
+                return strcasecmp( (string) ( $first['label'] ?? '' ), (string) ( $second['label'] ?? '' ) );
+            }
         );
 
-        if ( ! is_wp_error( $terms ) ) {
-            foreach ( $terms as $term ) {
-                if ( ! $term instanceof WP_Term ) {
-                    continue;
-                }
+        return $items;
+    };
 
-                $term_value = $term->slug;
-
-                if ( '' === $term_value ) {
-                    $term_value = (string) $term->term_id;
-                }
-
-                $term_options[] = [
-                    'value' => $term_value,
-                    'label' => $term->name,
-                ];
-            }
-        }
-
-        $items[] = [
-            'slug'  => $taxonomy_slug,
-            'label' => is_string( $label ) && '' !== $label ? $label : $taxonomy_slug,
-            'terms' => $term_options,
-        ];
+    if (
+        visibloc_jlg_has_active_filter( 'visibloc_jlg_woocommerce_taxonomies' )
+        || visibloc_jlg_has_active_filter( 'visibloc_jlg_editor_terms_query_args' )
+    ) {
+        return $generator();
     }
 
-    usort(
-        $items,
-        static function ( $first, $second ) {
-            return strcasecmp( (string) ( $first['label'] ?? '' ), (string) ( $second['label'] ?? '' ) );
-        }
-    );
-
-    return $items;
+    return visibloc_jlg_get_cached_editor_data( 'woocommerce_taxonomies', $generator );
 }
 
 function visibloc_jlg_get_editor_common_query_params() {
@@ -588,6 +943,38 @@ function visibloc_jlg_get_editor_common_query_params() {
     }
 
     return $sanitized;
+}
+
+function visibloc_jlg_clear_editor_post_types_cache_on_change( $post_type = null, $args = [] ) { // phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UnusedVariable
+    visibloc_jlg_clear_editor_data_cache( 'post_types' );
+}
+
+function visibloc_jlg_clear_editor_taxonomy_cache_on_change( $taxonomy = null ) { // phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UnusedVariable
+    visibloc_jlg_clear_editor_data_cache( [ 'taxonomies', 'woocommerce_taxonomies' ] );
+}
+
+function visibloc_jlg_clear_editor_templates_cache_on_switch() {
+    visibloc_jlg_clear_editor_data_cache( 'templates' );
+}
+
+function visibloc_jlg_clear_editor_role_groups_cache_on_change() {
+    visibloc_jlg_clear_editor_data_cache( [ 'role_groups', 'roles' ] );
+}
+
+if ( function_exists( 'add_action' ) ) {
+    add_action( 'registered_post_type', 'visibloc_jlg_clear_editor_post_types_cache_on_change', 100, 2 );
+    add_action( 'unregistered_post_type', 'visibloc_jlg_clear_editor_post_types_cache_on_change', 100, 1 );
+    add_action( 'registered_taxonomy', 'visibloc_jlg_clear_editor_taxonomy_cache_on_change', 100, 1 );
+    add_action( 'unregistered_taxonomy', 'visibloc_jlg_clear_editor_taxonomy_cache_on_change', 100, 1 );
+    add_action( 'created_term', 'visibloc_jlg_clear_editor_taxonomy_cache_on_change', 100, 3 );
+    add_action( 'edited_term', 'visibloc_jlg_clear_editor_taxonomy_cache_on_change', 100, 3 );
+    add_action( 'delete_term', 'visibloc_jlg_clear_editor_taxonomy_cache_on_change', 100, 4 );
+    add_action( 'set_object_terms', 'visibloc_jlg_clear_editor_taxonomy_cache_on_change', 100, 6 );
+    add_action( 'switch_theme', 'visibloc_jlg_clear_editor_templates_cache_on_switch' );
+    add_action( 'after_switch_theme', 'visibloc_jlg_clear_editor_templates_cache_on_switch' );
+    add_action( 'add_role', 'visibloc_jlg_clear_editor_role_groups_cache_on_change' );
+    add_action( 'remove_role', 'visibloc_jlg_clear_editor_role_groups_cache_on_change' );
+    add_action( 'set_user_role', 'visibloc_jlg_clear_editor_role_groups_cache_on_change', 100, 3 );
 }
 
 function visibloc_jlg_flag_missing_editor_assets() {
