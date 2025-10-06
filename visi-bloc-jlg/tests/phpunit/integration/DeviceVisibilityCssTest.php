@@ -44,6 +44,8 @@ class DeviceVisibilityCssTest extends TestCase {
 
         $this->assertStringContainsString('.visibloc-status-badge {', $css);
         $this->assertStringContainsString('.visibloc-status-badge--hidden {', $css);
+        $this->assertStringContainsString('--visibloc-badge-bg', $css);
+        $this->assertStringContainsString('visibloc-status-badge__icon', $css);
         $this->assertStringContainsString('@media (max-width: 782px) {', $css);
         $this->assertStringContainsString('.vb-hide-on-landscape', $css);
     }

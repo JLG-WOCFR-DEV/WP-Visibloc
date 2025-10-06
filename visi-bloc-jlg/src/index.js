@@ -8,6 +8,7 @@ import {
     ToolbarButton,
     PanelBody,
     SelectControl,
+    ComboboxControl,
     ToggleGroupControl,
     ToggleGroupControlOptionIcon,
     ToggleControl,
@@ -103,16 +104,215 @@ const DeviceOrientationLandscapeIcon = () => (
     </svg>
 );
 
+const HiddenBadgeIcon = () => (
+    <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        role="presentation"
+        focusable="false"
+        aria-hidden="true"
+    >
+        <path
+            d="M2 12c2.8-5.3 6.5-8 10-8s7.2 2.7 10 8c-2.8 5.3-6.5 8-10 8s-7.2-2.7-10-8z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinejoin="round"
+        />
+        <circle cx="12" cy="12" r="3" fill="currentColor" opacity="0.2" />
+        <path
+            d="M12 9a3 3 0 0 1 3 3m6.5 6.5-17-17"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+        />
+    </svg>
+);
+
+const ClockBadgeIcon = () => (
+    <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        role="presentation"
+        focusable="false"
+        aria-hidden="true"
+    >
+        <circle
+            cx="12"
+            cy="12"
+            r="7.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+        />
+        <path
+            d="M12 8.5v4l2.5 2"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        />
+    </svg>
+);
+
+const ClockAlertBadgeIcon = () => (
+    <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        role="presentation"
+        focusable="false"
+        aria-hidden="true"
+    >
+        <circle
+            cx="11"
+            cy="11"
+            r="7"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+        />
+        <path
+            d="M11 7.5v3.7l2.1 1.6"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        />
+        <path
+            d="M17.5 13.5v3.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+        />
+        <circle cx="17.5" cy="18.5" r="0.8" fill="currentColor" />
+    </svg>
+);
+
+const LayersBadgeIcon = () => (
+    <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        role="presentation"
+        focusable="false"
+        aria-hidden="true"
+    >
+        <path
+            d="M5.5 9.5 12 6l6.5 3.5L12 13z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinejoin="round"
+        />
+        <path
+            d="M5.5 14.5 12 18l6.5-3.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinejoin="round"
+        />
+    </svg>
+);
+
+const SlidersBadgeIcon = () => (
+    <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        role="presentation"
+        focusable="false"
+        aria-hidden="true"
+    >
+        <path
+            d="M7 5v14M17 5v14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+        />
+        <circle
+            cx="7"
+            cy="10"
+            r="2.5"
+            fill="currentColor"
+            opacity="0.2"
+            stroke="currentColor"
+            strokeWidth="1.2"
+        />
+        <circle
+            cx="17"
+            cy="14"
+            r="2.5"
+            fill="currentColor"
+            opacity="0.2"
+            stroke="currentColor"
+            strokeWidth="1.2"
+        />
+    </svg>
+);
+
+const InfoBadgeIcon = () => (
+    <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        role="presentation"
+        focusable="false"
+        aria-hidden="true"
+    >
+        <circle
+            cx="12"
+            cy="12"
+            r="8"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+        />
+        <circle cx="12" cy="8.5" r="1" fill="currentColor" />
+        <path
+            d="M11 11.5h2v6"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+        />
+    </svg>
+);
+
+const STATUS_BADGE_ICONS = {
+    hidden: HiddenBadgeIcon,
+    schedule: ClockBadgeIcon,
+    'schedule-error': ClockAlertBadgeIcon,
+    fallback: LayersBadgeIcon,
+    advanced: SlidersBadgeIcon,
+    default: InfoBadgeIcon,
+};
+
 const StatusBadge = ({ label, variant = '', screenReaderText = '', description = '' }) => {
     const classNames = ['visibloc-status-badge'];
     const hasDescription = typeof description === 'string' && description.trim().length > 0;
+    const normalizedVariant = typeof variant === 'string' ? variant.trim() : '';
 
-    if (typeof variant === 'string' && variant.trim()) {
-        classNames.push(`visibloc-status-badge--${variant.trim()}`);
+    if (normalizedVariant) {
+        classNames.push(`visibloc-status-badge--${normalizedVariant}`);
     }
+
+    const IconComponent = STATUS_BADGE_ICONS[normalizedVariant] || STATUS_BADGE_ICONS.default;
 
     const content = (
         <span className={classNames.join(' ')}>
+            {IconComponent ? (
+                <span className="visibloc-status-badge__icon" aria-hidden="true">
+                    <IconComponent />
+                </span>
+            ) : null}
             <span className="visibloc-status-badge__label">{label}</span>
             {hasDescription ? (
                 <span className="visibloc-status-badge__description">{description}</span>
@@ -419,6 +619,8 @@ const DEFAULT_RECURRING_SCHEDULE = Object.freeze({
     startTime: '08:00',
     endTime: '17:00',
 });
+
+const SITE_TIMEZONE_VALUE = 'site';
 
 const getVisiBlocArray = (key) => {
     if (typeof VisiBlocData !== 'object' || VisiBlocData === null) {
@@ -835,6 +1037,10 @@ function addVisibilityAttributesToGroup(settings, name) {
         publishEndDate: {
             type: 'string',
         },
+        publishTimezone: {
+            type: 'string',
+            default: SITE_TIMEZONE_VALUE,
+        },
         visibilityRoles: {
             type: 'array',
             default: [],
@@ -876,6 +1082,7 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             isSchedulingEnabled,
             publishStartDate,
             publishEndDate,
+            publishTimezone = SITE_TIMEZONE_VALUE,
             visibilityRoles,
             advancedVisibility: rawAdvancedVisibility,
             fallbackEnabled = true,
@@ -1090,12 +1297,66 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             });
         };
 
-        let scheduleSummary = __('Aucune programmation.', 'visi-bloc-jlg');
+        const timezoneEntries = useMemo(() => getVisiBlocArray('timezones'), []);
+        const timezoneOptions = useMemo(
+            () =>
+                timezoneEntries
+                    .map((item) => {
+                        if (!item || typeof item !== 'object') {
+                            return null;
+                        }
 
-        const timezoneSummary = sprintf(
-            __('Fuseau horaire : %s', 'visi-bloc-jlg'),
-            TIMEZONE_LABEL,
+                        const value = typeof item.value === 'string' ? item.value.trim() : '';
+
+                        if (!value) {
+                            return null;
+                        }
+
+                        const label =
+                            typeof item.label === 'string' && item.label.trim()
+                                ? item.label
+                                : value;
+
+                        return {
+                            value,
+                            label,
+                        };
+                    })
+                    .filter(Boolean),
+            [timezoneEntries],
         );
+        const siteTimezoneLabel = useMemo(
+            () => sprintf(__('Fuseau du site (%s)', 'visi-bloc-jlg'), TIMEZONE_LABEL),
+            [],
+        );
+        const timezoneControlOptions = useMemo(
+            () => [
+                { value: SITE_TIMEZONE_VALUE, label: siteTimezoneLabel },
+                ...timezoneOptions,
+            ],
+            [siteTimezoneLabel, timezoneOptions],
+        );
+        const normalizedPublishTimezone = useMemo(
+            () =>
+                timezoneControlOptions.some((option) => option.value === publishTimezone)
+                    ? publishTimezone
+                    : SITE_TIMEZONE_VALUE,
+            [publishTimezone, timezoneControlOptions],
+        );
+        const timezoneDisplayLabel = useMemo(() => {
+            const match = timezoneControlOptions.find(
+                (option) => option.value === normalizedPublishTimezone,
+            );
+
+            return match ? match.label : siteTimezoneLabel;
+        }, [normalizedPublishTimezone, timezoneControlOptions, siteTimezoneLabel]);
+        const hasCustomScheduleTimezone = normalizedPublishTimezone !== SITE_TIMEZONE_VALUE;
+        const timezoneSummary = useMemo(
+            () => sprintf(__('Fuseau horaire : %s', 'visi-bloc-jlg'), timezoneDisplayLabel),
+            [timezoneDisplayLabel],
+        );
+
+        let scheduleSummary = __('Aucune programmation.', 'visi-bloc-jlg');
 
         const startDateObj = parseDateValue(publishStartDate);
         const endDateObj = parseDateValue(publishEndDate);
@@ -1661,15 +1922,21 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                 return __('Erreur de dates', 'visi-bloc-jlg');
             }
 
+            let summaryLabel;
+
             if (publishStartDate && publishEndDate) {
-                return __('Plage définie', 'visi-bloc-jlg');
+                summaryLabel = __('Plage définie', 'visi-bloc-jlg');
+            } else if (publishStartDate || publishEndDate) {
+                summaryLabel = __('Date définie', 'visi-bloc-jlg');
+            } else {
+                summaryLabel = __('Programmation active', 'visi-bloc-jlg');
             }
 
-            if (publishStartDate || publishEndDate) {
-                return __('Date définie', 'visi-bloc-jlg');
+            if (hasCustomScheduleTimezone) {
+                return `${summaryLabel} – ${timezoneDisplayLabel}`;
             }
 
-            return __('Programmation active', 'visi-bloc-jlg');
+            return summaryLabel;
         })();
 
         const rolesSummary = (() => {
@@ -1740,6 +2007,9 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
         if (isSchedulingEnabled) {
             hiddenDescriptionParts.push(
                 sprintf(__('Programmation : %s', 'visi-bloc-jlg'), scheduleSummary),
+            );
+            hiddenDescriptionParts.push(
+                sprintf(__('Fuseau horaire : %s', 'visi-bloc-jlg'), timezoneDisplayLabel),
             );
         }
 
@@ -1947,6 +2217,28 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                                 )}
                                             </Notice>
                                         )}
+                                        <ComboboxControl
+                                            label={__('Fuseau horaire de programmation', 'visi-bloc-jlg')}
+                                            value={normalizedPublishTimezone}
+                                            options={timezoneControlOptions}
+                                            onChange={(newValue) => {
+                                                const matchingOption = timezoneControlOptions.find(
+                                                    (option) => option.value === newValue,
+                                                );
+
+                                                setAttributes({
+                                                    publishTimezone: matchingOption
+                                                        ? matchingOption.value
+                                                        : SITE_TIMEZONE_VALUE,
+                                                });
+                                            }}
+                                            placeholder={__('Rechercher un fuseau horaire…', 'visi-bloc-jlg')}
+                                            __nextHasNoMarginBottom
+                                            help={__(
+                                                'Choisissez un fuseau horaire spécifique pour cette plage. Par défaut, le fuseau du site est utilisé.',
+                                                'visi-bloc-jlg',
+                                            )}
+                                        />
                                         <p
                                             style={{
                                                 fontStyle: 'italic',

@@ -19,6 +19,7 @@
         var navLinks = Array.prototype.slice.call(
             document.querySelectorAll('.visibloc-help-nav__link')
         );
+        var navPicker = document.querySelector('[data-visibloc-nav-picker]');
 
         if (!sectionElements.length || !navLinks.length) {
             return;
@@ -97,6 +98,10 @@
             nextLink.setAttribute('aria-current', 'page');
             currentActiveKey = sectionKey;
             currentActiveLink = nextLink;
+
+            if (navPicker && navPicker.value !== sectionKey) {
+                navPicker.value = sectionKey;
+            }
         };
 
         var fallbackKey = observedSectionKeys[0];
@@ -113,6 +118,30 @@
                 }
             });
         });
+
+        if (navPicker) {
+            navPicker.addEventListener('change', function (event) {
+                var targetKey = event.target && event.target.value ? event.target.value : '';
+
+                if (!targetKey || !Object.prototype.hasOwnProperty.call(sectionByKey, targetKey)) {
+                    return;
+                }
+
+                var section = sectionByKey[targetKey];
+
+                if (section && typeof section.scrollIntoView === 'function') {
+                    try {
+                        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    } catch (error) {
+                        section.scrollIntoView();
+                    }
+                } else if (section && typeof section.focus === 'function') {
+                    section.focus({ preventScroll: true });
+                }
+
+                setActiveLink(targetKey);
+            });
+        }
 
         if (typeof window.IntersectionObserver === 'function') {
             var updateActiveFromRatios = function () {

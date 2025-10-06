@@ -600,6 +600,10 @@ function visibloc_jlg_render_help_page_content() {
         ],
     ];
 
+    $nav_select_id      = 'visibloc-help-nav-picker';
+    $nav_description_id = $nav_select_id . '-description';
+    $nav_list_id        = 'visibloc-help-nav-list';
+
     ?>
     <div class="wrap">
         <h1><?php esc_html_e( 'Visi-Bloc - JLG - Aide et Réglages', 'visi-bloc-jlg' ); ?></h1>
@@ -618,24 +622,61 @@ function visibloc_jlg_render_help_page_content() {
             <div id="message" class="notice notice-error is-dismissible"><p><?php echo esc_html( $error_message ?: $fallback_error ); ?></p></div>
         <?php endif; ?>
         <div class="visibloc-help-layout">
-            <nav class="visibloc-help-nav" aria-label="<?php echo esc_attr__( 'Navigation des réglages Visi-Bloc', 'visi-bloc-jlg' ); ?>">
-                <ul class="visibloc-help-nav__list">
-                    <?php foreach ( $sections as $section ) :
-                        if ( empty( $section['id'] ) || empty( $section['label'] ) ) {
-                            continue;
-                        }
+            <div class="visibloc-help-layout__sidebar">
+                <div class="visibloc-help-nav__mobile" data-visibloc-nav-picker-container>
+                    <label class="visibloc-help-nav__mobile-label" for="<?php echo esc_attr( $nav_select_id ); ?>">
+                        <?php esc_html_e( 'Aller directement à une section', 'visi-bloc-jlg' ); ?>
+                    </label>
+                    <p id="<?php echo esc_attr( $nav_description_id ); ?>" class="description visibloc-help-nav__mobile-description">
+                        <?php esc_html_e( 'Choisissez une section pour y accéder rapidement depuis la navigation mobile.', 'visi-bloc-jlg' ); ?>
+                    </p>
+                    <select
+                        id="<?php echo esc_attr( $nav_select_id ); ?>"
+                        class="visibloc-help-nav__mobile-select regular-text"
+                        aria-describedby="<?php echo esc_attr( $nav_description_id ); ?>"
+                        data-visibloc-nav-picker
+                    >
+                        <?php foreach ( $sections as $section ) :
+                            if ( empty( $section['id'] ) || empty( $section['label'] ) ) {
+                                continue;
+                            }
 
-                        $section_id    = sanitize_html_class( $section['id'] );
-                        $section_label = $section['label'];
-                        ?>
-                        <li class="visibloc-help-nav__item">
-                            <a class="visibloc-help-nav__link" href="#<?php echo esc_attr( $section_id ); ?>">
+                            $section_id    = sanitize_html_class( $section['id'] );
+                            $section_label = $section['label'];
+                            ?>
+                            <option value="<?php echo esc_attr( $section_id ); ?>">
                                 <?php echo esc_html( $section_label ); ?>
-                            </a>
-                        </li>
-                    <?php endforeach; ?>
-                </ul>
-            </nav>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <nav
+                    class="visibloc-help-nav"
+                    aria-label="<?php echo esc_attr__( 'Navigation des réglages Visi-Bloc', 'visi-bloc-jlg' ); ?>"
+                    data-visibloc-nav-container
+                >
+                    <ul id="<?php echo esc_attr( $nav_list_id ); ?>" class="visibloc-help-nav__list">
+                        <?php foreach ( $sections as $section ) :
+                            if ( empty( $section['id'] ) || empty( $section['label'] ) ) {
+                                continue;
+                            }
+
+                            $section_id    = sanitize_html_class( $section['id'] );
+                            $section_label = $section['label'];
+                            ?>
+                            <li class="visibloc-help-nav__item">
+                                <a
+                                    class="visibloc-help-nav__link"
+                                    href="#<?php echo esc_attr( $section_id ); ?>"
+                                    data-visibloc-nav-link
+                                >
+                                    <?php echo esc_html( $section_label ); ?>
+                                </a>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </nav>
+            </div>
             <div id="poststuff" class="visibloc-help-layout__content">
                 <?php foreach ( $sections as $section ) :
                     $callback = $section['render'] ?? null;

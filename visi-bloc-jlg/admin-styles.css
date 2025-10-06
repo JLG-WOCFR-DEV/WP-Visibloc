@@ -1,41 +1,158 @@
 /* Badges d'état */
 .visibloc-status-badge {
+    --visibloc-badge-bg: #f8fafc;
+    --visibloc-badge-border: #0f172a;
+    --visibloc-badge-foreground: #0f172a;
+    --visibloc-badge-pattern: none;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
-    padding: 2px 10px;
+    gap: 6px;
+    padding: 4px 12px;
     border-radius: 999px;
+    border: 2px solid var(--visibloc-badge-border);
+    background-color: var(--visibloc-badge-bg);
+    background-image: var(--visibloc-badge-pattern);
+    background-size: 16px 16px;
+    color: var(--visibloc-badge-foreground);
     font-size: 11px;
-    font-family: sans-serif;
-    font-weight: 600;
+    font-family: var(--wp-admin-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+    font-weight: 700;
     letter-spacing: 0.02em;
     line-height: 1.4;
     text-transform: uppercase;
-    color: #fff;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-    background-color: rgba(0, 115, 170, 0.9);
+    box-shadow: none;
+}
+
+.visibloc-status-badge__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.1em;
+    height: 1.1em;
+}
+
+.visibloc-status-badge__icon svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.visibloc-status-badge__description {
+    display: block;
+    font-weight: 600;
+    letter-spacing: normal;
+    text-transform: none;
+}
+
+.visibloc-status-badge__label {
+    display: inline-block;
 }
 
 .visibloc-status-badge--hidden {
-    background-color: rgba(220, 20, 60, 0.85);
-    box-shadow: 0 2px 6px rgba(220, 20, 60, 0.25);
+    --visibloc-badge-bg: rgba(239, 68, 68, 0.14);
+    --visibloc-badge-border: #b91c1c;
+    --visibloc-badge-foreground: #7f1d1d;
+    --visibloc-badge-pattern: repeating-linear-gradient(
+        135deg,
+        rgba(185, 28, 28, 0.2) 0,
+        rgba(185, 28, 28, 0.2) 6px,
+        transparent 6px,
+        transparent 12px
+    );
 }
 
 .visibloc-status-badge--schedule {
-    background-color: #2E7D32;
+    --visibloc-badge-bg: rgba(22, 163, 74, 0.16);
+    --visibloc-badge-border: #15803d;
+    --visibloc-badge-foreground: #166534;
+    --visibloc-badge-pattern: repeating-linear-gradient(
+        135deg,
+        rgba(34, 197, 94, 0.18) 0,
+        rgba(34, 197, 94, 0.18) 8px,
+        transparent 8px,
+        transparent 16px
+    );
 }
 
 .visibloc-status-badge--schedule-error {
-    background-color: #c62828;
+    --visibloc-badge-bg: rgba(239, 68, 68, 0.24);
+    --visibloc-badge-border: #991b1b;
+    --visibloc-badge-foreground: #7f1d1d;
+    --visibloc-badge-pattern: repeating-linear-gradient(
+        45deg,
+        rgba(153, 27, 27, 0.28) 0,
+        rgba(153, 27, 27, 0.28) 5px,
+        transparent 5px,
+        transparent 10px
+    );
 }
 
 .visibloc-status-badge--advanced {
-    background-color: #6b21a8;
+    --visibloc-badge-bg: rgba(147, 51, 234, 0.18);
+    --visibloc-badge-border: #7c3aed;
+    --visibloc-badge-foreground: #5b21b6;
+    --visibloc-badge-pattern: repeating-linear-gradient(
+        135deg,
+        rgba(124, 58, 237, 0.18) 0,
+        rgba(124, 58, 237, 0.18) 7px,
+        transparent 7px,
+        transparent 14px
+    );
 }
 
 .visibloc-status-badge--fallback {
-    background-color: rgba(30, 64, 175, 0.75);
+    --visibloc-badge-bg: rgba(30, 64, 175, 0.16);
+    --visibloc-badge-border: #1d4ed8;
+    --visibloc-badge-foreground: #1e3a8a;
+    --visibloc-badge-pattern: repeating-linear-gradient(
+        135deg,
+        rgba(37, 99, 235, 0.16) 0,
+        rgba(37, 99, 235, 0.16) 10px,
+        transparent 10px,
+        transparent 20px
+    );
+}
+
+@media (prefers-contrast: more) {
+    .visibloc-status-badge {
+        border-width: 3px;
+        background-image: none !important;
+        box-shadow: inset 0 0 0 1px currentColor;
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+    .visibloc-status-badge {
+        --visibloc-badge-bg: rgba(148, 163, 184, 0.26);
+        --visibloc-badge-border: #cbd5f5;
+        --visibloc-badge-foreground: #e2e8f0;
+    }
+
+    .visibloc-status-badge--hidden {
+        --visibloc-badge-foreground: #fecaca;
+        --visibloc-badge-border: #f87171;
+    }
+
+    .visibloc-status-badge--schedule {
+        --visibloc-badge-foreground: #bbf7d0;
+        --visibloc-badge-border: #4ade80;
+    }
+
+    .visibloc-status-badge--schedule-error {
+        --visibloc-badge-foreground: #fecaca;
+        --visibloc-badge-border: #f87171;
+    }
+
+    .visibloc-status-badge--advanced {
+        --visibloc-badge-foreground: #ddd6fe;
+        --visibloc-badge-border: #c4b5fd;
+    }
+
+    .visibloc-status-badge--fallback {
+        --visibloc-badge-foreground: #bfdbfe;
+        --visibloc-badge-border: #93c5fd;
+    }
 }
 
 /* Style pour l'aperçu des blocs cachés manuellement (œil) */

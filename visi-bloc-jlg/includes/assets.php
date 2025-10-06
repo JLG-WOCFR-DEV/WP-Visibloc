@@ -21,6 +21,7 @@ if ( ! defined( 'VISIBLOC_JLG_MISSING_EDITOR_ASSETS_TRANSIENT' ) ) {
 }
 
 require_once __DIR__ . '/cache-constants.php';
+require_once __DIR__ . '/datetime-utils.php';
 require_once __DIR__ . '/fallback.php';
 
 if ( ! defined( 'VISIBLOC_JLG_EDITOR_DATA_CACHE_GROUP' ) ) {
@@ -200,6 +201,7 @@ function visibloc_jlg_get_editor_data_cache_slugs() {
         'templates',
         'role_groups',
         'roles',
+        'timezones',
         'woocommerce_taxonomies',
     ];
 }
@@ -413,6 +415,7 @@ function visibloc_jlg_enqueue_editor_assets() {
             'taxonomies'       => visibloc_jlg_get_editor_taxonomies(),
             'templates'        => visibloc_jlg_get_editor_templates(),
             'daysOfWeek'       => visibloc_jlg_get_editor_days_of_week(),
+            'timezones'        => visibloc_jlg_get_editor_timezones(),
             'roleGroups'       => visibloc_jlg_get_editor_role_groups(),
             'loginStatuses'    => visibloc_jlg_get_editor_login_statuses(),
             'woocommerceTaxonomies' => visibloc_jlg_get_editor_woocommerce_taxonomies(),
@@ -648,6 +651,15 @@ function visibloc_jlg_get_editor_days_of_week() {
     }
 
     return $items;
+}
+
+function visibloc_jlg_get_editor_timezones() {
+    return visibloc_jlg_get_cached_editor_data(
+        'timezones',
+        static function () {
+            return visibloc_jlg_get_timezone_options();
+        }
+    );
 }
 
 function visibloc_jlg_get_role_group_definitions() {
@@ -961,6 +973,10 @@ function visibloc_jlg_clear_editor_role_groups_cache_on_change() {
     visibloc_jlg_clear_editor_data_cache( [ 'role_groups', 'roles' ] );
 }
 
+function visibloc_jlg_clear_editor_timezones_cache_on_change() {
+    visibloc_jlg_clear_editor_data_cache( 'timezones' );
+}
+
 if ( function_exists( 'add_action' ) ) {
     add_action( 'registered_post_type', 'visibloc_jlg_clear_editor_post_types_cache_on_change', 100, 2 );
     add_action( 'unregistered_post_type', 'visibloc_jlg_clear_editor_post_types_cache_on_change', 100, 1 );
@@ -975,6 +991,8 @@ if ( function_exists( 'add_action' ) ) {
     add_action( 'add_role', 'visibloc_jlg_clear_editor_role_groups_cache_on_change' );
     add_action( 'remove_role', 'visibloc_jlg_clear_editor_role_groups_cache_on_change' );
     add_action( 'set_user_role', 'visibloc_jlg_clear_editor_role_groups_cache_on_change', 100, 3 );
+    add_action( 'update_option_timezone_string', 'visibloc_jlg_clear_editor_timezones_cache_on_change', 100, 0 );
+    add_action( 'update_option_gmt_offset', 'visibloc_jlg_clear_editor_timezones_cache_on_change', 100, 0 );
 }
 
 function visibloc_jlg_flag_missing_editor_assets() {
@@ -1107,12 +1125,115 @@ function visibloc_jlg_build_device_visibility_css( $can_preview, $mobile_bp, $ta
             )
         );
 
-        $css_lines[] = '.visibloc-status-badge { display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-family: var(--wp-admin-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif); font-weight: 600; letter-spacing: 0.02em; line-height: 1.4; text-transform: uppercase; color: #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15); background-color: rgba(0, 115, 170, 0.9); }';
-        $css_lines[] = '.visibloc-status-badge--hidden { background-color: rgba(220, 20, 60, 0.85); box-shadow: 0 2px 6px rgba(220, 20, 60, 0.25); }';
-        $css_lines[] = '.visibloc-status-badge--schedule { background-color: #2E7D32; }';
-        $css_lines[] = '.visibloc-status-badge--schedule-error { background-color: #c62828; }';
-        $css_lines[] = '.visibloc-status-badge--advanced { background-color: #6b21a8; }';
-        $css_lines[] = '.visibloc-status-badge--fallback { background-color: rgba(30, 64, 175, 0.85); }';
+        $css_lines[] = '.visibloc-status-badge {';
+        $css_lines[] = '    --visibloc-badge-bg: #f8fafc;';
+        $css_lines[] = '    --visibloc-badge-border: #0f172a;';
+        $css_lines[] = '    --visibloc-badge-foreground: #0f172a;';
+        $css_lines[] = '    --visibloc-badge-pattern: none;';
+        $css_lines[] = '    display: inline-flex;';
+        $css_lines[] = '    align-items: center;';
+        $css_lines[] = '    justify-content: center;';
+        $css_lines[] = '    gap: 6px;';
+        $css_lines[] = '    padding: 4px 12px;';
+        $css_lines[] = '    border-radius: 999px;';
+        $css_lines[] = '    border: 2px solid var(--visibloc-badge-border);';
+        $css_lines[] = '    background-color: var(--visibloc-badge-bg);';
+        $css_lines[] = '    background-image: var(--visibloc-badge-pattern);';
+        $css_lines[] = '    background-size: 16px 16px;';
+        $css_lines[] = '    color: var(--visibloc-badge-foreground);';
+        $css_lines[] = '    font-size: 11px;';
+        $css_lines[] = '    font-family: var(--wp-admin-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);';
+        $css_lines[] = '    font-weight: 700;';
+        $css_lines[] = '    letter-spacing: 0.02em;';
+        $css_lines[] = '    line-height: 1.4;';
+        $css_lines[] = '    text-transform: uppercase;';
+        $css_lines[] = '    box-shadow: none;';
+        $css_lines[] = '}';
+        $css_lines[] = '.visibloc-status-badge__icon {';
+        $css_lines[] = '    display: inline-flex;';
+        $css_lines[] = '    align-items: center;';
+        $css_lines[] = '    justify-content: center;';
+        $css_lines[] = '    width: 1.1em;';
+        $css_lines[] = '    height: 1.1em;';
+        $css_lines[] = '}';
+        $css_lines[] = '.visibloc-status-badge__icon svg {';
+        $css_lines[] = '    width: 100%;';
+        $css_lines[] = '    height: 100%;';
+        $css_lines[] = '    display: block;';
+        $css_lines[] = '}';
+        $css_lines[] = '.visibloc-status-badge__description {';
+        $css_lines[] = '    display: block;';
+        $css_lines[] = '    font-weight: 600;';
+        $css_lines[] = '    letter-spacing: normal;';
+        $css_lines[] = '    text-transform: none;';
+        $css_lines[] = '}';
+        $css_lines[] = '.visibloc-status-badge__label {';
+        $css_lines[] = '    display: inline-block;';
+        $css_lines[] = '}';
+        $css_lines[] = '.visibloc-status-badge--hidden {';
+        $css_lines[] = '    --visibloc-badge-bg: rgba(239, 68, 68, 0.14);';
+        $css_lines[] = '    --visibloc-badge-border: #b91c1c;';
+        $css_lines[] = '    --visibloc-badge-foreground: #7f1d1d;';
+        $css_lines[] = '    --visibloc-badge-pattern: repeating-linear-gradient(135deg, rgba(185, 28, 28, 0.2) 0, rgba(185, 28, 28, 0.2) 6px, transparent 6px, transparent 12px);';
+        $css_lines[] = '}';
+        $css_lines[] = '.visibloc-status-badge--schedule {';
+        $css_lines[] = '    --visibloc-badge-bg: rgba(22, 163, 74, 0.16);';
+        $css_lines[] = '    --visibloc-badge-border: #15803d;';
+        $css_lines[] = '    --visibloc-badge-foreground: #166534;';
+        $css_lines[] = '    --visibloc-badge-pattern: repeating-linear-gradient(135deg, rgba(34, 197, 94, 0.18) 0, rgba(34, 197, 94, 0.18) 8px, transparent 8px, transparent 16px);';
+        $css_lines[] = '}';
+        $css_lines[] = '.visibloc-status-badge--schedule-error {';
+        $css_lines[] = '    --visibloc-badge-bg: rgba(239, 68, 68, 0.24);';
+        $css_lines[] = '    --visibloc-badge-border: #991b1b;';
+        $css_lines[] = '    --visibloc-badge-foreground: #7f1d1d;';
+        $css_lines[] = '    --visibloc-badge-pattern: repeating-linear-gradient(45deg, rgba(153, 27, 27, 0.28) 0, rgba(153, 27, 27, 0.28) 5px, transparent 5px, transparent 10px);';
+        $css_lines[] = '}';
+        $css_lines[] = '.visibloc-status-badge--advanced {';
+        $css_lines[] = '    --visibloc-badge-bg: rgba(147, 51, 234, 0.18);';
+        $css_lines[] = '    --visibloc-badge-border: #7c3aed;';
+        $css_lines[] = '    --visibloc-badge-foreground: #5b21b6;';
+        $css_lines[] = '    --visibloc-badge-pattern: repeating-linear-gradient(135deg, rgba(124, 58, 237, 0.18) 0, rgba(124, 58, 237, 0.18) 7px, transparent 7px, transparent 14px);';
+        $css_lines[] = '}';
+        $css_lines[] = '.visibloc-status-badge--fallback {';
+        $css_lines[] = '    --visibloc-badge-bg: rgba(30, 64, 175, 0.16);';
+        $css_lines[] = '    --visibloc-badge-border: #1d4ed8;';
+        $css_lines[] = '    --visibloc-badge-foreground: #1e3a8a;';
+        $css_lines[] = '    --visibloc-badge-pattern: repeating-linear-gradient(135deg, rgba(37, 99, 235, 0.16) 0, rgba(37, 99, 235, 0.16) 10px, transparent 10px, transparent 20px);';
+        $css_lines[] = '}';
+        $css_lines[] = '@media (prefers-contrast: more) {';
+        $css_lines[] = '    .visibloc-status-badge {';
+        $css_lines[] = '        border-width: 3px;';
+        $css_lines[] = '        background-image: none !important;';
+        $css_lines[] = '        box-shadow: inset 0 0 0 1px currentColor;';
+        $css_lines[] = '    }';
+        $css_lines[] = '}';
+        $css_lines[] = '@media (prefers-color-scheme: dark) {';
+        $css_lines[] = '    .visibloc-status-badge {';
+        $css_lines[] = '        --visibloc-badge-bg: rgba(148, 163, 184, 0.26);';
+        $css_lines[] = '        --visibloc-badge-border: #cbd5f5;';
+        $css_lines[] = '        --visibloc-badge-foreground: #e2e8f0;';
+        $css_lines[] = '    }';
+        $css_lines[] = '    .visibloc-status-badge--hidden {';
+        $css_lines[] = '        --visibloc-badge-foreground: #fecaca;';
+        $css_lines[] = '        --visibloc-badge-border: #f87171;';
+        $css_lines[] = '    }';
+        $css_lines[] = '    .visibloc-status-badge--schedule {';
+        $css_lines[] = '        --visibloc-badge-foreground: #bbf7d0;';
+        $css_lines[] = '        --visibloc-badge-border: #4ade80;';
+        $css_lines[] = '    }';
+        $css_lines[] = '    .visibloc-status-badge--schedule-error {';
+        $css_lines[] = '        --visibloc-badge-foreground: #fecaca;';
+        $css_lines[] = '        --visibloc-badge-border: #f87171;';
+        $css_lines[] = '    }';
+        $css_lines[] = '    .visibloc-status-badge--advanced {';
+        $css_lines[] = '        --visibloc-badge-foreground: #ddd6fe;';
+        $css_lines[] = '        --visibloc-badge-border: #c4b5fd;';
+        $css_lines[] = '    }';
+        $css_lines[] = '    .visibloc-status-badge--fallback {';
+        $css_lines[] = '        --visibloc-badge-foreground: #bfdbfe;';
+        $css_lines[] = '        --visibloc-badge-border: #93c5fd;';
+        $css_lines[] = '    }';
+        $css_lines[] = '}';
 
         $css_lines[] = sprintf(
             '%s { position: relative; outline: 2px dashed #0073aa; outline-offset: 2px; }',
