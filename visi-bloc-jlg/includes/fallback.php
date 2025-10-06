@@ -103,7 +103,19 @@ function visibloc_jlg_fallback_has_content( $settings ) {
     }
 
     if ( 'block' === $mode ) {
-        return ! empty( $settings['block_id'] );
+        $block_id = isset( $settings['block_id'] ) ? absint( $settings['block_id'] ) : 0;
+
+        if ( $block_id <= 0 || ! function_exists( 'get_post' ) ) {
+            return false;
+        }
+
+        $block = get_post( $block_id );
+
+        if ( ! ( $block instanceof WP_Post ) ) {
+            return false;
+        }
+
+        return 'wp_block' === $block->post_type && 'publish' === $block->post_status;
     }
 
     return false;
