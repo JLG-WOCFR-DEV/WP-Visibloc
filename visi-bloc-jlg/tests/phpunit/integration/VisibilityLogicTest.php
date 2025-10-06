@@ -774,7 +774,7 @@ class VisibilityLogicTest extends TestCase {
             ],
         ];
 
-        $this->setCurrentTimeForSiteTimezone( '2024-07-10 09:30:00' );
+        $this->setCurrentTimeForTimezone( '2024-07-10 09:30:00' );
 
         $this->assertSame(
             '',
@@ -795,7 +795,7 @@ class VisibilityLogicTest extends TestCase {
             ],
         ];
 
-        $this->setCurrentTimeForSiteTimezone( '2024-07-10 09:30:00' );
+        $this->setCurrentTimeForTimezone( '2024-07-10 09:30:00' );
 
         $this->assertSame(
             '',
@@ -803,7 +803,7 @@ class VisibilityLogicTest extends TestCase {
             'Blocks should remain hidden before the scheduled start in the configured site timezone.'
         );
 
-        $this->setCurrentTimeForSiteTimezone( '2024-07-10 11:00:00' );
+        $this->setCurrentTimeForTimezone( '2024-07-10 11:00:00' );
 
         $this->assertSame(
             '<p>Scheduled content</p>',
@@ -824,7 +824,7 @@ class VisibilityLogicTest extends TestCase {
             ],
         ];
 
-        $this->setCurrentTimeForSiteTimezone( '2024-07-10 07:30:00' );
+        $this->setCurrentTimeForTimezone( '2024-07-10 07:30:00' );
 
         $this->assertSame(
             '',
@@ -832,7 +832,7 @@ class VisibilityLogicTest extends TestCase {
             'Blocks should remain hidden before the start window in a timezone west of UTC.'
         );
 
-        $this->setCurrentTimeForSiteTimezone( '2024-07-10 09:30:00' );
+        $this->setCurrentTimeForTimezone( '2024-07-10 09:30:00' );
 
         $this->assertSame(
             '<p>Scheduled content</p>',
@@ -841,8 +841,68 @@ class VisibilityLogicTest extends TestCase {
         );
     }
 
-    private function setCurrentTimeForSiteTimezone( string $datetime ): void {
-        $timestamp = visibloc_jlg_parse_schedule_datetime( $datetime );
+    public function test_scheduled_block_respects_custom_timezone_override(): void {
+        visibloc_test_set_timezone( 'UTC' );
+
+        $block = [
+            'blockName' => 'core/group',
+            'attrs'     => [
+                'isSchedulingEnabled' => true,
+                'publishStartDate'    => '2024-07-10 08:00:00',
+                'publishEndDate'      => '2024-07-10 12:00:00',
+                'publishTimezone'     => 'America/Los_Angeles',
+            ],
+        ];
+
+        $this->setCurrentTimeForTimezone( '2024-07-10 14:30:00' );
+
+        $this->assertSame(
+            '',
+            visibloc_jlg_render_block_filter( '<p>Scheduled content</p>', $block ),
+            'Blocks should remain hidden before the window in the selected custom timezone.'
+        );
+
+        $this->setCurrentTimeForTimezone( '2024-07-10 15:05:00' );
+
+        $this->assertSame(
+            '<p>Scheduled content</p>',
+            visibloc_jlg_render_block_filter( '<p>Scheduled content</p>', $block ),
+            'Blocks should become visible once the custom timezone window opens.'
+        );
+    }
+
+    public function test_invalid_schedule_timezone_defaults_to_site_timezone(): void {
+        visibloc_test_set_timezone( 'Europe/Paris' );
+
+        $block = [
+            'blockName' => 'core/group',
+            'attrs'     => [
+                'isSchedulingEnabled' => true,
+                'publishStartDate'    => '2024-07-10 10:00:00',
+                'publishEndDate'      => '2024-07-10 18:00:00',
+                'publishTimezone'     => 'Invalid/Timezone',
+            ],
+        ];
+
+        $this->setCurrentTimeForTimezone( '2024-07-10 09:30:00' );
+
+        $this->assertSame(
+            '',
+            visibloc_jlg_render_block_filter( '<p>Scheduled content</p>', $block ),
+            'Invalid timezone identifiers should fall back to the site timezone before the window opens.'
+        );
+
+        $this->setCurrentTimeForTimezone( '2024-07-10 10:30:00' );
+
+        $this->assertSame(
+            '<p>Scheduled content</p>',
+            visibloc_jlg_render_block_filter( '<p>Scheduled content</p>', $block ),
+            'Invalid timezone identifiers should allow visibility after the site timezone window opens.'
+        );
+    }
+
+    private function setCurrentTimeForTimezone( string $datetime, string $timezone = 'site' ): void {
+        $timestamp = visibloc_jlg_parse_schedule_datetime( $datetime, $timezone );
 
         if ( null === $timestamp ) {
             $this->fail( sprintf( 'Failed to parse datetime string "%s" for test setup.', $datetime ) );
@@ -872,6 +932,18 @@ class VisibilityLogicTest extends TestCase {
     .vb-hide-on-desktop,
     .vb-mobile-only,
     .vb-tablet-only {
+        display: none !important;
+    }
+}
+@media (orientation: portrait) {
+    .vb-hide-on-portrait,
+    .vb-landscape-only {
+        display: none !important;
+    }
+}
+@media (orientation: landscape) {
+    .vb-hide-on-landscape,
+    .vb-portrait-only {
         display: none !important;
     }
 }

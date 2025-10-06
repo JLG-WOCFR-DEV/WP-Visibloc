@@ -670,45 +670,20 @@ if ( ! function_exists( 'wp_json_encode' ) ) {
     }
 }
 
-function visibloc_jlg_parse_schedule_datetime( $value ) {
-    if ( empty( $value ) ) {
-        return null;
-    }
-
-    $datetime = date_create_immutable( $value, wp_timezone() );
-
-    if ( false === $datetime ) {
-        return null;
-    }
-
-    return $datetime->getTimestamp();
-}
-
-if ( ! function_exists( 'visibloc_jlg_get_wp_datetime_format' ) ) {
-    function visibloc_jlg_get_wp_datetime_format() {
-        $date_format = get_option( 'date_format', 'F j, Y' );
-        $time_format = get_option( 'time_format', 'H:i' );
-
-        if ( ! is_string( $date_format ) || '' === trim( $date_format ) ) {
-            $date_format = 'F j, Y';
+function wp_date( $format, $timestamp, $timezone = null ) {
+    if ( $timezone instanceof DateTimeZone ) {
+        $datetime = ( new DateTimeImmutable( '@' . $timestamp ) )->setTimezone( $timezone );
+    } elseif ( is_string( $timezone ) && '' !== $timezone ) {
+        try {
+            $datetime = ( new DateTimeImmutable( '@' . $timestamp ) )->setTimezone( new DateTimeZone( $timezone ) );
+        } catch ( Exception $exception ) {
+            $datetime = ( new DateTimeImmutable( '@' . $timestamp ) )->setTimezone( wp_timezone() );
         }
-
-        if ( ! is_string( $time_format ) || '' === trim( $time_format ) ) {
-            $time_format = 'H:i';
-        }
-
-        return trim( $date_format . ' ' . $time_format );
+    } else {
+        $datetime = ( new DateTimeImmutable( '@' . $timestamp ) )->setTimezone( wp_timezone() );
     }
-}
 
-function wp_date( $format, $timestamp ) {
-    return gmdate( $format, $timestamp );
-}
-
-if ( ! function_exists( 'visibloc_jlg_get_wp_datetime_format' ) ) {
-    function visibloc_jlg_get_wp_datetime_format() {
-        return 'Y-m-d H:i:s';
-    }
+    return $datetime->format( $format );
 }
 
 $GLOBALS['visibloc_test_object_cache'] = [];
@@ -1414,6 +1389,7 @@ if ( ! function_exists( 'visibloc_jlg_normalize_boolean' ) ) {
     }
 }
 
+require_once __DIR__ . '/../../includes/datetime-utils.php';
 require_once __DIR__ . '/../../includes/visibility-logic.php';
 
 if ( ! function_exists( 'trailingslashit' ) ) {

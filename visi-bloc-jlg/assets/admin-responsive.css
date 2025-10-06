@@ -37,6 +37,13 @@
 .visibloc-help-layout {
     display: grid;
     gap: 24px;
+    align-items: start;
+}
+
+.visibloc-help-layout__sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
 }
 
 .visibloc-help-layout__content {
@@ -50,6 +57,27 @@
     border-radius: 8px;
     padding: 12px;
     box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.visibloc-help-nav__mobile {
+    display: none;
+}
+
+.visibloc-help-nav__mobile-label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #1d2327;
+}
+
+.visibloc-help-nav__mobile-description {
+    margin-top: 0;
+    margin-bottom: 8px;
+}
+
+.visibloc-help-nav__mobile-select {
+    width: 100%;
+    max-width: 100%;
 }
 
 .visibloc-help-nav__list {
@@ -135,6 +163,32 @@
     background: transparent;
 }
 
+@media (min-width: 960px) {
+    .visibloc-help-layout {
+        grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+    }
+
+    .visibloc-help-nav__list {
+        flex-direction: column;
+        gap: 8px;
+        overflow: visible;
+        scroll-snap-type: none;
+    }
+
+    .visibloc-help-nav__item {
+        flex: 1 1 auto;
+    }
+
+    .visibloc-help-nav__link {
+        text-align: left;
+    }
+
+    .visibloc-help-nav {
+        position: sticky;
+        top: 32px;
+    }
+}
+
 @media (max-width: 782px) {
     .visibloc-help-nav {
         margin: 0 -12px;
@@ -144,16 +198,29 @@
         box-shadow: none;
     }
 
+    .visibloc-help-layout {
+        gap: 16px;
+    }
+
+    .visibloc-help-layout__sidebar {
+        gap: 12px;
+    }
+
+    .visibloc-help-nav__mobile {
+        display: block;
+        background: #fff;
+        padding: 12px 16px;
+        border: 1px solid #dcdcde;
+        border-radius: 6px;
+        box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+    }
+
     .visibloc-help-nav__list {
         padding: 4px 12px 12px;
     }
 
     .visibloc-help-nav__item {
         min-width: 70%;
-    }
-
-    .visibloc-help-nav__link {
-        text-align: left;
     }
 
     .visibloc-admin-post-list {
