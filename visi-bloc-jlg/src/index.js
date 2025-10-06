@@ -35,6 +35,74 @@ import './editor-styles.css';
 
 const DEFAULT_SUPPORTED_BLOCKS = ['core/group'];
 
+const DeviceOrientationPortraitIcon = () => (
+    <svg
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        role="presentation"
+        focusable="false"
+        aria-hidden="true"
+    >
+        <rect
+            x="7"
+            y="3"
+            width="10"
+            height="18"
+            rx="2"
+            ry="2"
+            fill="currentColor"
+            opacity="0.2"
+        />
+        <rect
+            x="9"
+            y="5"
+            width="6"
+            height="14"
+            rx="1.2"
+            ry="1.2"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+        />
+        <circle cx="12" cy="17.5" r="0.9" fill="currentColor" />
+    </svg>
+);
+
+const DeviceOrientationLandscapeIcon = () => (
+    <svg
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        role="presentation"
+        focusable="false"
+        aria-hidden="true"
+    >
+        <rect
+            x="3"
+            y="7"
+            width="18"
+            height="10"
+            rx="2"
+            ry="2"
+            fill="currentColor"
+            opacity="0.2"
+        />
+        <rect
+            x="5"
+            y="9"
+            width="14"
+            height="6"
+            rx="1.2"
+            ry="1.2"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+        />
+        <circle cx="17.5" cy="12" r="0.9" fill="currentColor" />
+    </svg>
+);
+
 const StatusBadge = ({ label, variant = '', screenReaderText = '', description = '' }) => {
     const classNames = ['visibloc-status-badge'];
     const hasDescription = typeof description === 'string' && description.trim().length > 0;
@@ -270,6 +338,38 @@ const DEVICE_VISIBILITY_OPTIONS = [
                 id: 'hide-on-mobile',
                 label: __('Mobile', 'visi-bloc-jlg'),
                 icon: 'smartphone',
+            },
+        ],
+    },
+    {
+        id: 'orientation-show',
+        label: __('Orientation ciblée', 'visi-bloc-jlg'),
+        options: [
+            {
+                id: 'portrait-only',
+                label: __('Portrait', 'visi-bloc-jlg'),
+                icon: DeviceOrientationPortraitIcon,
+            },
+            {
+                id: 'landscape-only',
+                label: __('Paysage', 'visi-bloc-jlg'),
+                icon: DeviceOrientationLandscapeIcon,
+            },
+        ],
+    },
+    {
+        id: 'orientation-hide',
+        label: __('Masquer en orientation', 'visi-bloc-jlg'),
+        options: [
+            {
+                id: 'hide-on-portrait',
+                label: __('Portrait', 'visi-bloc-jlg'),
+                icon: DeviceOrientationPortraitIcon,
+            },
+            {
+                id: 'hide-on-landscape',
+                label: __('Paysage', 'visi-bloc-jlg'),
+                icon: DeviceOrientationLandscapeIcon,
             },
         ],
     },
