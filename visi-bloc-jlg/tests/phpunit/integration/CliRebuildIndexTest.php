@@ -19,6 +19,7 @@ class CliRebuildIndexTest extends TestCase {
                 '    public static $commands = [];' .
                 '    public static $log_messages = [];' .
                 '    public static $success_messages = [];' .
+                '    public static $error_messages = [];' .
                 '    public static function add_command( $name, $callable ) {' .
                 '        self::$commands[ $name ] = $callable;' .
                 '    }' .
@@ -27,6 +28,10 @@ class CliRebuildIndexTest extends TestCase {
                 '    }' .
                 '    public static function success( $message ) {' .
                 '        self::$success_messages[] = (string) $message;' .
+                '    }' .
+                '    public static function error( $message ) {' .
+                '        self::$error_messages[] = (string) $message;' .
+                '        throw new RuntimeException( (string) $message );' .
                 '    }' .
                 '}'
             );
@@ -56,6 +61,7 @@ class CliRebuildIndexTest extends TestCase {
 
         WP_CLI::$log_messages     = [];
         WP_CLI::$success_messages = [];
+        WP_CLI::$error_messages   = [];
     }
 
     protected function tearDown(): void {
