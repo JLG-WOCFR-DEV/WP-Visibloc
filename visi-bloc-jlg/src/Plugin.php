@@ -37,11 +37,21 @@ class Plugin {
      * @param string $plugin_file Absolute path to the main plugin file.
      */
     public function __construct( $plugin_file ) {
-        $this->plugin_file     = $plugin_file;
-        $this->plugin_dir      = dirname( $plugin_file );
-        $this->plugin_basename = function_exists( 'plugin_basename' )
-            ? plugin_basename( $plugin_file )
-            : basename( $plugin_file );
+        $this->plugin_file = $plugin_file;
+
+        if ( defined( 'VISIBLOC_JLG_PLUGIN_DIR' ) ) {
+            $this->plugin_dir = rtrim( VISIBLOC_JLG_PLUGIN_DIR, '/\\' );
+        } else {
+            $this->plugin_dir = dirname( $plugin_file );
+        }
+
+        if ( defined( 'VISIBLOC_JLG_PLUGIN_BASENAME' ) ) {
+            $this->plugin_basename = VISIBLOC_JLG_PLUGIN_BASENAME;
+        } else {
+            $this->plugin_basename = function_exists( 'plugin_basename' )
+                ? plugin_basename( $plugin_file )
+                : basename( $plugin_file );
+        }
     }
 
     /**
