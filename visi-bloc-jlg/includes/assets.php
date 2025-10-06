@@ -1,9 +1,129 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+if ( ! defined( 'VISIBLOC_JLG_MISSING_EDITOR_ASSETS_TRANSIENT' ) ) {
+    define( 'VISIBLOC_JLG_MISSING_EDITOR_ASSETS_TRANSIENT', 'visibloc_jlg_missing_editor_assets' );
+}
+
+require_once __DIR__ . '/cache-constants.php';
+require_once __DIR__ . '/datetime-utils.php';
+require_once __DIR__ . '/fallback.php';
+
+if ( ! function_exists( 'visibloc_jlg_path_join' ) ) {
+    /**
+     * Join path or URL segments without duplicating separators.
+     *
+     * @param string $base Base path.
+     * @param string $path Relative segment.
+     * @return string
+     */
+    function visibloc_jlg_path_join( $base, $path ) {
+        $base = rtrim( (string) $base, '/\\' );
+        $path = ltrim( (string) $path, '/\\' );
+
+        if ( '' === $base ) {
+            return $path;
+        }
+
+        if ( '' === $path ) {
+            return $base;
+        }
+
+        return $base . '/' . $path;
+    }
+}
+
+if ( ! function_exists( 'visibloc_jlg_get_plugin_main_file' ) ) {
+    /**
+     * Retrieve the absolute path to the main plugin file.
+     *
+     * @return string
+     */
+    function visibloc_jlg_get_plugin_main_file() {
+        if ( defined( 'VISIBLOC_JLG_PLUGIN_FILE' ) && '' !== VISIBLOC_JLG_PLUGIN_FILE ) {
+            return VISIBLOC_JLG_PLUGIN_FILE;
+        }
+
+        return __DIR__ . '/../visi-bloc-jlg.php';
+    }
+}
+
+if ( ! function_exists( 'visibloc_jlg_get_plugin_dir_path' ) ) {
+    /**
+     * Retrieve the absolute plugin directory path.
+     *
+     * @return string
+     */
+    function visibloc_jlg_get_plugin_dir_path() {
+        if ( defined( 'VISIBLOC_JLG_PLUGIN_DIR' ) && '' !== VISIBLOC_JLG_PLUGIN_DIR ) {
+            return rtrim( VISIBLOC_JLG_PLUGIN_DIR, '/\\' ) . '/';
+        }
+
+        return rtrim( dirname( visibloc_jlg_get_plugin_main_file() ), '/\\' ) . '/';
+    }
+}
+
+if ( ! function_exists( 'visibloc_jlg_get_asset_path' ) ) {
+    /**
+     * Build an absolute path inside the plugin directory.
+     *
+     * @param string $relative_path Relative file path.
+     * @return string
+     */
+    function visibloc_jlg_get_asset_path( $relative_path ) {
+        return visibloc_jlg_path_join( visibloc_jlg_get_plugin_dir_path(), $relative_path );
+    }
+}
+
+if ( ! function_exists( 'visibloc_jlg_get_asset_url' ) ) {
+    /**
+     * Build an asset URL relative to the plugin directory.
+     *
+     * @param string $relative_path Relative asset path.
+     * @return string
+     */
+    function visibloc_jlg_get_asset_url( $relative_path ) {
+        $plugin_main_file = visibloc_jlg_get_plugin_main_file();
+        $relative_path    = ltrim( (string) $relative_path, '/\\' );
+
+        if ( function_exists( 'plugins_url' ) ) {
+            return plugins_url( $relative_path, $plugin_main_file );
+        }
+
+        return visibloc_jlg_path_join( visibloc_jlg_get_plugin_dir_path(), $relative_path );
+    }
+}
+
+if ( ! function_exists( 'visibloc_jlg_get_asset_version' ) ) {
+    /**
+     * Retrieve a cache-busting version for an asset.
+     *
+     * @param string      $relative_path   Relative asset path.
+     * @param string|null $default_version Optional default version when the file is missing.
+     * @return string
+     */
+    function visibloc_jlg_get_asset_version( $relative_path, $default_version = null ) {
+        $absolute_path = visibloc_jlg_get_asset_path( $relative_path );
+
+        if ( file_exists( $absolute_path ) ) {
+            $file_version = filemtime( $absolute_path );
+
+            if ( false !== $file_version ) {
+                return (string) $file_version;
+            }
+        }
+
+        if ( null !== $default_version ) {
+            return (string) $default_version;
+        }
+
+        return defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : '0.0.0';
+    }
+}
+
 if ( ! defined( 'VISIBLOC_JLG_VERSION' ) ) {
     $visibloc_version = '0.0.0';
-    $plugin_main_file = __DIR__ . '/../visi-bloc-jlg.php';
+    $plugin_main_file = visibloc_jlg_get_plugin_main_file();
 
     if ( is_readable( $plugin_main_file ) ) {
         $plugin_contents = file_get_contents( $plugin_main_file );
@@ -15,14 +135,6 @@ if ( ! defined( 'VISIBLOC_JLG_VERSION' ) ) {
 
     define( 'VISIBLOC_JLG_VERSION', $visibloc_version );
 }
-
-if ( ! defined( 'VISIBLOC_JLG_MISSING_EDITOR_ASSETS_TRANSIENT' ) ) {
-    define( 'VISIBLOC_JLG_MISSING_EDITOR_ASSETS_TRANSIENT', 'visibloc_jlg_missing_editor_assets' );
-}
-
-require_once __DIR__ . '/cache-constants.php';
-require_once __DIR__ . '/datetime-utils.php';
-require_once __DIR__ . '/fallback.php';
 
 if ( ! defined( 'VISIBLOC_JLG_EDITOR_DATA_CACHE_GROUP' ) ) {
     define( 'VISIBLOC_JLG_EDITOR_DATA_CACHE_GROUP', 'visibloc_jlg_editor_data' );
@@ -278,16 +390,14 @@ function visibloc_jlg_clear_editor_data_cache( $slugs = null ) {
 
 add_action( 'wp_enqueue_scripts', 'visibloc_jlg_enqueue_public_styles' );
 function visibloc_jlg_enqueue_public_styles() {
-    $plugin_main_file = __DIR__ . '/../visi-bloc-jlg.php';
-    $can_preview      = visibloc_jlg_can_user_preview();
-    $default_mobile   = 781;
-    $default_tablet   = 1024;
-    $mobile_bp        = absint( get_option( 'visibloc_breakpoint_mobile', $default_mobile ) );
-    $tablet_bp        = absint( get_option( 'visibloc_breakpoint_tablet', $default_tablet ) );
-    $mobile_bp        = $mobile_bp > 0 ? $mobile_bp : $default_mobile;
-    $tablet_bp        = $tablet_bp > 0 ? $tablet_bp : $default_tablet;
+    $can_preview    = visibloc_jlg_can_user_preview();
+    $default_mobile = 781;
+    $default_tablet = 1024;
+    $mobile_bp      = absint( get_option( 'visibloc_breakpoint_mobile', $default_mobile ) );
+    $tablet_bp      = absint( get_option( 'visibloc_breakpoint_tablet', $default_tablet ) );
+    $mobile_bp      = $mobile_bp > 0 ? $mobile_bp : $default_mobile;
+    $tablet_bp      = $tablet_bp > 0 ? $tablet_bp : $default_tablet;
     $has_custom_breakpoints = ( $mobile_bp !== $default_mobile ) || ( $tablet_bp !== $default_tablet );
-    $device_style_src       = plugins_url( 'assets/device-visibility.css', $plugin_main_file );
     $default_handle         = 'visibloc-jlg-device-visibility';
     $dynamic_handle         = 'visibloc-jlg-device-visibility-dynamic';
     $style_version          = defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : '1.1';
@@ -298,7 +408,12 @@ function visibloc_jlg_enqueue_public_styles() {
         wp_register_style( $dynamic_handle, false, [], $style_version );
         $device_handle = $dynamic_handle;
     } else {
-        wp_register_style( $default_handle, $device_style_src, [], $style_version );
+        wp_register_style(
+            $default_handle,
+            visibloc_jlg_get_asset_url( 'assets/device-visibility.css' ),
+            [],
+            $style_version
+        );
         $device_handle = $default_handle;
     }
 
@@ -311,7 +426,12 @@ function visibloc_jlg_enqueue_public_styles() {
     }
 
     if ( $can_preview ) {
-        wp_enqueue_style( 'visibloc-jlg-public-styles', plugins_url( 'admin-styles.css', $plugin_main_file ), [], $style_version );
+        wp_enqueue_style(
+            'visibloc-jlg-public-styles',
+            visibloc_jlg_get_asset_url( 'admin-styles.css' ),
+            [],
+            $style_version
+        );
     }
 }
 
@@ -321,12 +441,11 @@ function visibloc_jlg_enqueue_admin_styles( $hook_suffix ) {
         return;
     }
 
-    $plugin_main_file = __DIR__ . '/../visi-bloc-jlg.php';
     $style_version    = defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : '1.1';
 
     wp_enqueue_style(
         'visibloc-jlg-admin-responsive',
-        plugins_url( 'assets/admin-responsive.css', $plugin_main_file ),
+        visibloc_jlg_get_asset_url( 'assets/admin-responsive.css' ),
         [],
         $style_version
     );
@@ -338,23 +457,13 @@ function visibloc_jlg_enqueue_admin_supported_blocks_script( $hook_suffix ) {
         return;
     }
 
-    $plugin_main_file      = __DIR__ . '/../visi-bloc-jlg.php';
     $script_relative_path  = 'assets/admin-supported-blocks.js';
-    $script_path           = plugin_dir_path( $plugin_main_file ) . $script_relative_path;
     $default_script_version = defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : '1.1';
-    $script_version        = $default_script_version;
-
-    if ( file_exists( $script_path ) ) {
-        $file_version = filemtime( $script_path );
-
-        if ( false !== $file_version ) {
-            $script_version = (string) $file_version;
-        }
-    }
+    $script_version        = visibloc_jlg_get_asset_version( $script_relative_path, $default_script_version );
 
     wp_enqueue_script(
         'visibloc-jlg-supported-blocks-search',
-        plugins_url( $script_relative_path, $plugin_main_file ),
+        visibloc_jlg_get_asset_url( $script_relative_path ),
         [],
         $script_version,
         true
@@ -367,23 +476,13 @@ function visibloc_jlg_enqueue_admin_navigation_script( $hook_suffix ) {
         return;
     }
 
-    $plugin_main_file       = __DIR__ . '/../visi-bloc-jlg.php';
     $script_relative_path   = 'assets/admin-nav.js';
-    $script_path            = plugin_dir_path( $plugin_main_file ) . $script_relative_path;
     $default_script_version = defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : '1.1';
-    $script_version         = $default_script_version;
-
-    if ( file_exists( $script_path ) ) {
-        $file_version = filemtime( $script_path );
-
-        if ( false !== $file_version ) {
-            $script_version = (string) $file_version;
-        }
-    }
+    $script_version         = visibloc_jlg_get_asset_version( $script_relative_path, $default_script_version );
 
     wp_enqueue_script(
         'visibloc-jlg-admin-navigation',
-        plugins_url( $script_relative_path, $plugin_main_file ),
+        visibloc_jlg_get_asset_url( $script_relative_path ),
         [ 'wp-dom-ready' ],
         $script_version,
         true
@@ -392,8 +491,7 @@ function visibloc_jlg_enqueue_admin_navigation_script( $hook_suffix ) {
 
 add_action( 'enqueue_block_editor_assets', 'visibloc_jlg_enqueue_editor_assets' );
 function visibloc_jlg_enqueue_editor_assets() {
-    $plugin_main_file = __DIR__ . '/../visi-bloc-jlg.php';
-    $asset_file_path = plugin_dir_path( __DIR__ ) . 'build/index.asset.php';
+    $asset_file_path = visibloc_jlg_get_asset_path( 'build/index.asset.php' );
     if ( ! file_exists( $asset_file_path ) ) {
         visibloc_jlg_flag_missing_editor_assets();
 
@@ -402,9 +500,24 @@ function visibloc_jlg_enqueue_editor_assets() {
 
     visibloc_jlg_clear_missing_editor_assets_flag();
     $asset_file = include( $asset_file_path );
-    wp_enqueue_script( 'visibloc-jlg-editor-script', plugins_url( 'build/index.js', $plugin_main_file ), $asset_file['dependencies'], $asset_file['version'], true );
-    wp_set_script_translations( 'visibloc-jlg-editor-script', 'visi-bloc-jlg', plugin_dir_path( __DIR__ ) . 'languages' );
-    wp_enqueue_style( 'visibloc-jlg-editor-style', plugins_url( 'build/index.css', $plugin_main_file ), [], $asset_file['version'] );
+    wp_enqueue_script(
+        'visibloc-jlg-editor-script',
+        visibloc_jlg_get_asset_url( 'build/index.js' ),
+        $asset_file['dependencies'],
+        $asset_file['version'],
+        true
+    );
+    wp_set_script_translations(
+        'visibloc-jlg-editor-script',
+        'visi-bloc-jlg',
+        visibloc_jlg_path_join( visibloc_jlg_get_plugin_dir_path(), 'languages' )
+    );
+    wp_enqueue_style(
+        'visibloc-jlg-editor-style',
+        visibloc_jlg_get_asset_url( 'build/index.css' ),
+        [],
+        $asset_file['version']
+    );
     wp_localize_script(
         'visibloc-jlg-editor-script',
         'VisiBlocData',
@@ -1319,9 +1432,10 @@ function visibloc_jlg_generate_device_visibility_css( $can_preview, $mobile_bp =
 
     $cache_group = VISIBLOC_JLG_DEVICE_CSS_CACHE_GROUP;
     $cache_key   = VISIBLOC_JLG_DEVICE_CSS_CACHE_KEY;
+    $version     = defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : '0.0.0';
     $bucket_key  = sprintf(
         '%s:%d:%d:%d',
-        VISIBLOC_JLG_VERSION,
+        $version,
         $can_preview ? 1 : 0,
         (int) $mobile_bp,
         (int) $tablet_bp
