@@ -41,6 +41,7 @@ Des extensions commerciales de personnalisation de contenu (p. ex. Block Visibil
 | Analytics & optimisation | Logs techniques limités, pas de reporting d’impact | Statistiques d’affichage et de conversion intégrées | Mesures basiques avec connecteurs Google Analytics/Tag Manager | Tableaux de bord détaillés (conversions, tests A/B) |
 | Automatisation & intégrations | Hooks WordPress, commande WP-CLI, API utilitaires PHP | Intégrations WooCommerce, EDD, Gravity Forms | Webhooks entrants/sortants, connecteurs SaaS | API REST complète, webhooks, synchronisation CRM |
 | Gouvernance & conformité | Gestion des permissions et fallback global | Contrôles d’accès granulaires, audit de règles | Gestion de consentement simplifiée | Gestion multi-sites, rôles marketing dédiés, support RGPD |
+| Qualité UI/UX | Panneaux Gutenberg cohérents mais denses, absence de hiérarchie visuelle unifiée | Interface propriétaire segmentant les règles et les recettes, call-to-action explicites | Builder conditionnel visuel avec aperçus instantanés | Tableaux de bord full-screen, storytelling et notation visuelle |
 
 ### Axes d’amélioration recommandés
 
@@ -52,6 +53,15 @@ Des extensions commerciales de personnalisation de contenu (p. ex. Block Visibil
 - **Automatisation et écosystème** – exposer et piloter les règles de visibilité via l’API REST, des webhooks et une CLI plus complète permettrait de synchroniser les scénarios depuis des workflows externes (Make, Zapier, n8n). À l’inverse, des déclencheurs entrants (webhooks, file d’attente) autoriseraient des réactions en quasi temps réel.
 - **Expérience d’administration avancée** – intégrer un audit log détaillant les modifications, la possibilité d’assigner des propriétaires de règles, des revues avant publication et un mode « sandbox » pour tester des règles sans impacter le front rapprocherait l’administration de standards enterprise.
 - **Support multilingue et conformité** – proposer des déclinaisons automatiques des règles par langue (WPML/Polylang) et des mécanismes respectant le consentement (masquer des blocs tant qu’aucun consentement analytics n’est donné, par exemple) sécuriserait les déploiements dans des environnements réglementés.
+
+### Focales UI/UX et design
+
+- **Architecture d’information dans l’éditeur** – regrouper les réglages par « Objectif » (Ciblage, Calendrier, Substitution, Déclencheurs avancés) avec des sous-panneaux repliables et un état récapitulatif (badges colorés, texte concis) réduirait la charge cognitive. Les solutions pro affichent souvent des résumés contextuels, par exemple « Affiché pour : Clients connectés – Règle promo Black Friday » directement sous le titre du bloc.
+- **Guides visuels et empty states** – ajouter des écrans d’accueil illustrés sur les panneaux vides (ex. « Commencez par définir votre audience ») et des checklists intégrées améliore la progression. Un système de « modèles » (carte illustrée + CTA) dans la barre latérale, inspiré des bibliothèques de recettes de Block Visibility Pro, aiderait à choisir un scénario pertinent.
+- **Palette et cohérence graphique** – définir un design system léger (nuances principales, espacement 8pt, composants tokens) et l’appliquer aux badges, boutons secondaires et aides contextuelles apporterait une cohérence visuelle comparable aux produits premium. L’usage d’icônes linéaires uniformes (visibilité, calendrier, device) renforcerait l’intuitivité.
+- **Feedback instantané** – proposer un volet d’aperçu actualisé en direct (miniature responsive ou résumé textuel) dès qu’une condition est ajoutée éviterait les allers-retours front/back. If-So et LogicHop s’appuient sur des vignettes ou la duplication du contenu pour matérialiser l’impact.
+- **Accessibilité et micro-interactions** – intégrer des annonces ARIA lors des changements d’état, améliorer la navigation clavier par des ordres logiques et ajouter des micro-animations discrètes (progression, success check) rendrait l’expérience plus fluide et inclusive. Les versions professionnelles mettent l’accent sur les états focus/hover explicites et sur l’indication des erreurs au plus près du champ concerné.
+- **Personnalisation du tableau de bord** – concevoir une page d’accueil administrative synthétique (cartes métriques, alertes de règles expirant bientôt, liste des dernières modifications) permettrait aux équipes de prioriser rapidement leurs actions. Cette vue pourrait intégrer un indicateur de santé des règles, à l’image des dashboards marketing modernes.
 
 
 ## Installation
