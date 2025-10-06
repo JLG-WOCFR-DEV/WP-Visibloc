@@ -21,6 +21,7 @@ if ( ! defined( 'VISIBLOC_JLG_MISSING_EDITOR_ASSETS_TRANSIENT' ) ) {
 }
 
 require_once __DIR__ . '/cache-constants.php';
+require_once __DIR__ . '/datetime-utils.php';
 require_once __DIR__ . '/fallback.php';
 
 if ( ! defined( 'VISIBLOC_JLG_EDITOR_DATA_CACHE_GROUP' ) ) {
@@ -200,6 +201,7 @@ function visibloc_jlg_get_editor_data_cache_slugs() {
         'templates',
         'role_groups',
         'roles',
+        'timezones',
         'woocommerce_taxonomies',
     ];
 }
@@ -413,6 +415,7 @@ function visibloc_jlg_enqueue_editor_assets() {
             'taxonomies'       => visibloc_jlg_get_editor_taxonomies(),
             'templates'        => visibloc_jlg_get_editor_templates(),
             'daysOfWeek'       => visibloc_jlg_get_editor_days_of_week(),
+            'timezones'        => visibloc_jlg_get_editor_timezones(),
             'roleGroups'       => visibloc_jlg_get_editor_role_groups(),
             'loginStatuses'    => visibloc_jlg_get_editor_login_statuses(),
             'woocommerceTaxonomies' => visibloc_jlg_get_editor_woocommerce_taxonomies(),
@@ -648,6 +651,15 @@ function visibloc_jlg_get_editor_days_of_week() {
     }
 
     return $items;
+}
+
+function visibloc_jlg_get_editor_timezones() {
+    return visibloc_jlg_get_cached_editor_data(
+        'timezones',
+        static function () {
+            return visibloc_jlg_get_timezone_options();
+        }
+    );
 }
 
 function visibloc_jlg_get_role_group_definitions() {
@@ -961,6 +973,10 @@ function visibloc_jlg_clear_editor_role_groups_cache_on_change() {
     visibloc_jlg_clear_editor_data_cache( [ 'role_groups', 'roles' ] );
 }
 
+function visibloc_jlg_clear_editor_timezones_cache_on_change() {
+    visibloc_jlg_clear_editor_data_cache( 'timezones' );
+}
+
 if ( function_exists( 'add_action' ) ) {
     add_action( 'registered_post_type', 'visibloc_jlg_clear_editor_post_types_cache_on_change', 100, 2 );
     add_action( 'unregistered_post_type', 'visibloc_jlg_clear_editor_post_types_cache_on_change', 100, 1 );
@@ -975,6 +991,8 @@ if ( function_exists( 'add_action' ) ) {
     add_action( 'add_role', 'visibloc_jlg_clear_editor_role_groups_cache_on_change' );
     add_action( 'remove_role', 'visibloc_jlg_clear_editor_role_groups_cache_on_change' );
     add_action( 'set_user_role', 'visibloc_jlg_clear_editor_role_groups_cache_on_change', 100, 3 );
+    add_action( 'update_option_timezone_string', 'visibloc_jlg_clear_editor_timezones_cache_on_change', 100, 0 );
+    add_action( 'update_option_gmt_offset', 'visibloc_jlg_clear_editor_timezones_cache_on_change', 100, 0 );
 }
 
 function visibloc_jlg_flag_missing_editor_assets() {

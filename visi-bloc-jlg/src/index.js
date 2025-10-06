@@ -8,6 +8,7 @@ import {
     ToolbarButton,
     PanelBody,
     SelectControl,
+    ComboboxControl,
     ToggleGroupControl,
     ToggleGroupControlOptionIcon,
     ToggleControl,
@@ -419,6 +420,8 @@ const DEFAULT_RECURRING_SCHEDULE = Object.freeze({
     startTime: '08:00',
     endTime: '17:00',
 });
+
+const SITE_TIMEZONE_VALUE = 'site';
 
 const getVisiBlocArray = (key) => {
     if (typeof VisiBlocData !== 'object' || VisiBlocData === null) {
@@ -835,6 +838,10 @@ function addVisibilityAttributesToGroup(settings, name) {
         publishEndDate: {
             type: 'string',
         },
+        publishTimezone: {
+            type: 'string',
+            default: SITE_TIMEZONE_VALUE,
+        },
         visibilityRoles: {
             type: 'array',
             default: [],
@@ -876,6 +883,7 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             isSchedulingEnabled,
             publishStartDate,
             publishEndDate,
+            publishTimezone = SITE_TIMEZONE_VALUE,
             visibilityRoles,
             advancedVisibility: rawAdvancedVisibility,
             fallbackEnabled = true,
@@ -1090,12 +1098,66 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             });
         };
 
-        let scheduleSummary = __('Aucune programmation.', 'visi-bloc-jlg');
+        const timezoneEntries = useMemo(() => getVisiBlocArray('timezones'), []);
+        const timezoneOptions = useMemo(
+            () =>
+                timezoneEntries
+                    .map((item) => {
+                        if (!item || typeof item !== 'object') {
+                            return null;
+                        }
 
-        const timezoneSummary = sprintf(
-            __('Fuseau horaire : %s', 'visi-bloc-jlg'),
-            TIMEZONE_LABEL,
+                        const value = typeof item.value === 'string' ? item.value.trim() : '';
+
+                        if (!value) {
+                            return null;
+                        }
+
+                        const label =
+                            typeof item.label === 'string' && item.label.trim()
+                                ? item.label
+                                : value;
+
+                        return {
+                            value,
+                            label,
+                        };
+                    })
+                    .filter(Boolean),
+            [timezoneEntries],
         );
+        const siteTimezoneLabel = useMemo(
+            () => sprintf(__('Fuseau du site (%s)', 'visi-bloc-jlg'), TIMEZONE_LABEL),
+            [],
+        );
+        const timezoneControlOptions = useMemo(
+            () => [
+                { value: SITE_TIMEZONE_VALUE, label: siteTimezoneLabel },
+                ...timezoneOptions,
+            ],
+            [siteTimezoneLabel, timezoneOptions],
+        );
+        const normalizedPublishTimezone = useMemo(
+            () =>
+                timezoneControlOptions.some((option) => option.value === publishTimezone)
+                    ? publishTimezone
+                    : SITE_TIMEZONE_VALUE,
+            [publishTimezone, timezoneControlOptions],
+        );
+        const timezoneDisplayLabel = useMemo(() => {
+            const match = timezoneControlOptions.find(
+                (option) => option.value === normalizedPublishTimezone,
+            );
+
+            return match ? match.label : siteTimezoneLabel;
+        }, [normalizedPublishTimezone, timezoneControlOptions, siteTimezoneLabel]);
+        const hasCustomScheduleTimezone = normalizedPublishTimezone !== SITE_TIMEZONE_VALUE;
+        const timezoneSummary = useMemo(
+            () => sprintf(__('Fuseau horaire : %s', 'visi-bloc-jlg'), timezoneDisplayLabel),
+            [timezoneDisplayLabel],
+        );
+
+        let scheduleSummary = __('Aucune programmation.', 'visi-bloc-jlg');
 
         const startDateObj = parseDateValue(publishStartDate);
         const endDateObj = parseDateValue(publishEndDate);
@@ -1661,15 +1723,21 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                 return __('Erreur de dates', 'visi-bloc-jlg');
             }
 
+            let summaryLabel;
+
             if (publishStartDate && publishEndDate) {
-                return __('Plage définie', 'visi-bloc-jlg');
+                summaryLabel = __('Plage définie', 'visi-bloc-jlg');
+            } else if (publishStartDate || publishEndDate) {
+                summaryLabel = __('Date définie', 'visi-bloc-jlg');
+            } else {
+                summaryLabel = __('Programmation active', 'visi-bloc-jlg');
             }
 
-            if (publishStartDate || publishEndDate) {
-                return __('Date définie', 'visi-bloc-jlg');
+            if (hasCustomScheduleTimezone) {
+                return `${summaryLabel} – ${timezoneDisplayLabel}`;
             }
 
-            return __('Programmation active', 'visi-bloc-jlg');
+            return summaryLabel;
         })();
 
         const rolesSummary = (() => {
@@ -1740,6 +1808,9 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
         if (isSchedulingEnabled) {
             hiddenDescriptionParts.push(
                 sprintf(__('Programmation : %s', 'visi-bloc-jlg'), scheduleSummary),
+            );
+            hiddenDescriptionParts.push(
+                sprintf(__('Fuseau horaire : %s', 'visi-bloc-jlg'), timezoneDisplayLabel),
             );
         }
 
@@ -1947,6 +2018,28 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                                 )}
                                             </Notice>
                                         )}
+                                        <ComboboxControl
+                                            label={__('Fuseau horaire de programmation', 'visi-bloc-jlg')}
+                                            value={normalizedPublishTimezone}
+                                            options={timezoneControlOptions}
+                                            onChange={(newValue) => {
+                                                const matchingOption = timezoneControlOptions.find(
+                                                    (option) => option.value === newValue,
+                                                );
+
+                                                setAttributes({
+                                                    publishTimezone: matchingOption
+                                                        ? matchingOption.value
+                                                        : SITE_TIMEZONE_VALUE,
+                                                });
+                                            }}
+                                            placeholder={__('Rechercher un fuseau horaire…', 'visi-bloc-jlg')}
+                                            __nextHasNoMarginBottom
+                                            help={__(
+                                                'Choisissez un fuseau horaire spécifique pour cette plage. Par défaut, le fuseau du site est utilisé.',
+                                                'visi-bloc-jlg',
+                                            )}
+                                        />
                                         <p
                                             style={{
                                                 fontStyle: 'italic',
