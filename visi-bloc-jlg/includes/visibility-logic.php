@@ -633,6 +633,7 @@ function visibloc_jlg_normalize_advanced_rule( $rule ) {
         'user_role_group',
         'woocommerce_cart',
         'query_param',
+        'cookie',
     ];
 
     if ( ! in_array( $type, $supported_types, true ) ) {
@@ -721,6 +722,15 @@ function visibloc_jlg_normalize_advanced_rule( $rule ) {
             $normalized['param']    = isset( $rule['param'] ) && is_string( $rule['param'] ) ? $rule['param'] : '';
             $normalized['value']    = isset( $rule['value'] ) && is_string( $rule['value'] ) ? $rule['value'] : '';
             break;
+        case 'cookie':
+            $allowed_cookie_operators = [ 'equals', 'not_equals', 'contains', 'not_contains', 'exists', 'not_exists' ];
+            $operator                 = isset( $rule['operator'] ) && in_array( $rule['operator'], $allowed_cookie_operators, true )
+                ? $rule['operator']
+                : 'equals';
+            $normalized['operator']   = $operator;
+            $normalized['name']       = isset( $rule['name'] ) && is_string( $rule['name'] ) ? $rule['name'] : '';
+            $normalized['value']      = isset( $rule['value'] ) && is_string( $rule['value'] ) ? $rule['value'] : '';
+            break;
     }
 
     return $normalized;
@@ -796,6 +806,8 @@ function visibloc_jlg_evaluate_advanced_rule( $rule, $post, $runtime_context = [
             return visibloc_jlg_match_woocommerce_cart_rule( $rule );
         case 'query_param':
             return visibloc_jlg_match_query_param_rule( $rule );
+        case 'cookie':
+            return visibloc_jlg_match_cookie_rule( $rule );
     }
 
     return true;
@@ -1107,6 +1119,75 @@ function visibloc_jlg_match_query_param_rule( $rule ) {
     }
 
     $raw = isset( $_GET[ $param ] ) ? wp_unslash( $_GET[ $param ] ) : null; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+    $values = [];
+
+    if ( is_array( $raw ) ) {
+        foreach ( $raw as $item ) {
+            if ( is_scalar( $item ) ) {
+                $values[] = (string) $item;
+            }
+        }
+    } elseif ( null !== $raw ) {
+        $values[] = (string) $raw;
+    }
+
+    switch ( $operator ) {
+        case 'exists':
+            return ! empty( $values );
+        case 'not_exists':
+            return empty( $values );
+        case 'equals':
+            if ( empty( $values ) ) {
+                return false;
+            }
+
+            return in_array( $value, $values, true );
+        case 'not_equals':
+            if ( empty( $values ) ) {
+                return true;
+            }
+
+            return ! in_array( $value, $values, true );
+        case 'contains':
+            if ( '' === $value ) {
+                return ! empty( $values );
+            }
+
+            foreach ( $values as $current_value ) {
+                if ( false !== strpos( $current_value, $value ) ) {
+                    return true;
+                }
+            }
+
+            return false;
+        case 'not_contains':
+            if ( '' === $value ) {
+                return empty( $values );
+            }
+
+            foreach ( $values as $current_value ) {
+                if ( false !== strpos( $current_value, $value ) ) {
+                    return false;
+                }
+            }
+
+            return true;
+    }
+
+    return true;
+}
+
+function visibloc_jlg_match_cookie_rule( $rule ) {
+    $operator = isset( $rule['operator'] ) ? (string) $rule['operator'] : 'equals';
+    $name     = isset( $rule['name'] ) ? (string) $rule['name'] : '';
+    $value    = isset( $rule['value'] ) ? (string) $rule['value'] : '';
+
+    if ( '' === $name ) {
+        return true;
+    }
+
+    $raw = isset( $_COOKIE[ $name ] ) ? wp_unslash( $_COOKIE[ $name ] ) : null;
 
     $values = [];
 

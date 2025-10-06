@@ -368,6 +368,35 @@ class EditorAssetsTest extends TestCase {
         $this->assertSame( 'Nouvel article', $labels['post'] ?? '' );
     }
 
+    public function test_editor_common_cookies_filter_sanitizes_entries(): void {
+        add_filter(
+            'visibloc_jlg_common_cookies',
+            static function () {
+                return [
+                    [ 'value' => 'session_cookie', 'label' => 'Session Cookie' ],
+                    [ 'value' => '', 'label' => 'Ignored' ],
+                    'not-an-array',
+                    [ 'value' => 'custom_cookie' ],
+                ];
+            }
+        );
+
+        try {
+            $cookies = visibloc_jlg_get_editor_common_cookies();
+
+            $this->assertSame(
+                [
+                    [ 'value' => 'session_cookie', 'label' => 'Session Cookie' ],
+                    [ 'value' => 'custom_cookie', 'label' => 'custom_cookie' ],
+                ],
+                $cookies,
+                'Custom cookie definitions should be sanitized and retain labels when provided.'
+            );
+        } finally {
+            remove_all_filters( 'visibloc_jlg_common_cookies' );
+        }
+    }
+
     private function temporarilyRemoveAssetFile(): void {
         if ( file_exists( $this->assetBackup ) ) {
             unlink( $this->assetBackup );

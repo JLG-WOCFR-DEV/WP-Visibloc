@@ -333,6 +333,79 @@ class VisibilityLogicTest extends TestCase {
         }
     }
 
+    public function test_cookie_rule_matches_expected_value(): void {
+        $previous_cookies = $_COOKIE;
+
+        try {
+            $_COOKIE = [ 'marketing_flag' => 'vip-customer' ];
+
+            $this->assertTrue(
+                visibloc_jlg_match_cookie_rule(
+                    [
+                        'operator' => 'equals',
+                        'name'     => 'marketing_flag',
+                        'value'    => 'vip-customer',
+                    ]
+                ),
+                'Cookie rule should match when the value is identical.'
+            );
+
+            $this->assertFalse(
+                visibloc_jlg_match_cookie_rule(
+                    [
+                        'operator' => 'not_equals',
+                        'name'     => 'marketing_flag',
+                        'value'    => 'vip-customer',
+                    ]
+                ),
+                'Negated comparison should fail when cookie matches the given value.'
+            );
+
+            $this->assertTrue(
+                visibloc_jlg_match_cookie_rule(
+                    [
+                        'operator' => 'contains',
+                        'name'     => 'marketing_flag',
+                        'value'    => 'vip',
+                    ]
+                ),
+                'Substring comparisons should detect values within the cookie.'
+            );
+        } finally {
+            $_COOKIE = $previous_cookies;
+        }
+    }
+
+    public function test_cookie_rule_handles_missing_cookie_for_exists_operator(): void {
+        $previous_cookies = $_COOKIE;
+
+        try {
+            $_COOKIE = [];
+
+            $this->assertFalse(
+                visibloc_jlg_match_cookie_rule(
+                    [
+                        'operator' => 'exists',
+                        'name'     => 'tracking_id',
+                    ]
+                ),
+                'Exists operator should fail when cookie is missing.'
+            );
+
+            $this->assertTrue(
+                visibloc_jlg_match_cookie_rule(
+                    [
+                        'operator' => 'not_exists',
+                        'name'     => 'tracking_id',
+                    ]
+                ),
+                'Not exists operator should succeed when cookie is absent.'
+            );
+        } finally {
+            $_COOKIE = $previous_cookies;
+        }
+    }
+
     public function test_preview_exposes_reason_for_inverted_schedule(): void {
         global $visibloc_test_state;
 
