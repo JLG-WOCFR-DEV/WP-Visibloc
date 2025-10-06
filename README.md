@@ -42,6 +42,12 @@ Des extensions commerciales de personnalisation de contenu (p. ex. Block Visibil
 | Automatisation & intégrations | Hooks WordPress, commande WP-CLI, API utilitaires PHP | Intégrations WooCommerce, EDD, Gravity Forms | Webhooks entrants/sortants, connecteurs SaaS | API REST complète, webhooks, synchronisation CRM |
 | Gouvernance & conformité | Gestion des permissions et fallback global | Contrôles d’accès granulaires, audit de règles | Gestion de consentement simplifiée | Gestion multi-sites, rôles marketing dédiés, support RGPD |
 
+### Diagnostic UI/UX actuel
+
+- **Point forts** – L’expérience se fond dans le panneau latéral de Gutenberg, ce qui limite la rupture de parcours pour un éditeur habitué à WordPress. Les règles avancées sont modulaires (type de contenu, taxonomie, récurrence, statut de connexion, groupes de rôles, paramètres d’URL, panier WooCommerce, etc.) et peuvent être combinées en logique AND/OR, offrant une grande puissance sans avoir à quitter l’éditeur.
+- **Limites identifiées** – La création de scénarios repose sur une configuration bloc par bloc et sur une compréhension approfondie des réglages disponibles. Il n’existe ni guide interactif ni vue d’ensemble des règles en place, ce qui peut entraîner un manque de visibilité et des erreurs de paramétrage pour les équipes marketing ou produit débutantes.
+- **Accessibilité et feedback** – Les messages d’explication en mode aperçu et le commutateur de rôle dans la barre d’admin donnent des retours utiles, mais il manque des visualisations plus explicites (timeline, alertes contextuelles, score de couverture) pour comprendre l’impact d’une règle sur le parcours utilisateur ou détecter les conflits.
+
 ### Axes d’amélioration recommandés
 
 - **Parcours utilisateurs préconfigurés** – les solutions pro livrent fréquemment des playbooks prêts à l’emploi (ex. « afficher un bandeau de relance au visiteur récurrent », « cibler les clients VIP ») avec un assistant pas-à-pas. Visi-Bloc gagnerait à proposer une bibliothèque de recettes guidées, accompagnée de tutoriels intégrés dans l’éditeur pour réduire la marche d’apprentissage.
@@ -52,6 +58,8 @@ Des extensions commerciales de personnalisation de contenu (p. ex. Block Visibil
 - **Automatisation et écosystème** – exposer et piloter les règles de visibilité via l’API REST, des webhooks et une CLI plus complète permettrait de synchroniser les scénarios depuis des workflows externes (Make, Zapier, n8n). À l’inverse, des déclencheurs entrants (webhooks, file d’attente) autoriseraient des réactions en quasi temps réel.
 - **Expérience d’administration avancée** – intégrer un audit log détaillant les modifications, la possibilité d’assigner des propriétaires de règles, des revues avant publication et un mode « sandbox » pour tester des règles sans impacter le front rapprocherait l’administration de standards enterprise.
 - **Support multilingue et conformité** – proposer des déclinaisons automatiques des règles par langue (WPML/Polylang) et des mécanismes respectant le consentement (masquer des blocs tant qu’aucun consentement analytics n’est donné, par exemple) sécuriserait les déploiements dans des environnements réglementés.
+- **Améliorations UI/UX ciblées** – Concevoir une page d’overview centralisant les règles actives par contenu, avec filtres, indicateurs de statut et navigation par segments permettrait d’aligner le produit sur les standards pro. Ajouter un mode « diagramme d’audience » ou une frise temporelle interactive aiderait à visualiser les chevauchements de règles. Dans l’éditeur, des badges colorés, des tooltips contextualisés et une palette de couleurs cohérente avec le design system WordPress renforceraient la lisibilité, tandis que des modales d’onboarding (checklist, vidéo courte) et un centre d’aide contextuel fluidifieraient les premiers usages.
+- **Design system et responsive preview** – Introduire un mini design system (typographie, couleurs, icônes, composants réutilisables) assurerait une expérience homogène entre la page d’options, les panneaux et les modales. Un sélecteur de preview responsive directement accessible depuis le panneau Visibloc, couplé à des captures d’écran générées automatiquement pour chaque breakpoint, offrirait une perception immédiate du rendu final et des éventuels conflits de fallback.
 
 
 ## Installation
