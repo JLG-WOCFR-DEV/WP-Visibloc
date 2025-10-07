@@ -631,9 +631,11 @@ function visibloc_jlg_normalize_advanced_rule( $rule ) {
         'recurring_schedule',
         'logged_in_status',
         'user_role_group',
+        'user_segment',
         'woocommerce_cart',
         'query_param',
         'cookie',
+        'visit_count',
     ];
 
     if ( ! in_array( $type, $supported_types, true ) ) {
@@ -696,6 +698,12 @@ function visibloc_jlg_normalize_advanced_rule( $rule ) {
                 : 'matches';
             $normalized['group'] = isset( $rule['group'] ) && is_string( $rule['group'] ) ? $rule['group'] : '';
             break;
+        case 'user_segment':
+            $normalized['operator'] = isset( $rule['operator'] ) && 'does_not_match' === $rule['operator']
+                ? 'does_not_match'
+                : 'matches';
+            $normalized['segment'] = isset( $rule['segment'] ) && is_string( $rule['segment'] ) ? $rule['segment'] : '';
+            break;
         case 'woocommerce_cart':
             $normalized['operator'] = isset( $rule['operator'] ) && 'not_contains' === $rule['operator'] ? 'not_contains' : 'contains';
             $normalized['taxonomy'] = isset( $rule['taxonomy'] ) && is_string( $rule['taxonomy'] ) ? $rule['taxonomy'] : '';
@@ -730,6 +738,15 @@ function visibloc_jlg_normalize_advanced_rule( $rule ) {
             $normalized['operator']   = $operator;
             $normalized['name']       = isset( $rule['name'] ) && is_string( $rule['name'] ) ? $rule['name'] : '';
             $normalized['value']      = isset( $rule['value'] ) && is_string( $rule['value'] ) ? $rule['value'] : '';
+            break;
+        case 'visit_count':
+            $allowed_visit_operators  = [ 'at_least', 'at_most', 'equals', 'not_equals' ];
+            $operator                 = isset( $rule['operator'] ) && in_array( $rule['operator'], $allowed_visit_operators, true )
+                ? $rule['operator']
+                : 'at_least';
+            $threshold                = isset( $rule['threshold'] ) ? (int) $rule['threshold'] : 0;
+            $normalized['operator']   = $operator;
+            $normalized['threshold']  = max( 0, $threshold );
             break;
     }
 
@@ -808,6 +825,10 @@ function visibloc_jlg_evaluate_advanced_rule( $rule, $post, $runtime_context = [
             return visibloc_jlg_match_query_param_rule( $rule );
         case 'cookie':
             return visibloc_jlg_match_cookie_rule( $rule );
+        case 'user_segment':
+            return visibloc_jlg_match_user_segment_rule( $rule, $runtime_context );
+        case 'visit_count':
+            return visibloc_jlg_match_visit_count_rule( $rule );
     }
 
     return true;
@@ -1019,6 +1040,35 @@ function visibloc_jlg_match_user_role_group_rule( $rule, $runtime_context ) {
     }
 
     return 'does_not_match' === $operator ? ! $matches : $matches;
+}
+
+function visibloc_jlg_match_user_segment_rule( $rule, $runtime_context ) {
+    $segment  = isset( $rule['segment'] ) ? (string) $rule['segment'] : '';
+    $operator = isset( $rule['operator'] ) && 'does_not_match' === $rule['operator'] ? 'does_not_match' : 'matches';
+
+    if ( '' === $segment ) {
+        return true;
+    }
+
+    $user_context = isset( $runtime_context['user'] ) && is_array( $runtime_context['user'] )
+        ? $runtime_context['user']
+        : [];
+
+    $matched = false;
+
+    if ( function_exists( 'apply_filters' ) ) {
+        $matched = (bool) apply_filters(
+            'visibloc_jlg_user_segment_matches',
+            $matched,
+            [
+                'segment' => $segment,
+                'user'    => $user_context,
+                'rule'    => $rule,
+            ]
+        );
+    }
+
+    return 'does_not_match' === $operator ? ! $matched : $matched;
 }
 
 function visibloc_jlg_match_woocommerce_cart_rule( $rule ) {
@@ -1245,6 +1295,172 @@ function visibloc_jlg_match_cookie_rule( $rule ) {
     }
 
     return true;
+}
+
+function visibloc_jlg_match_visit_count_rule( $rule ) {
+    $allowed_operators = [ 'at_least', 'at_most', 'equals', 'not_equals' ];
+    $operator          = isset( $rule['operator'] ) && in_array( $rule['operator'], $allowed_operators, true )
+        ? $rule['operator']
+        : 'at_least';
+
+    $threshold = isset( $rule['threshold'] ) ? (int) $rule['threshold'] : 0;
+
+    if ( $threshold < 0 ) {
+        $threshold = 0;
+    }
+
+    $visit_count = visibloc_jlg_get_visit_count();
+
+    switch ( $operator ) {
+        case 'equals':
+            return $visit_count === $threshold;
+        case 'not_equals':
+            return $visit_count !== $threshold;
+        case 'at_most':
+            return $visit_count <= $threshold;
+        case 'at_least':
+        default:
+            return $visit_count >= $threshold;
+    }
+}
+
+function visibloc_jlg_get_visit_count_cookie_name() {
+    $default_name = 'visibloc_visit_count';
+
+    $cookie_name = function_exists( 'apply_filters' )
+        ? apply_filters( 'visibloc_jlg_visit_count_cookie_name', $default_name )
+        : $default_name;
+
+    if ( ! is_string( $cookie_name ) ) {
+        return '';
+    }
+
+    $sanitized = preg_replace( '/[^A-Za-z0-9_\-]/', '', $cookie_name );
+
+    return is_string( $sanitized ) ? trim( $sanitized ) : '';
+}
+
+function visibloc_jlg_get_visit_count_cookie_lifetime() {
+    $default_lifetime = defined( 'YEAR_IN_SECONDS' ) ? YEAR_IN_SECONDS : 31536000;
+
+    $lifetime = function_exists( 'apply_filters' )
+        ? apply_filters( 'visibloc_jlg_visit_count_cookie_lifetime', $default_lifetime )
+        : $default_lifetime;
+
+    if ( ! is_numeric( $lifetime ) ) {
+        return $default_lifetime;
+    }
+
+    $lifetime = (int) $lifetime;
+
+    return $lifetime > 0 ? $lifetime : $default_lifetime;
+}
+
+function visibloc_jlg_should_track_visit_count( array $context = [] ) {
+    $defaults = [
+        'is_admin'       => function_exists( 'is_admin' ) ? is_admin() : false,
+        'doing_ajax'     => function_exists( 'wp_doing_ajax' ) ? wp_doing_ajax() : false,
+        'doing_cron'     => function_exists( 'wp_doing_cron' ) ? wp_doing_cron() : false,
+        'is_rest_request' => defined( 'REST_REQUEST' ) && REST_REQUEST,
+        'php_sapi'       => function_exists( 'php_sapi_name' ) ? php_sapi_name() : '',
+    ];
+
+    $context = array_merge( $defaults, $context );
+
+    $should_track = ! $context['doing_ajax'] && ! $context['doing_cron'] && ! $context['is_rest_request'];
+
+    if ( $context['is_admin'] ) {
+        $should_track = false;
+    }
+
+    if ( 'cli' === $context['php_sapi'] ) {
+        $should_track = false;
+    }
+
+    if ( function_exists( 'apply_filters' ) ) {
+        $should_track = (bool) apply_filters( 'visibloc_jlg_should_track_visit_count', $should_track, $context );
+    }
+
+    return $should_track;
+}
+
+function visibloc_jlg_track_visit_count() {
+    $context = [
+        'is_admin'        => function_exists( 'is_admin' ) ? is_admin() : false,
+        'doing_ajax'      => function_exists( 'wp_doing_ajax' ) ? wp_doing_ajax() : false,
+        'doing_cron'      => function_exists( 'wp_doing_cron' ) ? wp_doing_cron() : false,
+        'is_rest_request' => defined( 'REST_REQUEST' ) && REST_REQUEST,
+        'php_sapi'        => function_exists( 'php_sapi_name' ) ? php_sapi_name() : '',
+    ];
+
+    if ( ! visibloc_jlg_should_track_visit_count( $context ) ) {
+        return;
+    }
+
+    $cookie_name = visibloc_jlg_get_visit_count_cookie_name();
+
+    if ( '' === $cookie_name ) {
+        return;
+    }
+
+    $current_value = visibloc_jlg_get_visit_count( $cookie_name );
+    $next_value    = min( $current_value + 1, PHP_INT_MAX );
+
+    if ( 'cli' === $context['php_sapi'] || headers_sent() ) {
+        $_COOKIE[ $cookie_name ] = (string) $next_value;
+
+        return;
+    }
+
+    $lifetime = visibloc_jlg_get_visit_count_cookie_lifetime();
+    $expires  = time() + $lifetime;
+    $path     = defined( 'COOKIEPATH' ) ? COOKIEPATH : '/';
+    $domain   = defined( 'COOKIE_DOMAIN' ) ? COOKIE_DOMAIN : '';
+    $secure   = function_exists( 'is_ssl' ) ? is_ssl() : false;
+
+    setcookie( $cookie_name, (string) $next_value, $expires, $path, $domain, $secure, true );
+
+    $_COOKIE[ $cookie_name ] = (string) $next_value;
+}
+
+function visibloc_jlg_get_visit_count( $cookie_name = '' ) {
+    $name = '' !== $cookie_name ? $cookie_name : visibloc_jlg_get_visit_count_cookie_name();
+
+    if ( '' === $name ) {
+        return 0;
+    }
+
+    $raw_value = isset( $_COOKIE[ $name ] ) ? $_COOKIE[ $name ] : null;
+
+    if ( is_array( $raw_value ) ) {
+        $raw_value = reset( $raw_value );
+    }
+
+    if ( null === $raw_value ) {
+        return 0;
+    }
+
+    if ( function_exists( 'wp_unslash' ) ) {
+        $raw_value = wp_unslash( $raw_value );
+    }
+
+    if ( ! is_scalar( $raw_value ) ) {
+        return 0;
+    }
+
+    $count = filter_var( $raw_value, FILTER_VALIDATE_INT );
+
+    if ( false === $count ) {
+        return 0;
+    }
+
+    $count = (int) $count;
+
+    return $count < 0 ? 0 : $count;
+}
+
+if ( function_exists( 'add_action' ) ) {
+    add_action( 'init', 'visibloc_jlg_track_visit_count', 1 );
 }
 
 function visibloc_jlg_parse_time_to_minutes( $time ) {

@@ -530,6 +530,7 @@ function visibloc_jlg_enqueue_editor_assets() {
             'daysOfWeek'       => visibloc_jlg_get_editor_days_of_week(),
             'timezones'        => visibloc_jlg_get_editor_timezones(),
             'roleGroups'       => visibloc_jlg_get_editor_role_groups(),
+            'userSegments'     => visibloc_jlg_get_editor_user_segments(),
             'loginStatuses'    => visibloc_jlg_get_editor_login_statuses(),
             'woocommerceTaxonomies' => visibloc_jlg_get_editor_woocommerce_taxonomies(),
             'commonQueryParams' => visibloc_jlg_get_editor_common_query_params(),
@@ -853,6 +854,66 @@ function visibloc_jlg_get_role_group_definitions() {
 
 function visibloc_jlg_get_editor_role_groups() {
     return visibloc_jlg_get_role_group_definitions();
+}
+
+/**
+ * Retrieve marketing segments exposed to the block editor.
+ *
+ * @return array<int, array<string, string>>
+ */
+function visibloc_jlg_get_editor_user_segments() {
+    /**
+     * Filters the list of marketing segments available in the editor UI.
+     *
+     * Each item should be an associative array containing a required `value` key
+     * and an optional `label` used for display.
+     *
+     * @since 1.1.1
+     *
+     * @param array<int, array<string, string>> $segments Declared user segments.
+     */
+    $segments = function_exists( 'apply_filters' )
+        ? apply_filters(
+            'visibloc_jlg_user_segments',
+            []
+        )
+        : [];
+
+    if ( ! is_array( $segments ) ) {
+        return [];
+    }
+
+    $items = [];
+
+    foreach ( $segments as $segment ) {
+        if ( ! is_array( $segment ) ) {
+            continue;
+        }
+
+        $value = isset( $segment['value'] ) ? (string) $segment['value'] : '';
+
+        if ( '' === $value ) {
+            continue;
+        }
+
+        $label = isset( $segment['label'] ) && is_string( $segment['label'] ) && '' !== trim( $segment['label'] )
+            ? $segment['label']
+            : $value;
+
+        $items[] = [
+            'value' => $value,
+            'label' => $label,
+        ];
+    }
+
+    usort(
+        $items,
+        static function ( $first, $second ) {
+            return strcasecmp( (string) ( $first['label'] ?? '' ), (string) ( $second['label'] ?? '' ) );
+        }
+    );
+
+    return $items;
 }
 
 /**

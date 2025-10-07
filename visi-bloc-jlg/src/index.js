@@ -593,9 +593,11 @@ const SUPPORTED_ADVANCED_RULE_TYPES = [
     'recurring_schedule',
     'logged_in_status',
     'user_role_group',
+    'user_segment',
     'woocommerce_cart',
     'query_param',
     'cookie',
+    'visit_count',
 ];
 
 const ADVANCED_RULE_TYPE_OPTIONS = [
@@ -605,9 +607,11 @@ const ADVANCED_RULE_TYPE_OPTIONS = [
     { value: 'recurring_schedule', label: __('Horaire récurrent', 'visi-bloc-jlg') },
     { value: 'logged_in_status', label: __('État de connexion', 'visi-bloc-jlg') },
     { value: 'user_role_group', label: __('Groupe de rôles', 'visi-bloc-jlg') },
+    { value: 'user_segment', label: __('Segment marketing', 'visi-bloc-jlg') },
     { value: 'woocommerce_cart', label: __('Panier WooCommerce', 'visi-bloc-jlg') },
     { value: 'query_param', label: __('Paramètre d’URL', 'visi-bloc-jlg') },
     { value: 'cookie', label: __('Cookie', 'visi-bloc-jlg') },
+    { value: 'visit_count', label: __('Compteur de visites', 'visi-bloc-jlg') },
 ];
 
 const DEFAULT_ADVANCED_VISIBILITY = Object.freeze({
@@ -848,6 +852,17 @@ const getDefaultRoleGroupRule = () => {
     };
 };
 
+const getDefaultUserSegmentRule = () => {
+    const segments = getVisiBlocArray('userSegments');
+
+    return {
+        id: createRuleId(),
+        type: 'user_segment',
+        operator: 'matches',
+        segment: getFirstOptionValue(segments),
+    };
+};
+
 const getDefaultWooCommerceCartRule = () => {
     const sources = getVisiBlocArray('woocommerceTaxonomies');
     const firstTaxonomy = sources.find((item) => item && typeof item.slug === 'string');
@@ -885,6 +900,13 @@ const getDefaultCookieRule = () => {
     };
 };
 
+const getDefaultVisitCountRule = () => ({
+    id: createRuleId(),
+    type: 'visit_count',
+    operator: 'at_least',
+    threshold: 3,
+});
+
 const createDefaultRuleForType = (type) => {
     switch (type) {
         case 'taxonomy':
@@ -897,12 +919,16 @@ const createDefaultRuleForType = (type) => {
             return getDefaultLoggedInStatusRule();
         case 'user_role_group':
             return getDefaultRoleGroupRule();
+        case 'user_segment':
+            return getDefaultUserSegmentRule();
         case 'woocommerce_cart':
             return getDefaultWooCommerceCartRule();
         case 'query_param':
             return getDefaultQueryParamRule();
         case 'cookie':
             return getDefaultCookieRule();
+        case 'visit_count':
+            return getDefaultVisitCountRule();
         case 'post_type':
         default:
             return getDefaultPostTypeRule();
@@ -965,6 +991,13 @@ const normalizeRule = (rule) => {
         return normalized;
     }
 
+    if (type === 'user_segment') {
+        normalized.operator = rule.operator === 'does_not_match' ? 'does_not_match' : 'matches';
+        normalized.segment = typeof rule.segment === 'string' ? rule.segment : '';
+
+        return normalized;
+    }
+
     if (type === 'woocommerce_cart') {
         normalized.operator = rule.operator === 'not_contains' ? 'not_contains' : 'contains';
         normalized.taxonomy = typeof rule.taxonomy === 'string' ? rule.taxonomy : '';
@@ -1011,6 +1044,17 @@ const normalizeRule = (rule) => {
             : 'equals';
         normalized.name = typeof rule.name === 'string' ? rule.name : '';
         normalized.value = typeof rule.value === 'string' ? rule.value : '';
+
+        return normalized;
+    }
+
+    if (type === 'visit_count') {
+        const allowedOperators = ['at_least', 'at_most', 'equals', 'not_equals'];
+        const parsedThreshold = Number.parseInt(rule.threshold, 10);
+        const threshold = Number.isFinite(parsedThreshold) && parsedThreshold >= 0 ? parsedThreshold : 0;
+
+        normalized.operator = allowedOperators.includes(rule.operator) ? rule.operator : 'at_least';
+        normalized.threshold = threshold;
 
         return normalized;
     }
@@ -1690,6 +1734,58 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                 );
             }
 
+            if (rule.type === 'user_segment') {
+                const segments = getVisiBlocArray('userSegments')
+                    .map((item) => ({
+                        value: typeof item.value === 'string' ? item.value : '',
+                        label:
+                            typeof item.label === 'string' && item.label.trim()
+                                ? item.label
+                                : typeof item.value === 'string'
+                                  ? item.value
+                                  : '',
+                    }))
+                    .filter((option) => option.value);
+
+                const operatorOptions = [
+                    { value: 'matches', label: __('Appartient au segment', 'visi-bloc-jlg') },
+                    { value: 'does_not_match', label: __('N’appartient pas au segment', 'visi-bloc-jlg') },
+                ];
+
+                const selectedSegment = typeof rule.segment === 'string' ? rule.segment : '';
+
+                return (
+                    <div key={rule.id} className="visibloc-advanced-rule">
+                        {commonHeader}
+                        <SelectControl
+                            label={__('Condition', 'visi-bloc-jlg')}
+                            value={rule.operator}
+                            options={operatorOptions}
+                            onChange={(newOperator) => onUpdateRule({ operator: newOperator })}
+                        />
+                        <ComboboxControl
+                            label={__('Identifiant de segment', 'visi-bloc-jlg')}
+                            value={selectedSegment}
+                            options={segments}
+                            onChange={(newValue) => onUpdateRule({ segment: newValue || '' })}
+                            allowReset
+                            help={__(
+                                'Choisissez un segment fourni par vos intégrations marketing ou saisissez un identifiant personnalisé.',
+                                'visi-bloc-jlg',
+                            )}
+                        />
+                        {!segments.length && (
+                            <p className="components-help-text">
+                                {__(
+                                    'Aucun segment n’a encore été exposé via le filtre « visibloc_jlg_user_segments ».',
+                                    'visi-bloc-jlg',
+                                )}
+                            </p>
+                        )}
+                    </div>
+                );
+            }
+
             if (rule.type === 'woocommerce_cart') {
                 const taxonomies = getVisiBlocArray('woocommerceTaxonomies');
                 const hasTaxonomies = Array.isArray(taxonomies) && taxonomies.length > 0;
@@ -1904,6 +2000,45 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                 onChange={(newValue) => onUpdateRule({ value: newValue })}
                             />
                         )}
+                    </div>
+                );
+            }
+
+            if (rule.type === 'visit_count') {
+                const operatorOptions = [
+                    { value: 'at_least', label: __('Au moins', 'visi-bloc-jlg') },
+                    { value: 'at_most', label: __('Au plus', 'visi-bloc-jlg') },
+                    { value: 'equals', label: __('Est exactement', 'visi-bloc-jlg') },
+                    { value: 'not_equals', label: __('N’est pas exactement', 'visi-bloc-jlg') },
+                ];
+
+                const thresholdValue = Number.isFinite(rule.threshold) && rule.threshold >= 0 ? String(rule.threshold) : '0';
+
+                return (
+                    <div key={rule.id} className="visibloc-advanced-rule">
+                        {commonHeader}
+                        <SelectControl
+                            label={__('Condition', 'visi-bloc-jlg')}
+                            value={rule.operator}
+                            options={operatorOptions}
+                            onChange={(newOperator) => onUpdateRule({ operator: newOperator })}
+                        />
+                        <TextControl
+                            label={__('Nombre de visites', 'visi-bloc-jlg')}
+                            type="number"
+                            min={0}
+                            value={thresholdValue}
+                            onChange={(newValue) => {
+                                const parsed = Number.parseInt(newValue, 10);
+                                onUpdateRule({
+                                    threshold: Number.isNaN(parsed) || parsed < 0 ? 0 : parsed,
+                                });
+                            }}
+                            help={__(
+                                'Le compteur de visites est stocké dans le cookie « visibloc_visit_count ».',
+                                'visi-bloc-jlg',
+                            )}
+                        />
                     </div>
                 );
             }

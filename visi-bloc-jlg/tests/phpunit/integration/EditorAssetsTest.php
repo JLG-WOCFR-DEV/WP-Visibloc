@@ -368,6 +368,46 @@ class EditorAssetsTest extends TestCase {
         $this->assertSame( 'Nouvel article', $labels['post'] ?? '' );
     }
 
+    public function test_user_segments_filter_populates_editor_data(): void {
+        $callback = static function () {
+            return [
+                [
+                    'value' => 'vip_clients',
+                    'label' => 'VIP clients',
+                ],
+                [
+                    'value' => 'warm_leads',
+                    'label' => 'Leads chauds',
+                ],
+                [
+                    'value' => '',
+                    'label' => 'Should be ignored',
+                ],
+                [
+                    'value' => 'fallback_segment',
+                ],
+            ];
+        };
+
+        add_filter( 'visibloc_jlg_user_segments', $callback );
+
+        try {
+            $segments = visibloc_jlg_get_editor_user_segments();
+
+            $this->assertSame(
+                [
+                    [ 'value' => 'fallback_segment', 'label' => 'fallback_segment' ],
+                    [ 'value' => 'warm_leads', 'label' => 'Leads chauds' ],
+                    [ 'value' => 'vip_clients', 'label' => 'VIP clients' ],
+                ],
+                $segments,
+                'Segments should be sanitized and sorted alphabetically by label.'
+            );
+        } finally {
+            remove_filter( 'visibloc_jlg_user_segments', $callback );
+        }
+    }
+
     public function test_editor_common_cookies_filter_sanitizes_entries(): void {
         add_filter(
             'visibloc_jlg_common_cookies',
