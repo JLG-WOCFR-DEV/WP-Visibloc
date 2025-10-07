@@ -29,6 +29,243 @@ body.is-dark-theme {
     --visibloc-shadow-elevated: 0 28px 64px -30px rgba(2, 6, 23, 0.85);
 }
 
+.visibloc-onboarding {
+    margin: 24px 0 32px;
+    padding: 24px 26px;
+    border-radius: var(--visibloc-radius-base);
+    border: 1px solid var(--visibloc-border-subtle);
+    background: var(--visibloc-surface);
+    box-shadow: var(--visibloc-shadow-subtle);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.visibloc-onboarding__header {
+    display: flex;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+.visibloc-onboarding__title {
+    margin: 0;
+    font-size: 20px;
+    line-height: 1.4;
+    letter-spacing: -0.01em;
+}
+
+.visibloc-onboarding__subtitle {
+    margin: 8px 0 0;
+    color: rgba(15, 23, 42, 0.7);
+    font-size: 14px;
+    max-width: 52ch;
+}
+
+.visibloc-onboarding__progress {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-width: 240px;
+}
+
+.visibloc-onboarding__progress-count {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    text-align: right;
+}
+
+.visibloc-onboarding__progress-value {
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: -0.01em;
+    color: #0f172a;
+}
+
+.visibloc-onboarding__progress-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(15, 23, 42, 0.6);
+}
+
+.visibloc-onboarding__progress-bar {
+    position: relative;
+    flex: 1 1 160px;
+    height: 8px;
+    border-radius: var(--visibloc-radius-pill);
+    background: rgba(15, 23, 42, 0.08);
+    overflow: hidden;
+}
+
+.visibloc-onboarding__progress-bar-fill {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    border-radius: inherit;
+    transition: width 0.4s ease;
+}
+
+.visibloc-onboarding__checklist {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 18px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.visibloc-onboarding__item {
+    position: relative;
+    padding: 18px 18px 18px 58px;
+    border-radius: var(--visibloc-radius-base);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: var(--visibloc-surface-tinted);
+    min-height: 140px;
+    display: flex;
+}
+
+.visibloc-onboarding__item.is-complete {
+    border-color: rgba(34, 197, 94, 0.35);
+    box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.18), var(--visibloc-shadow-subtle);
+}
+
+.visibloc-onboarding__item.is-pending {
+    border-color: rgba(59, 130, 246, 0.24);
+    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.12), var(--visibloc-shadow-subtle);
+}
+
+.visibloc-onboarding__status {
+    position: absolute;
+    top: 16px;
+    left: 18px;
+}
+
+.visibloc-onboarding__status-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(15, 23, 42, 0.08);
+    color: #0f172a;
+}
+
+.visibloc-onboarding__status-icon svg {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+}
+
+.visibloc-onboarding__status-icon--complete {
+    background: rgba(34, 197, 94, 0.2);
+    color: #15803d;
+}
+
+.visibloc-onboarding__status-icon--pending {
+    background: rgba(59, 130, 246, 0.2);
+    color: #1d4ed8;
+}
+
+.visibloc-onboarding__details {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.visibloc-onboarding__item-title {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.4;
+}
+
+.visibloc-onboarding__item-description {
+    margin: 0;
+    font-size: 13px;
+    color: rgba(15, 23, 42, 0.75);
+}
+
+.visibloc-onboarding__action {
+    align-self: flex-start;
+}
+
+@media (max-width: 782px) {
+    .visibloc-onboarding {
+        padding: 20px;
+    }
+
+    .visibloc-onboarding__header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .visibloc-onboarding__progress {
+        align-items: flex-start;
+    }
+
+    .visibloc-onboarding__progress-count {
+        align-items: flex-start;
+        text-align: left;
+    }
+
+    .visibloc-onboarding__item {
+        padding-left: 56px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .visibloc-onboarding__progress-bar-fill {
+        transition: none;
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+    .visibloc-onboarding__subtitle,
+    .visibloc-onboarding__item-description,
+    .visibloc-onboarding__progress-label {
+        color: rgba(226, 232, 240, 0.75);
+    }
+
+    .visibloc-onboarding__progress-value {
+        color: #f8fafc;
+    }
+
+    .visibloc-onboarding__item {
+        background: rgba(30, 41, 59, 0.7);
+        border-color: rgba(148, 163, 184, 0.25);
+    }
+
+    .visibloc-onboarding__item.is-complete {
+        border-color: rgba(34, 197, 94, 0.5);
+        box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.25), var(--visibloc-shadow-subtle);
+    }
+
+    .visibloc-onboarding__item.is-pending {
+        border-color: rgba(59, 130, 246, 0.35);
+        box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2), var(--visibloc-shadow-subtle);
+    }
+
+    .visibloc-onboarding__status-icon {
+        background: rgba(148, 163, 184, 0.18);
+        color: #e2e8f0;
+    }
+
+    .visibloc-onboarding__status-icon--complete {
+        background: rgba(34, 197, 94, 0.28);
+        color: #bbf7d0;
+    }
+
+    .visibloc-onboarding__status-icon--pending {
+        background: rgba(59, 130, 246, 0.28);
+        color: #bfdbfe;
+    }
+}
+
 /* Badges d'état */
 .visibloc-status-badge {
     --visibloc-badge-bg: rgba(148, 163, 184, 0.12);

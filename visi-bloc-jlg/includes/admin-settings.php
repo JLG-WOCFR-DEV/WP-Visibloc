@@ -6,6 +6,108 @@ require_once __DIR__ . '/cache-constants.php';
 require_once __DIR__ . '/block-utils.php';
 require_once __DIR__ . '/fallback.php';
 
+/**
+ * Build the onboarding checklist items displayed on the help page.
+ *
+ * @param array $context Contextual data (supported blocks, roles, breakpoints…).
+ * @return array[]
+ */
+function visibloc_jlg_build_onboarding_checklist_items( array $context ) {
+    $supported_blocks   = isset( $context['supported_blocks'] ) ? (array) $context['supported_blocks'] : [];
+    $allowed_roles      = isset( $context['preview_roles'] ) ? (array) $context['preview_roles'] : [];
+    $fallback_settings  = isset( $context['fallback'] ) ? (array) $context['fallback'] : [];
+    $mobile_breakpoint  = isset( $context['mobile_breakpoint'] ) ? absint( $context['mobile_breakpoint'] ) : 0;
+    $tablet_breakpoint  = isset( $context['tablet_breakpoint'] ) ? absint( $context['tablet_breakpoint'] ) : 0;
+    $default_mobile_bp  = 781;
+    $default_tablet_bp  = 1024;
+    $has_custom_device  = $mobile_breakpoint > 0 && $tablet_breakpoint > 0
+        ? ( $mobile_breakpoint !== $default_mobile_bp ) || ( $tablet_breakpoint !== $default_tablet_bp )
+        : false;
+    $has_additional_role = count( array_diff( $allowed_roles, [ 'administrator' ] ) ) > 0;
+    $has_fallback        = visibloc_jlg_fallback_has_content( $fallback_settings );
+
+    return [
+        [
+            'key'         => 'supported-blocks',
+            'complete'    => ! empty( $supported_blocks ),
+            'title'       => __( 'Sélectionnez les blocs à contrôler', 'visi-bloc-jlg' ),
+            'description' => __( 'Activez la visibilité avancée uniquement sur les blocs qui doivent être pilotés.', 'visi-bloc-jlg' ),
+            'action'      => [
+                'label' => __( 'Configurer les blocs compatibles', 'visi-bloc-jlg' ),
+                'url'   => '#visibloc-section-blocks',
+            ],
+        ],
+        [
+            'key'         => 'preview-roles',
+            'complete'    => $has_additional_role,
+            'title'       => __( "Autorisez les rôles à prévisualiser", 'visi-bloc-jlg' ),
+            'description' => __( "Ajoutez les rôles marketing ou éditoriaux qui doivent tester les parcours personnalisés sans privilèges administrateur.", 'visi-bloc-jlg' ),
+            'action'      => [
+                'label' => __( "Définir les rôles d’aperçu", 'visi-bloc-jlg' ),
+                'url'   => '#visibloc-section-permissions',
+            ],
+        ],
+        [
+            'key'         => 'fallback',
+            'complete'    => $has_fallback,
+            'title'       => __( 'Préparez un contenu de repli', 'visi-bloc-jlg' ),
+            'description' => __( 'Sélectionnez un message ou un bloc de remplacement pour les visiteurs qui ne remplissent pas les conditions.', 'visi-bloc-jlg' ),
+            'action'      => [
+                'label' => __( 'Configurer le fallback global', 'visi-bloc-jlg' ),
+                'url'   => '#visibloc-section-fallback',
+            ],
+        ],
+        [
+            'key'         => 'breakpoints',
+            'complete'    => $has_custom_device,
+            'title'       => __( 'Personnalisez les points de rupture', 'visi-bloc-jlg' ),
+            'description' => __( 'Adaptez les seuils mobile et tablette à votre grille responsive pour fiabiliser les règles par appareil.', 'visi-bloc-jlg' ),
+            'action'      => [
+                'label' => __( 'Mettre à jour les breakpoints', 'visi-bloc-jlg' ),
+                'url'   => '#visibloc-section-breakpoints',
+            ],
+        ],
+    ];
+}
+
+/**
+ * Calculate progress details for the onboarding checklist.
+ *
+ * @param array $items Checklist items.
+ * @return array{
+ *     total:int,
+ *     completed:int,
+ *     percent:int
+ * }
+ */
+function visibloc_jlg_calculate_onboarding_progress( array $items ) {
+    $total = count( $items );
+
+    if ( 0 === $total ) {
+        return [
+            'total'     => 0,
+            'completed' => 0,
+            'percent'   => 0,
+        ];
+    }
+
+    $completed = 0;
+
+    foreach ( $items as $item ) {
+        if ( ! empty( $item['complete'] ) ) {
+            $completed++;
+        }
+    }
+
+    $percent = (int) round( ( $completed / $total ) * 100 );
+
+    return [
+        'total'     => $total,
+        'completed' => $completed,
+        'percent'   => $percent,
+    ];
+}
+
 function visibloc_jlg_update_supported_blocks( $block_names ) {
     $normalized_blocks    = visibloc_jlg_normalize_block_names( $block_names );
     $current_blocks_raw   = get_option( 'visibloc_supported_blocks', [] );
@@ -600,6 +702,19 @@ function visibloc_jlg_render_help_page_content() {
         ],
     ];
 
+    $onboarding_items    = visibloc_jlg_build_onboarding_checklist_items(
+        [
+            'supported_blocks'  => $configured_blocks,
+            'preview_roles'     => $allowed_roles,
+            'fallback'          => $fallback_settings,
+            'mobile_breakpoint' => $mobile_bp,
+            'tablet_breakpoint' => $tablet_bp,
+        ]
+    );
+    $onboarding_progress = visibloc_jlg_calculate_onboarding_progress( $onboarding_items );
+    $onboarding_title_id = 'visibloc-onboarding-title';
+    $onboarding_list_id  = 'visibloc-onboarding-list';
+
     $nav_select_id      = 'visibloc-help-nav-picker';
     $nav_description_id = $nav_select_id . '-description';
     $nav_list_id        = 'visibloc-help-nav-list';
@@ -620,6 +735,63 @@ function visibloc_jlg_render_help_page_content() {
             $fallback_error = __( 'L’import a échoué. Vérifiez le contenu du fichier et réessayez.', 'visi-bloc-jlg' );
             ?>
             <div id="message" class="notice notice-error is-dismissible"><p><?php echo esc_html( $error_message ?: $fallback_error ); ?></p></div>
+        <?php endif; ?>
+        <?php if ( ! empty( $onboarding_items ) ) : ?>
+            <section class="visibloc-onboarding" aria-labelledby="<?php echo esc_attr( $onboarding_title_id ); ?>">
+                <div class="visibloc-onboarding__header">
+                    <div class="visibloc-onboarding__intro">
+                        <h2 id="<?php echo esc_attr( $onboarding_title_id ); ?>" class="visibloc-onboarding__title">
+                            <?php esc_html_e( 'Assistant de prise en main', 'visi-bloc-jlg' ); ?>
+                        </h2>
+                        <p class="visibloc-onboarding__subtitle">
+                            <?php esc_html_e( 'Suivez les étapes clés pour déployer Visi-Bloc avec des réglages fiables.', 'visi-bloc-jlg' ); ?>
+                        </p>
+                    </div>
+                    <div class="visibloc-onboarding__progress" role="group" aria-label="<?php esc_attr_e( 'Progression de la checklist', 'visi-bloc-jlg' ); ?>">
+                        <div class="visibloc-onboarding__progress-count">
+                            <span class="visibloc-onboarding__progress-value"><?php echo esc_html( $onboarding_progress['completed'] ); ?> / <?php echo esc_html( $onboarding_progress['total'] ); ?></span>
+                            <span class="visibloc-onboarding__progress-label"><?php esc_html_e( 'étapes terminées', 'visi-bloc-jlg' ); ?></span>
+                        </div>
+                        <div class="visibloc-onboarding__progress-bar" role="presentation">
+                            <span class="visibloc-onboarding__progress-bar-fill" style="width: <?php echo esc_attr( max( 0, min( 100, $onboarding_progress['percent'] ) ) ); ?>%;"></span>
+                        </div>
+                    </div>
+                </div>
+                <ul class="visibloc-onboarding__checklist" id="<?php echo esc_attr( $onboarding_list_id ); ?>" role="list">
+                    <?php foreach ( $onboarding_items as $item ) :
+                        $is_complete  = ! empty( $item['complete'] );
+                        $status_class = $is_complete ? 'is-complete' : 'is-pending';
+                        $action       = isset( $item['action'] ) && is_array( $item['action'] ) ? $item['action'] : [];
+                        $action_label = isset( $action['label'] ) ? (string) $action['label'] : '';
+                        $action_url   = isset( $action['url'] ) ? (string) $action['url'] : '';
+                    ?>
+                        <li class="visibloc-onboarding__item <?php echo esc_attr( $status_class ); ?>">
+                            <div class="visibloc-onboarding__status">
+                                <?php if ( $is_complete ) : ?>
+                                    <span aria-hidden="true" class="visibloc-onboarding__status-icon visibloc-onboarding__status-icon--complete">
+                                        <svg viewBox="0 0 24 24" focusable="false" role="img" aria-hidden="true"><path d="M9.6 16.2a1 1 0 0 1-.74-.33l-3.1-3.4a1 1 0 1 1 1.48-1.34l2.28 2.5 6-6.6a1 1 0 0 1 1.48 1.34l-6.74 7.4a1 1 0 0 1-.74.33z" /></svg>
+                                    </span>
+                                    <span class="screen-reader-text"><?php esc_html_e( 'Étape terminée', 'visi-bloc-jlg' ); ?></span>
+                                <?php else : ?>
+                                    <span aria-hidden="true" class="visibloc-onboarding__status-icon visibloc-onboarding__status-icon--pending">
+                                        <svg viewBox="0 0 24 24" focusable="false" role="img" aria-hidden="true"><path d="M12 4a1 1 0 0 1 1 1v6.08l3.36 2.16a1 1 0 1 1-1.07 1.7l-3.85-2.48A1 1 0 0 1 11 11V5a1 1 0 0 1 1-1z" /></svg>
+                                    </span>
+                                    <span class="screen-reader-text"><?php esc_html_e( 'Étape à compléter', 'visi-bloc-jlg' ); ?></span>
+                                <?php endif; ?>
+                            </div>
+                            <div class="visibloc-onboarding__details">
+                                <h3 class="visibloc-onboarding__item-title"><?php echo esc_html( $item['title'] ); ?></h3>
+                                <p class="visibloc-onboarding__item-description"><?php echo esc_html( $item['description'] ); ?></p>
+                                <?php if ( '' !== $action_label && '' !== $action_url ) : ?>
+                                    <a class="visibloc-onboarding__action button button-secondary" href="<?php echo esc_url( $action_url ); ?>">
+                                        <?php echo esc_html( $action_label ); ?>
+                                    </a>
+                                <?php endif; ?>
+                            </div>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            </section>
         <?php endif; ?>
         <div class="visibloc-help-layout">
             <div class="visibloc-help-layout__sidebar">
