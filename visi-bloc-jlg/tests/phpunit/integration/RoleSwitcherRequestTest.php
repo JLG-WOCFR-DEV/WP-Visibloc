@@ -329,7 +329,7 @@ class RoleSwitcherRequestTest extends TestCase {
         visibloc_jlg_purge_preview_cookie();
 
         $this->assertArrayNotHasKey( 'visibloc_preview_role', $_COOKIE, 'Preview cookie should be removed from the request.' );
-        $this->assertSame( '', visibloc_jlg_get_preview_role_from_cookie(), 'Preview cookie helper should return an empty string after purge.' );
+        $this->assertNull( visibloc_jlg_get_preview_role_from_cookie(), 'Preview cookie helper should return null after purge.' );
 
         $refreshed_context = visibloc_jlg_get_preview_runtime_context( true );
 

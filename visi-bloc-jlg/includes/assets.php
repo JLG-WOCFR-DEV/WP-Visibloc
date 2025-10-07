@@ -5,6 +5,7 @@ if ( ! defined( 'VISIBLOC_JLG_MISSING_EDITOR_ASSETS_TRANSIENT' ) ) {
     define( 'VISIBLOC_JLG_MISSING_EDITOR_ASSETS_TRANSIENT', 'visibloc_jlg_missing_editor_assets' );
 }
 
+require_once __DIR__ . '/plugin-meta.php';
 require_once __DIR__ . '/cache-constants.php';
 require_once __DIR__ . '/datetime-utils.php';
 require_once __DIR__ . '/fallback.php';
@@ -30,36 +31,6 @@ if ( ! function_exists( 'visibloc_jlg_path_join' ) ) {
         }
 
         return $base . '/' . $path;
-    }
-}
-
-if ( ! function_exists( 'visibloc_jlg_get_plugin_main_file' ) ) {
-    /**
-     * Retrieve the absolute path to the main plugin file.
-     *
-     * @return string
-     */
-    function visibloc_jlg_get_plugin_main_file() {
-        if ( defined( 'VISIBLOC_JLG_PLUGIN_FILE' ) && '' !== VISIBLOC_JLG_PLUGIN_FILE ) {
-            return VISIBLOC_JLG_PLUGIN_FILE;
-        }
-
-        return __DIR__ . '/../visi-bloc-jlg.php';
-    }
-}
-
-if ( ! function_exists( 'visibloc_jlg_get_plugin_dir_path' ) ) {
-    /**
-     * Retrieve the absolute plugin directory path.
-     *
-     * @return string
-     */
-    function visibloc_jlg_get_plugin_dir_path() {
-        if ( defined( 'VISIBLOC_JLG_PLUGIN_DIR' ) && '' !== VISIBLOC_JLG_PLUGIN_DIR ) {
-            return rtrim( VISIBLOC_JLG_PLUGIN_DIR, '/\\' ) . '/';
-        }
-
-        return rtrim( dirname( visibloc_jlg_get_plugin_main_file() ), '/\\' ) . '/';
     }
 }
 
@@ -90,7 +61,7 @@ if ( ! function_exists( 'visibloc_jlg_get_asset_url' ) ) {
             return plugins_url( $relative_path, $plugin_main_file );
         }
 
-        return visibloc_jlg_path_join( visibloc_jlg_get_plugin_dir_path(), $relative_path );
+        return '';
     }
 }
 
@@ -121,20 +92,7 @@ if ( ! function_exists( 'visibloc_jlg_get_asset_version' ) ) {
     }
 }
 
-if ( ! defined( 'VISIBLOC_JLG_VERSION' ) ) {
-    $visibloc_version = '0.0.0';
-    $plugin_main_file = visibloc_jlg_get_plugin_main_file();
-
-    if ( is_readable( $plugin_main_file ) ) {
-        $plugin_contents = file_get_contents( $plugin_main_file );
-
-        if ( false !== $plugin_contents && preg_match( '/^\s*\*\s*Version:\s*(.+)$/mi', $plugin_contents, $matches ) ) {
-            $visibloc_version = trim( $matches[1] );
-        }
-    }
-
-    define( 'VISIBLOC_JLG_VERSION', $visibloc_version );
-}
+visibloc_jlg_define_version_constant();
 
 if ( ! defined( 'VISIBLOC_JLG_EDITOR_DATA_CACHE_GROUP' ) ) {
     define( 'VISIBLOC_JLG_EDITOR_DATA_CACHE_GROUP', 'visibloc_jlg_editor_data' );

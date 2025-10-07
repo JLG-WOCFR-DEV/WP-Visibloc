@@ -222,26 +222,9 @@ class Plugin {
      * Ensure the plugin version constant is defined.
      */
     protected function define_version_constant() {
-        if ( defined( 'VISIBLOC_JLG_VERSION' ) ) {
-            return;
-        }
+        require_once $this->plugin_dir . '/includes/plugin-meta.php';
 
-        $version = '0.0.0';
-
-        if ( function_exists( 'get_file_data' ) ) {
-            $plugin_data = get_file_data( $this->plugin_file, [ 'Version' => 'Version' ] );
-            $version     = isset( $plugin_data['Version'] ) && '' !== $plugin_data['Version']
-                ? $plugin_data['Version']
-                : $version;
-        } else {
-            $plugin_contents = @file_get_contents( $this->plugin_file );
-
-            if ( false !== $plugin_contents && preg_match( '/^\s*\*\s*Version:\s*(.+)$/mi', $plugin_contents, $matches ) ) {
-                $version = trim( $matches[1] );
-            }
-        }
-
-        define( 'VISIBLOC_JLG_VERSION', $version );
+        visibloc_jlg_define_version_constant();
     }
 
     /**
