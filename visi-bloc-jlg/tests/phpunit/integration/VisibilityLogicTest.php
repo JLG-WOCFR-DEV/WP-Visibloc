@@ -406,6 +406,189 @@ class VisibilityLogicTest extends TestCase {
         }
     }
 
+    public function test_visit_count_rule_comparisons(): void {
+        $previous_cookies = $_COOKIE;
+
+        try {
+            $_COOKIE = [];
+            $cookie_name = visibloc_jlg_get_visit_count_cookie_name();
+            $_COOKIE[ $cookie_name ] = '5';
+
+            $this->assertTrue(
+                visibloc_jlg_match_visit_count_rule(
+                    [
+                        'operator'  => 'at_least',
+                        'threshold' => 3,
+                    ]
+                ),
+                'at_least should match when visit count is greater than the threshold.'
+            );
+
+            $this->assertTrue(
+                visibloc_jlg_match_visit_count_rule(
+                    [
+                        'operator'  => 'at_most',
+                        'threshold' => 5,
+                    ]
+                ),
+                'at_most should match when visit count equals the threshold.'
+            );
+
+            $this->assertTrue(
+                visibloc_jlg_match_visit_count_rule(
+                    [
+                        'operator'  => 'equals',
+                        'threshold' => 5,
+                    ]
+                ),
+                'equals should match when visit count equals the threshold.'
+            );
+
+            $this->assertFalse(
+                visibloc_jlg_match_visit_count_rule(
+                    [
+                        'operator'  => 'not_equals',
+                        'threshold' => 5,
+                    ]
+                ),
+                'not_equals should fail when visit count equals the threshold.'
+            );
+
+            $this->assertTrue(
+                visibloc_jlg_match_visit_count_rule(
+                    [
+                        'operator'  => 'not_equals',
+                        'threshold' => 2,
+                    ]
+                ),
+                'not_equals should succeed when visit count differs from the threshold.'
+            );
+        } finally {
+            $_COOKIE = $previous_cookies;
+        }
+    }
+
+    public function test_visit_count_rule_handles_missing_cookie(): void {
+        $previous_cookies = $_COOKIE;
+
+        try {
+            $_COOKIE = [];
+
+            $this->assertFalse(
+                visibloc_jlg_match_visit_count_rule(
+                    [
+                        'operator'  => 'at_least',
+                        'threshold' => 1,
+                    ]
+                ),
+                'Without a cookie the at_least operator should fail for positive thresholds.'
+            );
+
+            $this->assertTrue(
+                visibloc_jlg_match_visit_count_rule(
+                    [
+                        'operator'  => 'at_most',
+                        'threshold' => 0,
+                    ]
+                ),
+                'The visit counter defaults to zero when no cookie is set.'
+            );
+        } finally {
+            $_COOKIE = $previous_cookies;
+        }
+    }
+
+    public function test_visit_count_tracker_increments_cookie(): void {
+        $previous_cookies = $_COOKIE;
+        $filter           = static function () {
+            return true;
+        };
+
+        try {
+            $_COOKIE = [];
+            add_filter( 'visibloc_jlg_should_track_visit_count', $filter, 10, 2 );
+
+            visibloc_jlg_track_visit_count();
+
+            $this->assertSame(
+                '1',
+                $_COOKIE[ visibloc_jlg_get_visit_count_cookie_name() ] ?? '',
+                'First tracking call should initialize the visit counter to 1.'
+            );
+
+            visibloc_jlg_track_visit_count();
+
+            $this->assertSame(
+                '2',
+                $_COOKIE[ visibloc_jlg_get_visit_count_cookie_name() ] ?? '',
+                'Second tracking call should increment the counter.'
+            );
+        } finally {
+            remove_filter( 'visibloc_jlg_should_track_visit_count', $filter, 10 );
+            $_COOKIE = $previous_cookies;
+        }
+    }
+
+    public function test_user_segment_rule_uses_filter_callback(): void {
+        $previous_filters = $GLOBALS['visibloc_test_filters']['visibloc_jlg_user_segment_matches'] ?? null;
+
+        $callback = static function ( $matched, $context ) {
+            if ( isset( $context['segment'] ) && 'crm_vip' === $context['segment'] ) {
+                return true;
+            }
+
+            return $matched;
+        };
+
+        add_filter( 'visibloc_jlg_user_segment_matches', $callback, 10, 2 );
+
+        try {
+            $this->assertTrue(
+                visibloc_jlg_match_user_segment_rule(
+                    [
+                        'type'     => 'user_segment',
+                        'operator' => 'matches',
+                        'segment'  => 'crm_vip',
+                    ],
+                    [ 'user' => [] ]
+                ),
+                'Segment filter should mark crm_vip as matching.'
+            );
+
+            $this->assertFalse(
+                visibloc_jlg_match_user_segment_rule(
+                    [
+                        'type'     => 'user_segment',
+                        'operator' => 'matches',
+                        'segment'  => 'crm_basic',
+                    ],
+                    [ 'user' => [] ]
+                ),
+                'Segments without a positive filter response should not match.'
+            );
+
+            $this->assertTrue(
+                visibloc_jlg_match_user_segment_rule(
+                    [
+                        'type'     => 'user_segment',
+                        'operator' => 'does_not_match',
+                        'segment'  => 'crm_basic',
+                    ],
+                    [ 'user' => [] ]
+                ),
+                'Negated segment should succeed when no filter matches.'
+            );
+        } finally {
+            remove_filter( 'visibloc_jlg_user_segment_matches', $callback, 10 );
+
+            if ( null === $previous_filters ) {
+                unset( $GLOBALS['visibloc_test_filters']['visibloc_jlg_user_segment_matches'] );
+            } else {
+                $GLOBALS['visibloc_test_filters']['visibloc_jlg_user_segment_matches'] = $previous_filters;
+            }
+        }
+    }
+
     public function test_preview_exposes_reason_for_inverted_schedule(): void {
         global $visibloc_test_state;
 

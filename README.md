@@ -8,7 +8,7 @@ Visi-Bloc – JLG is a WordPress plugin that adds advanced visibility controls t
 - **Restriction par rôle ou statut de connexion** – ciblez les visiteurs connectés/déconnectés et les rôles WordPress autorisés à voir le bloc, avec des badges d’aperçu lorsqu’une règle masque le contenu.
 - **Planification temporelle** – activez l’option « Programmer l’affichage » pour définir des dates de début et de fin respectant le fuseau de WordPress et expliquer en aperçu pourquoi le bloc est masqué en dehors de la fenêtre.
 - **Masquage manuel** – retirez immédiatement un bloc du front-end tout en gardant un contour et une explication en mode prévisualisation pour les rôles autorisés.
-- **Règles avancées** – combinez plusieurs conditions (type de publication, taxonomie, modèle, créneaux récurrents, statut de connexion, groupes de rôles, cookies, contenu du panier WooCommerce, paramètres d’URL) avec une logique AND/OR pour affiner l’affichage.
+- **Règles avancées** – combinez plusieurs conditions (type de publication, taxonomie, modèle, créneaux récurrents, statut de connexion, groupes de rôles, segments marketing exposés par vos intégrations, compteur de visites ou cookies, contenu du panier WooCommerce, paramètres d’URL) avec une logique AND/OR pour affiner l’affichage.
 - **Compatibilité blocs personnalisés** – sélectionnez précisément quels types de blocs héritent des contrôles Visibloc via la page d’options.
 
 ### Contenu de substitution et affichage par appareil
@@ -27,6 +27,8 @@ Visi-Bloc – JLG is a WordPress plugin that adds advanced visibility controls t
 - **Filtres extensibles** – ajustez la requête listant les blocs de fallback, la liste des rôles pouvant impersoner ou encore les blocs pris en charge via les hooks fournis.
 - **Commande WP-CLI** – reconstruisez l’index des blocs groupés (`wp visibloc rebuild-index`) dans vos scripts de déploiement.
 - **API utilitaires** – accédez à des helpers PHP (`visibloc_jlg_normalize_boolean`, `visibloc_jlg_get_sanitized_query_arg`, etc.) pour intégrer Visibloc dans vos développements.
+- **Segments marketing dynamiques** – exposez vos segments CRM/marketing automation au sein de l’éditeur grâce au filtre `visibloc_jlg_user_segments`, et déléguez leur évaluation serveur via `visibloc_jlg_user_segment_matches`.
+- **Compteur de visites personnalisable** – adaptez le cookie de suivi (`visibloc_jlg_visit_count`) et son cycle de vie avec `visibloc_jlg_visit_count_cookie_name`, `visibloc_jlg_visit_count_cookie_lifetime` et `visibloc_jlg_should_track_visit_count`.
 
 ## Comparaison avec des solutions professionnelles et pistes d’amélioration
 
@@ -56,6 +58,8 @@ Des extensions commerciales de personnalisation de contenu (p. ex. Block Visibil
 - **Segments marketing dynamiques** – offrir une intégration native avec les plateformes de marketing automation / CRM (HubSpot, Brevo, Mailchimp, ActiveCampaign) afin de déclencher l’affichage selon l’appartenance à une campagne, un score de lead ou l’étape du tunnel de conversion.
 - **Tests, analytics et scoring** – ajouter l’A/B testing, le suivi de conversion et des rapports sur la visibilité réelle des blocs (impressions vs. vues effectives, taux de clic) aiderait les équipes marketing à mesurer l’efficacité des règles. Des indicateurs dans le tableau de bord (performances des règles, taux d’erreur) rapprocheraient l’outil des standards pro.
 - **Conditions comportementales supplémentaires** – enrichir le builder avec des déclencheurs basés sur les cookies (valeur exacte, présence ou date de dernière mise à jour), le nombre de visites ou de pages vues, l’état d’abonnement à WooCommerce/EDD (panier récurrent, statut de membre, niveau d’adhésion), l’appartenance à un groupe BuddyPress/BuddyBoss ou des segments issus d’un DMP. Chaque condition devrait être paramétrable (comparaison, opérateurs, durée de conservation) et combinable avec les règles existantes via une interface uniforme.
+
+> ✅ **Mise à jour** – Le builder propose désormais un déclencheur « Compteur de visites » alimenté par un cookie dédié (`visibloc_visit_count`) et un type de règle « Segment marketing » piloté par vos intégrations via les filtres `visibloc_jlg_user_segments` et `visibloc_jlg_user_segment_matches`.
 - **Automatisation et écosystème** – exposer et piloter les règles de visibilité via l’API REST, des webhooks et une CLI plus complète permettrait de synchroniser les scénarios depuis des workflows externes (Make, Zapier, n8n). À l’inverse, des déclencheurs entrants (webhooks, file d’attente) autoriseraient des réactions en quasi temps réel.
 - **Expérience d’administration avancée** – intégrer un audit log détaillant les modifications, la possibilité d’assigner des propriétaires de règles, des revues avant publication et un mode « sandbox » pour tester des règles sans impacter le front rapprocherait l’administration de standards enterprise.
 - **Support multilingue et conformité** – proposer des déclinaisons automatiques des règles par langue (WPML/Polylang) et des mécanismes respectant le consentement (masquer des blocs tant qu’aucun consentement analytics n’est donné, par exemple) sécuriserait les déploiements dans des environnements réglementés.
@@ -206,3 +210,65 @@ add_filter(
 ```
 
 The plugin automatically ignores invalid entries and ensures that cookie names are non-empty strings.
+
+### `visibloc_jlg_user_segments`
+
+Expose marketing segments to the Gutenberg UI. Each segment must provide a `value` and can optionally declare a human readable `label`:
+
+```php
+add_filter(
+    'visibloc_jlg_user_segments',
+    static function ( array $segments ) {
+        $segments[] = [
+            'value' => 'crm_vip',
+            'label' => 'Clients VIP',
+        ];
+
+        return $segments;
+    }
+);
+```
+
+When no label is provided, the value is reused for display. Duplicates and empty values are ignored automatically.
+
+### `visibloc_jlg_user_segment_matches`
+
+Determine whether the current visitor belongs to a custom marketing segment when evaluating advanced visibility rules:
+
+```php
+add_filter(
+    'visibloc_jlg_user_segment_matches',
+    static function ( bool $matches, array $context ) {
+        if ( 'crm_vip' === ( $context['segment'] ?? '' ) ) {
+            return current_user_can( 'manage_options' );
+        }
+
+        return $matches;
+    },
+    10,
+    2
+);
+```
+
+The `$context` array always includes the `segment` key and the normalized `user` context (`roles`, `is_logged_in`).
+
+### `visibloc_jlg_should_track_visit_count`
+
+Control when the visit counter cookie should be updated. The default behaviour ignores admin, REST, AJAX and CLI requests:
+
+```php
+add_filter(
+    'visibloc_jlg_should_track_visit_count',
+    static function ( bool $should_track, array $context ) {
+        if ( ! empty( $context['is_admin'] ) ) {
+            return false;
+        }
+
+        return $should_track;
+    },
+    10,
+    2
+);
+```
+
+Complementary filters `visibloc_jlg_visit_count_cookie_name` et `visibloc_jlg_visit_count_cookie_lifetime` permettent de personnaliser le cookie (`visibloc_visit_count` par défaut) et sa durée de vie.
