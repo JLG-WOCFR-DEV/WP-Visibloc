@@ -81,12 +81,37 @@ Des extensions commerciales de personnalisation de contenu (p. ex. Block Visibil
 
 ### Pistes UI/UX additionnelles inspirées des solutions pro
 
-- **Canvas de parcours et heatmaps de règles** – proposer une vue « canvas » affichant les blocs conditionnels sous forme de cartes reliées (à la manière des builders If-So ou LogicHop) aiderait à cartographier les chemins utilisateurs. En y superposant une heatmap issue des statistiques d’affichage, les équipes visualiseraient immédiatement les règles les plus sollicitées et celles en sommeil.
-- **Assistant de scénarisation guidé** – intégrer un assistant pas-à-pas combinant un questionnaire (objectif, cible, calendrier) et des suggestions intelligentes inspirées des « recipes » de Block Visibility Pro réduirait les erreurs de configuration. Chaque étape pourrait être accompagnée d’exemples illustrés et d’une prévisualisation live pour valider les choix.
-- **Centre de notifications et alertes proactives** – à l’image des plateformes marketing, un panneau de notifications regroupant alertes (règles expirées, conditions conflictuelles, blocs orphelins) et recommandations d’optimisation maintiendrait la santé de l’expérience. Un badge compteur dans la barre d’admin encouragerait la consultation régulière.
-- **Mode collaboration et commentaires contextuels** – ajouter la possibilité de laisser des commentaires ou des demandes de validation directement sur une règle (mention @, statut « à revoir ») rapprocherait le produit des pratiques des équipes produit et marketing. Les outils professionnels proposent souvent un historique des échanges pour fluidifier les handoffs.
-- **Guides in-app et centre d’aide immersif** – un dock d’aide persistent (FAQ miniature, vidéos de 2 minutes, checklist de prise en main, liens vers la documentation) limiterait les frictions lors des premiers usages. L’intégration de recherches plein texte et d’un « quick command » (palette) offrirait une expérience comparable aux applications SaaS premium.
-- **Mode audit et conformité** – à la manière des solutions enterprise, un mode audit listant chaque règle avec son propriétaire, sa dernière révision et son périmètre (site, langue, device) garantirait la traçabilité. Des filtres par statut de conformité (RGPD, consentement cookie, localisation) guideraient les équipes légales dans leurs contrôles périodiques.
+Les améliorations ci-dessous approfondissent les axes identifiés précédemment et fournissent des jalons concrets pour planifier les évolutions du plugin.
+
+#### Canvas de parcours et heatmaps de règles
+- **Vue canvas** – créer une page « Parcours & règles » accessible depuis l’administration qui affiche chaque scénario conditionnel sous forme de carte connectée. Les cartes reprendraient le titre du bloc, l’objectif défini et les principales conditions actives. Les connecteurs matérialiseraient les liens (règle héritée d’un modèle, duplication d’un bloc, séquence de campagnes) pour révéler les dépendances.
+- **Heatmap basée sur l’usage** – superposer une coloration allant du vert (très diffusé) au gris (peu affiché) en s’appuyant sur les statistiques d’impression ou de clics collectées par la future brique analytics. Un infobulle détaillerait les métriques clés (dernière vue, audience principale, taux de conversion) pour aider à prioriser les optimisations.
+- **Filtres et recherche** – offrir des filtres rapides (page, auteur, segment ciblé, statut) ainsi qu’une recherche plein texte afin de retrouver en quelques secondes un parcours spécifique ou une règle critique.
+
+#### Assistant de scénarisation guidé
+- **Parcours en 4 étapes** – proposer un wizard composé de quatre étapes : Objectif (conversion, rétention, upsell…), Audience (rôle, segment CRM, géolocalisation), Timing (programme, déclencheurs), Contenu (bloc ou fallback). Chaque étape fournirait des recommandations contextuelles et des suggestions prédéfinies issues d’un catalogue.
+- **Suggestions intelligentes** – exploiter l’historique des règles existantes et les segments disponibles pour recommander des réglages (ex. « Les visiteurs revenants convertissent mieux avec une relance 24h après la première visite »). Les propositions seraient pré-remplies mais modifiables.
+- **Prévisualisation live** – afficher dans un panneau latéral une mini-preview du rendu (texte, capture du bloc, timeline des déclencheurs) actualisée à chaque changement pour réduire l’incertitude.
+
+#### Centre de notifications et alertes proactives
+- **Notifications persistantes** – ajouter une cloche dans la barre d’outils du plugin, avec un badge numérique, qui regroupe les alertes critiques (règles expirées, conflits entre conditions, absence de fallback sur un bloc masqué) et les recommandations d’amélioration (tests A/B à lancer, segments peu exploités).
+- **Priorisation** – trier les alertes par sévérité (critique, avertissement, information) et fournir des CTA directs (« Renouveler la date de fin », « Ajouter un fallback »). Les notifications devraient être dismissibles une fois traitées pour conserver une vue propre.
+- **Historique** – conserver un journal consultable des alertes passées (90 jours glissants) pour suivre la résorption des problèmes et identifier les domaines récurrents de fragilité.
+
+#### Mode collaboration et commentaires contextuels
+- **Commentaires in-situ** – permettre à un utilisateur autorisé de cliquer sur une règle pour ouvrir un volet latéral de commentaires. Les messages seraient mentionnables (`@nom`), pourraient inclure des pièces jointes (capture, lien) et se verraient attribuer un statut (« à faire », « en cours », « résolu »).
+- **Flux d’approbation** – introduire un workflow optionnel où les règles passent par les statuts « Brouillon », « En revue », « Publié ». Les reviewers reçoivent une notification et peuvent approuver ou demander des modifications directement depuis la conversation.
+- **Permissions dédiées** – ajouter des capacités WordPress spécifiques (`visibloc_review_rules`, `visibloc_comment_rules`) pour différencier les rôles pouvant commenter, approuver ou uniquement consulter.
+
+#### Guides in-app et centre d’aide immersif
+- **Dock d’aide** – intégrer un composant flottant « Aide & ressources » affichant FAQ, vidéos micro-format, checklists d’onboarding et accès rapide à la documentation officielle. Le dock serait contextualisé : depuis l’éditeur, il afficherait des tutoriels sur les règles ; depuis la page d’overview, des guides sur l’analyse des performances.
+- **Recherche unifiée** – proposer une palette de commande (`Cmd/Ctrl + K`) permettant de rechercher une règle, ouvrir un tutoriel, contacter le support ou créer un ticket sans quitter l’écran courant.
+- **Checklists progressives** – pour les nouveaux sites, afficher une checklist (configurer les breakpoints, créer une première règle, tester en mode preview) avec suivi de progression et récompenses visuelles lorsque les étapes sont complétées.
+
+#### Mode audit et conformité
+- **Journal des modifications** – consigner chaque changement (création, modification, suppression) avec auteur, date, anciennes valeurs et nouvelles valeurs. Le journal serait exportable en CSV pour être intégré aux procédures internes des entreprises.
+- **Filtrage par conformité** – offrir des tags « RGPD », « Consentement », « Localisation » attribuables aux règles. Un panneau dédié permettrait de filtrer les règles sensibles et de vérifier rapidement leur état (actif, en révision, expiré).
+- **Rapport de contrôle** – générer automatiquement un rapport mensuel listant les règles critiques, les écarts détectés (ex. règle active sans consentement enregistré) et les actions recommandées. Le rapport pourrait être envoyé par e-mail aux responsables conformité.
 
 
 ## Installation
