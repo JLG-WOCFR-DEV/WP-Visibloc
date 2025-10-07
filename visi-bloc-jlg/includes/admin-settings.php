@@ -108,6 +108,217 @@ function visibloc_jlg_calculate_onboarding_progress( array $items ) {
     ];
 }
 
+/**
+ * Return the curated guided recipes displayed in the onboarding wizard.
+ *
+ * @return array[]
+ */
+function visibloc_jlg_get_guided_recipes() {
+    return [
+        [
+            'id'             => 'welcome-series',
+            'title'          => __( 'Série de bienvenue personnalisée', 'visi-bloc-jlg' ),
+            'description'    => __( 'Affichez un message de bienvenue dynamique aux nouveaux inscrits pour accélérer leur activation.', 'visi-bloc-jlg' ),
+            'theme'          => 'onboarding',
+            'theme_label'    => __( 'Onboarding', 'visi-bloc-jlg' ),
+            'estimated_time' => __( '5 minutes', 'visi-bloc-jlg' ),
+            'audience'       => __( 'Visiteurs authentifiés avec un cookie d’inscription récent ou un rôle « Nouvel abonné ».', 'visi-bloc-jlg' ),
+            'goal'           => __( 'Accueillir chaleureusement chaque nouvel abonné et l’orienter vers l’action clé.', 'visi-bloc-jlg' ),
+            'kpi'            => __( 'Taux de clic sur le call-to-action de bienvenue.', 'visi-bloc-jlg' ),
+            'blocks'         => [
+                __( 'Bloc Bannière / Couverture', 'visi-bloc-jlg' ),
+                __( 'Bloc Bouton', 'visi-bloc-jlg' ),
+                __( 'Bloc Liste de contrôle', 'visi-bloc-jlg' ),
+            ],
+            'steps'          => [
+                [
+                    'title'    => __( 'Objectif', 'visi-bloc-jlg' ),
+                    'summary'  => __( 'Clarifiez ce que doit accomplir cette séquence de bienvenue pour vos nouveaux inscrits.', 'visi-bloc-jlg' ),
+                    'actions'  => [
+                        __( 'Identifiez l’action principale attendue (compléter un profil, télécharger une ressource, rejoindre une communauté).', 'visi-bloc-jlg' ),
+                        __( 'Ajoutez une note interne dans le bloc pour rappeler l’objectif à l’équipe éditoriale.', 'visi-bloc-jlg' ),
+                        __( 'Définissez le KPI associé dans votre outil d’analytics (événement de clic ou conversion).', 'visi-bloc-jlg' ),
+                    ],
+                    'notes'    => [
+                        __( 'Assurez-vous que la formulation respecte les règles de lisibilité (WCAG 2.2 – critère 3.1.5).', 'visi-bloc-jlg' ),
+                    ],
+                ],
+                [
+                    'title'    => __( 'Audience', 'visi-bloc-jlg' ),
+                    'summary'  => __( 'Ciblez uniquement les visiteurs fraîchement inscrits ou ceux disposant d’un rôle dédié.', 'visi-bloc-jlg' ),
+                    'actions'  => [
+                        __( 'Activez la condition « Statut de connexion » et sélectionnez les rôles marketing pertinents.', 'visi-bloc-jlg' ),
+                        __( 'Ajoutez un déclencheur « Segment marketing » si votre CRM expose un segment « Nouveau client ».', 'visi-bloc-jlg' ),
+                        __( 'Enregistrez un cookie `visibloc_welcome_shown` pour limiter l’affichage à la première visite.', 'visi-bloc-jlg' ),
+                    ],
+                    'notes'    => [
+                        __( 'Testez le parcours avec le commutateur de rôle pour vérifier les annonces de focus et la navigation clavier.', 'visi-bloc-jlg' ),
+                    ],
+                ],
+                [
+                    'title'    => __( 'Timing', 'visi-bloc-jlg' ),
+                    'summary'  => __( 'Planifiez la durée d’affichage afin d’éviter la surexposition du message.', 'visi-bloc-jlg' ),
+                    'actions'  => [
+                        __( 'Activez la planification et définissez une date de fin 7 jours après l’inscription.', 'visi-bloc-jlg' ),
+                        __( 'Combinez avec une règle récurrente (9h-21h) pour ne pas gêner les visiteurs nocturnes.', 'visi-bloc-jlg' ),
+                        __( 'Documentez la durée dans la description du bloc pour les relecteurs.', 'visi-bloc-jlg' ),
+                    ],
+                    'notes'    => [
+                        __( 'Vérifiez l’accessibilité du composant lors de l’activation/désactivation (critère 2.2.1).', 'visi-bloc-jlg' ),
+                    ],
+                ],
+                [
+                    'title'    => __( 'Contenu & fallback', 'visi-bloc-jlg' ),
+                    'summary'  => __( 'Préparez une alternative accessible pour les visiteurs qui ne remplissent plus les conditions.', 'visi-bloc-jlg' ),
+                    'actions'  => [
+                        __( 'Rédigez un message court expliquant pourquoi le contenu n’est plus affiché.', 'visi-bloc-jlg' ),
+                        __( 'Sélectionnez un bloc réutilisable de repli dans les réglages globaux.', 'visi-bloc-jlg' ),
+                        __( 'Ajoutez une classe `vb-desktop-only` si le message doit être limité aux écrans larges.', 'visi-bloc-jlg' ),
+                    ],
+                    'notes'    => [
+                        __( 'Contrôlez le contraste des boutons (> 4.5:1) et la taille minimale des cibles tactiles (critère 2.5.8).', 'visi-bloc-jlg' ),
+                    ],
+                    'resources' => [
+                        [
+                            'label' => __( 'Checklist accessibilité WordPress', 'visi-bloc-jlg' ),
+                            'url'   => 'https://make.wordpress.org/accessibility/handbook/best-practices/',
+                        ],
+                    ],
+                ],
+            ],
+        ],
+        [
+            'id'             => 'woocommerce-cart-recovery',
+            'title'          => __( 'Relance panier WooCommerce', 'visi-bloc-jlg' ),
+            'description'    => __( 'Affichez une bannière personnalisée aux clients ayant un panier abandonné pour finaliser leur commande.', 'visi-bloc-jlg' ),
+            'theme'          => 'conversion',
+            'theme_label'    => __( 'Conversion', 'visi-bloc-jlg' ),
+            'estimated_time' => __( '8 minutes', 'visi-bloc-jlg' ),
+            'audience'       => __( 'Clients connectés avec des articles dans le panier WooCommerce et sans commande validée.', 'visi-bloc-jlg' ),
+            'goal'           => __( 'Relancer les paniers abandonnés avec une incitation contextualisée.', 'visi-bloc-jlg' ),
+            'kpi'            => __( 'Taux de récupération des paniers sur 7 jours.', 'visi-bloc-jlg' ),
+            'blocks'         => [
+                __( 'Bloc Bannière / Notice', 'visi-bloc-jlg' ),
+                __( 'Bloc Boutons', 'visi-bloc-jlg' ),
+                __( 'Bloc Liste de produits', 'visi-bloc-jlg' ),
+            ],
+            'steps'          => [
+                [
+                    'title'   => __( 'Objectif', 'visi-bloc-jlg' ),
+                    'summary' => __( 'Cadrez la valeur ajoutée de votre relance (code promo, livraison offerte, assistance).', 'visi-bloc-jlg' ),
+                    'actions' => [
+                        __( 'Choisissez le bénéfice le plus pertinent au regard de vos marges.', 'visi-bloc-jlg' ),
+                        __( 'Définissez le message principal et un CTA clair (« Finaliser ma commande »).', 'visi-bloc-jlg' ),
+                        __( 'Synchronisez l’objectif avec vos campagnes email/SMS pour éviter les doublons.', 'visi-bloc-jlg' ),
+                    ],
+                ],
+                [
+                    'title'   => __( 'Audience', 'visi-bloc-jlg' ),
+                    'summary' => __( 'Filtrez les visiteurs ayant un panier actif mais aucune commande récente.', 'visi-bloc-jlg' ),
+                    'actions' => [
+                        __( 'Ajoutez la condition WooCommerce « Panier non vide ».', 'visi-bloc-jlg' ),
+                        __( 'Excluez les segments VIP si une campagne dédiée existe déjà.', 'visi-bloc-jlg' ),
+                        __( 'Limitez l’affichage aux rôles clients pour éviter d’exposer l’offre en navigation anonyme.', 'visi-bloc-jlg' ),
+                    ],
+                    'notes' => [
+                        __( 'Vérifiez que la navigation clavier permet d’ajouter le produit au panier sans piège (critère 2.1.2).', 'visi-bloc-jlg' ),
+                    ],
+                ],
+                [
+                    'title'   => __( 'Timing', 'visi-bloc-jlg' ),
+                    'summary' => __( 'Définissez quand déclencher la relance et combien de temps la conserver.', 'visi-bloc-jlg' ),
+                    'actions' => [
+                        __( 'Utilisez un cookie de suivi (`visibloc_cart_seen`) pour ne pas ré-afficher le message plus de 3 fois par jour.', 'visi-bloc-jlg' ),
+                        __( 'Planifiez l’affichage pendant 72 heures maximum après l’abandon du panier.', 'visi-bloc-jlg' ),
+                        __( 'Combinez avec un créneau horaire (8h-22h) pour correspondre aux disponibilités de votre support.', 'visi-bloc-jlg' ),
+                    ],
+                ],
+                [
+                    'title'   => __( 'Contenu & fallback', 'visi-bloc-jlg' ),
+                    'summary' => __( 'Proposez une alternative utile si le panier a déjà été validé ou expiré.', 'visi-bloc-jlg' ),
+                    'actions' => [
+                        __( 'Préparez un fallback avec des liens vers les catégories populaires.', 'visi-bloc-jlg' ),
+                        __( 'Ajoutez un bouton secondaire vers le support client ou le chat en direct.', 'visi-bloc-jlg' ),
+                        __( 'Assurez-vous que les codes promo sont annoncés avec un texte accessible, sans s’appuyer uniquement sur la couleur.', 'visi-bloc-jlg' ),
+                    ],
+                    'resources' => [
+                        [
+                            'label' => __( 'Bonnes pratiques WooCommerce', 'visi-bloc-jlg' ),
+                            'url'   => 'https://woocommerce.com/posts/abandoned-cart-best-practices/',
+                        ],
+                    ],
+                ],
+            ],
+        ],
+        [
+            'id'             => 'b2b-lead-nurturing',
+            'title'          => __( 'Parcours lead nurturing B2B', 'visi-bloc-jlg' ),
+            'description'    => __( 'Présentez une ressource premium lorsque le visiteur atteint un score d’engagement défini.', 'visi-bloc-jlg' ),
+            'theme'          => 'engagement',
+            'theme_label'    => __( 'Engagement', 'visi-bloc-jlg' ),
+            'estimated_time' => __( '10 minutes', 'visi-bloc-jlg' ),
+            'audience'       => __( 'Contacts identifiés par votre CRM (segment « MQL ») naviguant sur des pages produits clés.', 'visi-bloc-jlg' ),
+            'goal'           => __( 'Convertir les visiteurs engagés en prospects qualifiés grâce à un contenu approfondi.', 'visi-bloc-jlg' ),
+            'kpi'            => __( 'Taux de téléchargement du livre blanc ou d’inscription au webinar.', 'visi-bloc-jlg' ),
+            'blocks'         => [
+                __( 'Bloc Colonnes avec visuels', 'visi-bloc-jlg' ),
+                __( 'Bloc Formulaire (intégration Gravity Forms / WPForms)', 'visi-bloc-jlg' ),
+                __( 'Bloc Témoignage', 'visi-bloc-jlg' ),
+            ],
+            'steps'          => [
+                [
+                    'title'   => __( 'Objectif', 'visi-bloc-jlg' ),
+                    'summary' => __( 'Définissez le rôle du contenu premium dans votre funnel.', 'visi-bloc-jlg' ),
+                    'actions' => [
+                        __( 'Choisissez le contenu téléchargeable le plus pertinent (livre blanc, étude de cas).', 'visi-bloc-jlg' ),
+                        __( 'Formulez une promesse claire dans l’accroche et les métadonnées du bloc.', 'visi-bloc-jlg' ),
+                        __( 'Préparez un UTM spécifique pour mesurer l’origine des conversions.', 'visi-bloc-jlg' ),
+                    ],
+                ],
+                [
+                    'title'   => __( 'Audience', 'visi-bloc-jlg' ),
+                    'summary' => __( 'Ciblez les visiteurs identifiés comme prospects chauds par votre CRM.', 'visi-bloc-jlg' ),
+                    'actions' => [
+                        __( 'Exploitez le segment marketing `crm_mql` fourni par le filtre `visibloc_jlg_user_segments`.', 'visi-bloc-jlg' ),
+                        __( 'Ajoutez une règle basée sur la taxonomie (catégorie « Solutions » ou « Tarifs »).', 'visi-bloc-jlg' ),
+                        __( 'Excluez les rôles internes pour éviter les biais statistiques.', 'visi-bloc-jlg' ),
+                    ],
+                    'notes' => [
+                        __( 'Vérifiez que le focus revient sur le formulaire après validation (critère 3.2.2).', 'visi-bloc-jlg' ),
+                    ],
+                ],
+                [
+                    'title'   => __( 'Timing', 'visi-bloc-jlg' ),
+                    'summary' => __( 'Coordonnez l’affichage avec vos autres campagnes nurture.', 'visi-bloc-jlg' ),
+                    'actions' => [
+                        __( 'Définissez une fenêtre d’affichage alignée sur la campagne email (par exemple 14 jours).', 'visi-bloc-jlg' ),
+                        __( 'Ajoutez une règle de fréquence via un cookie (`visibloc_nurture_limit`) pour limiter à 1 affichage par visite.', 'visi-bloc-jlg' ),
+                        __( 'Préparez un rappel interne dans l’onglet « Notes » pour synchroniser les commerciaux.', 'visi-bloc-jlg' ),
+                    ],
+                ],
+                [
+                    'title'   => __( 'Contenu & fallback', 'visi-bloc-jlg' ),
+                    'summary' => __( 'Offrez un contenu alternatif ou un point de contact humain.', 'visi-bloc-jlg' ),
+                    'actions' => [
+                        __( 'Préparez un message secondaire orienté vers la prise de rendez-vous.', 'visi-bloc-jlg' ),
+                        __( 'Ajoutez un témoignage accessible (texte et audio avec transcription).', 'visi-bloc-jlg' ),
+                        __( 'Contrôlez la compatibilité du formulaire avec les lecteurs d’écran (libellés explicites, message d’erreur clair).', 'visi-bloc-jlg' ),
+                    ],
+                    'notes'    => [
+                        __( 'Documentez l’impact dans votre tableau de bord analytics dès la première semaine.', 'visi-bloc-jlg' ),
+                    ],
+                    'resources' => [
+                        [
+                            'label' => __( 'Guide WCAG 2.2 (W3C)', 'visi-bloc-jlg' ),
+                            'url'   => 'https://www.w3.org/TR/WCAG22/',
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ];
+}
+
 function visibloc_jlg_update_supported_blocks( $block_names ) {
     $normalized_blocks    = visibloc_jlg_normalize_block_names( $block_names );
     $current_blocks_raw   = get_option( 'visibloc_supported_blocks', [] );
@@ -643,64 +854,80 @@ function visibloc_jlg_render_help_page_content() {
     $device_posts    = visibloc_jlg_get_device_specific_posts();
     $status          = visibloc_jlg_get_sanitized_query_arg( 'status' );
 
+    $guided_recipes = visibloc_jlg_get_guided_recipes();
+
     $breakpoints_requirement_message = visibloc_jlg_get_breakpoints_requirement_message();
 
-    $sections = [
+    $sections = [];
+
+    if ( ! empty( $guided_recipes ) ) {
+        $sections[] = [
+            'id'      => 'visibloc-section-guided-recipes',
+            'label'   => __( 'Recettes guidées', 'visi-bloc-jlg' ),
+            'render'  => 'visibloc_jlg_render_guided_recipes_section',
+            'args'    => [ $guided_recipes ],
+        ];
+    }
+
+    $sections = array_merge(
+        $sections,
         [
-            'id'      => 'visibloc-section-blocks',
-            'label'   => __( 'Blocs compatibles', 'visi-bloc-jlg' ),
-            'render'  => 'visibloc_jlg_render_supported_blocks_section',
-            'args'    => [ $registered_block_types, $configured_blocks ],
-        ],
-        [
-            'id'      => 'visibloc-section-permissions',
-            'label'   => __( "Permissions d'Aperçu", 'visi-bloc-jlg' ),
-            'render'  => 'visibloc_jlg_render_permissions_section',
-            'args'    => [ $allowed_roles ],
-        ],
-        [
-            'id'      => 'visibloc-section-hidden',
-            'label'   => __( 'Tableau de bord des blocs masqués (via Œil)', 'visi-bloc-jlg' ),
-            'render'  => 'visibloc_jlg_render_hidden_blocks_section',
-            'args'    => [ $hidden_posts ],
-        ],
-        [
-            'id'      => 'visibloc-section-device',
-            'label'   => __( 'Tableau de bord des blocs avec visibilité par appareil', 'visi-bloc-jlg' ),
-            'render'  => 'visibloc_jlg_render_device_visibility_section',
-            'args'    => [ $device_posts ],
-        ],
-        [
-            'id'      => 'visibloc-section-scheduled',
-            'label'   => __( 'Tableau de bord des blocs programmés', 'visi-bloc-jlg' ),
-            'render'  => 'visibloc_jlg_render_scheduled_blocks_section',
-            'args'    => [ $scheduled_posts ],
-        ],
-        [
-            'id'      => 'visibloc-section-debug',
-            'label'   => __( 'Mode de débogage', 'visi-bloc-jlg' ),
-            'render'  => 'visibloc_jlg_render_debug_mode_section',
-            'args'    => [ $debug_status ],
-        ],
-        [
-            'id'      => 'visibloc-section-breakpoints',
-            'label'   => __( 'Réglage des points de rupture', 'visi-bloc-jlg' ),
-            'render'  => 'visibloc_jlg_render_breakpoints_section',
-            'args'    => [ $mobile_bp, $tablet_bp ],
-        ],
-        [
-            'id'      => 'visibloc-section-fallback',
-            'label'   => __( 'Contenu de repli global', 'visi-bloc-jlg' ),
-            'render'  => 'visibloc_jlg_render_fallback_section',
-            'args'    => [ $fallback_settings, $fallback_blocks ],
-        ],
-        [
-            'id'      => 'visibloc-section-backup',
-            'label'   => __( 'Export & sauvegarde', 'visi-bloc-jlg' ),
-            'render'  => 'visibloc_jlg_render_settings_backup_section',
-            'args'    => [],
-        ],
-    ];
+            [
+                'id'      => 'visibloc-section-blocks',
+                'label'   => __( 'Blocs compatibles', 'visi-bloc-jlg' ),
+                'render'  => 'visibloc_jlg_render_supported_blocks_section',
+                'args'    => [ $registered_block_types, $configured_blocks ],
+            ],
+            [
+                'id'      => 'visibloc-section-permissions',
+                'label'   => __( "Permissions d'Aperçu", 'visi-bloc-jlg' ),
+                'render'  => 'visibloc_jlg_render_permissions_section',
+                'args'    => [ $allowed_roles ],
+            ],
+            [
+                'id'      => 'visibloc-section-hidden',
+                'label'   => __( 'Tableau de bord des blocs masqués (via Œil)', 'visi-bloc-jlg' ),
+                'render'  => 'visibloc_jlg_render_hidden_blocks_section',
+                'args'    => [ $hidden_posts ],
+            ],
+            [
+                'id'      => 'visibloc-section-device',
+                'label'   => __( 'Tableau de bord des blocs avec visibilité par appareil', 'visi-bloc-jlg' ),
+                'render'  => 'visibloc_jlg_render_device_visibility_section',
+                'args'    => [ $device_posts ],
+            ],
+            [
+                'id'      => 'visibloc-section-scheduled',
+                'label'   => __( 'Tableau de bord des blocs programmés', 'visi-bloc-jlg' ),
+                'render'  => 'visibloc_jlg_render_scheduled_blocks_section',
+                'args'    => [ $scheduled_posts ],
+            ],
+            [
+                'id'      => 'visibloc-section-debug',
+                'label'   => __( 'Mode de débogage', 'visi-bloc-jlg' ),
+                'render'  => 'visibloc_jlg_render_debug_mode_section',
+                'args'    => [ $debug_status ],
+            ],
+            [
+                'id'      => 'visibloc-section-breakpoints',
+                'label'   => __( 'Réglage des points de rupture', 'visi-bloc-jlg' ),
+                'render'  => 'visibloc_jlg_render_breakpoints_section',
+                'args'    => [ $mobile_bp, $tablet_bp ],
+            ],
+            [
+                'id'      => 'visibloc-section-fallback',
+                'label'   => __( 'Contenu de repli global', 'visi-bloc-jlg' ),
+                'render'  => 'visibloc_jlg_render_fallback_section',
+                'args'    => [ $fallback_settings, $fallback_blocks ],
+            ],
+            [
+                'id'      => 'visibloc-section-backup',
+                'label'   => __( 'Export & sauvegarde', 'visi-bloc-jlg' ),
+                'render'  => 'visibloc_jlg_render_settings_backup_section',
+                'args'    => [],
+            ],
+        ]
+    );
 
     $onboarding_items    = visibloc_jlg_build_onboarding_checklist_items(
         [
@@ -864,6 +1091,347 @@ function visibloc_jlg_render_help_page_content() {
                     call_user_func_array( $callback, $args );
                 endforeach; ?>
             </div>
+        </div>
+    </div>
+    <?php
+}
+
+function visibloc_jlg_render_guided_recipes_section( $recipes ) {
+    $recipes = is_array( $recipes ) ? array_values( array_filter( $recipes ) ) : [];
+    $section_id = 'visibloc-section-guided-recipes';
+
+    $filter_select_id      = $section_id . '-filter';
+    $empty_message_id      = $section_id . '-empty';
+    $live_region_id        = $section_id . '-live';
+    $dialog_title_id       = $section_id . '-dialog-title';
+    $dialog_description_id = $section_id . '-dialog-description';
+
+    $themes = [];
+
+    foreach ( $recipes as $recipe ) {
+        $theme_slug = isset( $recipe['theme'] ) ? sanitize_html_class( $recipe['theme'] ) : '';
+
+        if ( '' === $theme_slug ) {
+            $theme_slug = 'general';
+        }
+
+        $theme_label = isset( $recipe['theme_label'] ) ? (string) $recipe['theme_label'] : '';
+
+        if ( '' === $theme_label ) {
+            $theme_label = ucfirst( str_replace( '-', ' ', $theme_slug ) );
+        }
+
+        $themes[ $theme_slug ] = $theme_label;
+    }
+
+    if ( ! empty( $themes ) ) {
+        ksort( $themes );
+    }
+
+    ?>
+    <div
+        id="<?php echo esc_attr( $section_id ); ?>"
+        class="postbox visibloc-guided-recipes-box"
+        data-visibloc-section="<?php echo esc_attr( $section_id ); ?>"
+    >
+        <h2 class="hndle"><span><?php esc_html_e( 'Recettes guidées', 'visi-bloc-jlg' ); ?></span></h2>
+        <div class="inside">
+            <section class="visibloc-guided-recipes" data-visibloc-recipes>
+                <header class="visibloc-guided-recipes__intro">
+                    <div class="visibloc-guided-recipes__text">
+                        <h3 class="visibloc-guided-recipes__title">
+                            <?php esc_html_e( 'Accélérez vos scénarios avec un assistant pas-à-pas', 'visi-bloc-jlg' ); ?>
+                        </h3>
+                        <p class="visibloc-guided-recipes__subtitle">
+                            <?php esc_html_e( 'Choisissez une recette pour lancer l’assistant en quatre étapes. Chaque étape rappelle les exigences WCAG 2.2 et les réglages clés à valider avant publication.', 'visi-bloc-jlg' ); ?>
+                        </p>
+                    </div>
+                    <?php if ( ! empty( $themes ) ) : ?>
+                        <div class="visibloc-guided-recipes__filters">
+                            <label class="visibloc-guided-recipes__filter-label" for="<?php echo esc_attr( $filter_select_id ); ?>">
+                                <?php esc_html_e( 'Filtrer par thématique', 'visi-bloc-jlg' ); ?>
+                            </label>
+                            <select
+                                id="<?php echo esc_attr( $filter_select_id ); ?>"
+                                class="visibloc-guided-recipes__filter-select"
+                                data-visibloc-recipes-filter
+                                aria-controls="<?php echo esc_attr( $section_id ); ?>-list"
+                            >
+                                <option value="">
+                                    <?php esc_html_e( 'Toutes les thématiques', 'visi-bloc-jlg' ); ?>
+                                </option>
+                                <?php foreach ( $themes as $theme_slug => $theme_label ) : ?>
+                                    <option value="<?php echo esc_attr( $theme_slug ); ?>">
+                                        <?php echo esc_html( $theme_label ); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    <?php endif; ?>
+                </header>
+                <?php if ( empty( $recipes ) ) : ?>
+                    <p><em><?php esc_html_e( 'Aucune recette n’est disponible pour le moment.', 'visi-bloc-jlg' ); ?></em></p>
+                <?php else : ?>
+                    <div class="screen-reader-text" id="<?php echo esc_attr( $live_region_id ); ?>" aria-live="polite" data-visibloc-recipes-live></div>
+                    <ul class="visibloc-guided-recipes__list" id="<?php echo esc_attr( $section_id ); ?>-list" role="list">
+                        <?php foreach ( $recipes as $index => $recipe ) :
+                            $recipe_id = isset( $recipe['id'] ) ? sanitize_key( $recipe['id'] ) : '';
+
+                            if ( '' === $recipe_id ) {
+                                $recipe_id = 'recipe-' . $index;
+                            }
+
+                            $card_id     = 'visibloc-recipe-card-' . $recipe_id;
+                            $template_id = 'visibloc-recipe-template-' . $recipe_id;
+
+                            $theme_slug = isset( $recipe['theme'] ) ? sanitize_html_class( $recipe['theme'] ) : '';
+
+                            if ( '' === $theme_slug ) {
+                                $theme_slug = 'general';
+                            }
+
+                            $theme_label = isset( $recipe['theme_label'] ) ? (string) $recipe['theme_label'] : '';
+                            $title       = isset( $recipe['title'] ) ? (string) $recipe['title'] : '';
+                            $description = isset( $recipe['description'] ) ? (string) $recipe['description'] : '';
+                            $estimated   = isset( $recipe['estimated_time'] ) ? (string) $recipe['estimated_time'] : '';
+                            $audience    = isset( $recipe['audience'] ) ? (string) $recipe['audience'] : '';
+                            $goal        = isset( $recipe['goal'] ) ? (string) $recipe['goal'] : '';
+                            $kpi         = isset( $recipe['kpi'] ) ? (string) $recipe['kpi'] : '';
+
+                            $blocks = isset( $recipe['blocks'] ) && is_array( $recipe['blocks'] )
+                                ? array_values( array_filter( array_map( 'strval', $recipe['blocks'] ) ) )
+                                : [];
+                            $steps = isset( $recipe['steps'] ) && is_array( $recipe['steps'] )
+                                ? array_values( array_filter( $recipe['steps'] ) )
+                                : [];
+
+                            $step_count      = count( $steps );
+                            $step_count_text = sprintf( _n( '%d étape', '%d étapes', $step_count, 'visi-bloc-jlg' ), $step_count );
+                            $blocks_json     = ! empty( $blocks ) ? wp_json_encode( $blocks ) : '[]';
+
+                            if ( false === $blocks_json ) {
+                                $blocks_json = '[]';
+                            }
+                            ?>
+                            <li
+                                class="visibloc-guided-recipes__item"
+                                data-visibloc-recipe-card
+                                data-theme="<?php echo esc_attr( $theme_slug ); ?>"
+                                data-recipe-id="<?php echo esc_attr( $recipe_id ); ?>"
+                                data-recipe-title="<?php echo esc_attr( $title ); ?>"
+                                data-recipe-description="<?php echo esc_attr( $description ); ?>"
+                                data-recipe-goal="<?php echo esc_attr( $goal ); ?>"
+                                data-recipe-audience="<?php echo esc_attr( $audience ); ?>"
+                                data-recipe-kpi="<?php echo esc_attr( $kpi ); ?>"
+                                data-recipe-time="<?php echo esc_attr( $estimated ); ?>"
+                                data-recipe-theme-label="<?php echo esc_attr( $theme_label ); ?>"
+                                data-recipe-step-count="<?php echo esc_attr( $step_count ); ?>"
+                                data-recipe-blocks="<?php echo esc_attr( $blocks_json ); ?>"
+                            >
+                                <article class="visibloc-recipe-card" aria-labelledby="<?php echo esc_attr( $card_id ); ?>-title">
+                                    <header class="visibloc-recipe-card__header">
+                                        <?php if ( '' !== $theme_label ) : ?>
+                                            <span class="visibloc-recipe-card__tag"><?php echo esc_html( $theme_label ); ?></span>
+                                        <?php endif; ?>
+                                        <h3 id="<?php echo esc_attr( $card_id ); ?>-title" class="visibloc-recipe-card__title">
+                                            <?php echo esc_html( $title ); ?>
+                                        </h3>
+                                        <?php if ( '' !== $description ) : ?>
+                                            <p class="visibloc-recipe-card__description"><?php echo esc_html( $description ); ?></p>
+                                        <?php endif; ?>
+                                    </header>
+                                    <?php if ( ! empty( $blocks ) ) : ?>
+                                        <ul class="visibloc-recipe-card__blocks" aria-label="<?php esc_attr_e( 'Blocs recommandés', 'visi-bloc-jlg' ); ?>">
+                                            <?php foreach ( $blocks as $block_label ) : ?>
+                                                <li><?php echo esc_html( $block_label ); ?></li>
+                                            <?php endforeach; ?>
+                                        </ul>
+                                    <?php endif; ?>
+                                    <dl class="visibloc-recipe-card__meta">
+                                        <div class="visibloc-recipe-card__meta-item">
+                                            <dt><?php esc_html_e( 'Durée estimée', 'visi-bloc-jlg' ); ?></dt>
+                                            <dd><?php echo esc_html( '' !== $estimated ? $estimated : __( 'Quelques minutes', 'visi-bloc-jlg' ) ); ?></dd>
+                                        </div>
+                                        <div class="visibloc-recipe-card__meta-item">
+                                            <dt><?php esc_html_e( 'Objectif', 'visi-bloc-jlg' ); ?></dt>
+                                            <dd><?php echo esc_html( $goal ); ?></dd>
+                                        </div>
+                                        <div class="visibloc-recipe-card__meta-item">
+                                            <dt><?php esc_html_e( 'Audience', 'visi-bloc-jlg' ); ?></dt>
+                                            <dd><?php echo esc_html( $audience ); ?></dd>
+                                        </div>
+                                    </dl>
+                                    <div class="visibloc-recipe-card__footer">
+                                        <p class="visibloc-recipe-card__kpi">
+                                            <strong><?php esc_html_e( 'Indicateur clé', 'visi-bloc-jlg' ); ?>:</strong>
+                                            <span><?php echo esc_html( $kpi ); ?></span>
+                                        </p>
+                                        <p class="visibloc-recipe-card__steps" aria-label="<?php esc_attr_e( 'Nombre d’étapes de l’assistant', 'visi-bloc-jlg' ); ?>">
+                                            <?php echo esc_html( $step_count_text ); ?>
+                                        </p>
+                                    </div>
+                                    <div class="visibloc-recipe-card__actions">
+                                        <button
+                                            type="button"
+                                            class="button button-primary visibloc-recipe-card__button"
+                                            data-visibloc-recipe-start
+                                            data-recipe-template="<?php echo esc_attr( $template_id ); ?>"
+                                        >
+                                            <?php esc_html_e( 'Lancer l’assistant', 'visi-bloc-jlg' ); ?>
+                                        </button>
+                                    </div>
+                                </article>
+                                <template id="<?php echo esc_attr( $template_id ); ?>" data-visibloc-recipe-template>
+                                    <?php foreach ( $steps as $step ) :
+                                        $step_title     = isset( $step['title'] ) ? (string) $step['title'] : '';
+                                        $step_summary   = isset( $step['summary'] ) ? (string) $step['summary'] : '';
+                                        $step_actions   = isset( $step['actions'] ) && is_array( $step['actions'] ) ? array_values( array_filter( $step['actions'] ) ) : [];
+                                        $step_notes     = isset( $step['notes'] ) && is_array( $step['notes'] ) ? array_values( array_filter( $step['notes'] ) ) : [];
+                                        $step_resources = isset( $step['resources'] ) && is_array( $step['resources'] ) ? array_values( array_filter( $step['resources'] ) ) : [];
+                                        ?>
+                                        <div
+                                            class="visibloc-recipe-step"
+                                            data-visibloc-recipe-step
+                                            data-step-title="<?php echo esc_attr( $step_title ); ?>"
+                                            data-step-summary="<?php echo esc_attr( $step_summary ); ?>"
+                                        >
+                                            <?php if ( '' !== $step_summary ) : ?>
+                                                <p class="visibloc-recipe-step__summary"><?php echo esc_html( $step_summary ); ?></p>
+                                            <?php endif; ?>
+                                            <?php if ( ! empty( $step_actions ) ) : ?>
+                                                <ul class="visibloc-recipe-step__list">
+                                                    <?php foreach ( $step_actions as $action ) : ?>
+                                                        <li><?php echo esc_html( $action ); ?></li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                            <?php endif; ?>
+                                            <?php if ( ! empty( $step_notes ) ) : ?>
+                                                <div class="visibloc-recipe-step__notes" role="note">
+                                                    <strong class="visibloc-recipe-step__notes-title"><?php esc_html_e( 'Points de vigilance', 'visi-bloc-jlg' ); ?></strong>
+                                                    <ul>
+                                                        <?php foreach ( $step_notes as $note ) : ?>
+                                                            <li><?php echo esc_html( $note ); ?></li>
+                                                        <?php endforeach; ?>
+                                                    </ul>
+                                                </div>
+                                            <?php endif; ?>
+                                            <?php if ( ! empty( $step_resources ) ) : ?>
+                                                <p class="visibloc-recipe-step__resources">
+                                                    <span class="visibloc-recipe-step__resources-label"><?php esc_html_e( 'Ressources utiles :', 'visi-bloc-jlg' ); ?></span>
+                                                    <?php
+                                                    $resource_index = 0;
+                                                    foreach ( $step_resources as $resource ) :
+                                                        $resource_label = isset( $resource['label'] ) ? (string) $resource['label'] : '';
+                                                        $resource_url   = isset( $resource['url'] ) ? (string) $resource['url'] : '';
+
+                                                        if ( '' === $resource_label || '' === $resource_url ) {
+                                                            continue;
+                                                        }
+
+                                                        if ( $resource_index > 0 ) {
+                                                            echo '<span class="visibloc-recipe-step__resources-separator"> · </span>';
+                                                        }
+
+                                                        printf(
+                                                            '<a href="%1$s" target="_blank" rel="noopener noreferrer">%2$s</a>',
+                                                            esc_url( $resource_url ),
+                                                            esc_html( $resource_label )
+                                                        );
+
+                                                        $resource_index++;
+                                                    endforeach;
+                                                    ?>
+                                                </p>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </template>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                    <p
+                        id="<?php echo esc_attr( $empty_message_id ); ?>"
+                        class="visibloc-guided-recipes__empty"
+                        data-visibloc-recipes-empty
+                        hidden
+                    >
+                        <?php esc_html_e( 'Aucune recette ne correspond au filtre sélectionné.', 'visi-bloc-jlg' ); ?>
+                    </p>
+                    <div class="visibloc-guided-recipes__dialog" data-visibloc-recipe-dialog hidden>
+                        <div class="visibloc-guided-recipes__dialog-backdrop" data-visibloc-recipe-close></div>
+                        <div
+                            class="visibloc-guided-recipes__dialog-window"
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="<?php echo esc_attr( $dialog_title_id ); ?>"
+                            aria-describedby="<?php echo esc_attr( $dialog_description_id ); ?>"
+                            data-visibloc-recipe-dialog-window
+                        >
+                            <header class="visibloc-guided-recipes__dialog-header">
+                                <div class="visibloc-guided-recipes__dialog-heading">
+                                    <h3 id="<?php echo esc_attr( $dialog_title_id ); ?>" class="visibloc-guided-recipes__dialog-title" data-visibloc-recipe-dialog-title></h3>
+                                    <p id="<?php echo esc_attr( $dialog_description_id ); ?>" class="visibloc-guided-recipes__dialog-description" data-visibloc-recipe-dialog-description></p>
+                                </div>
+                                <button type="button" class="visibloc-guided-recipes__dialog-close" data-visibloc-recipe-close>
+                                    <span aria-hidden="true">&times;</span>
+                                    <span class="screen-reader-text"><?php esc_html_e( 'Fermer l’assistant', 'visi-bloc-jlg' ); ?></span>
+                                </button>
+                            </header>
+                            <div class="visibloc-guided-recipes__dialog-meta" data-visibloc-recipe-dialog-meta>
+                                <dl class="visibloc-guided-recipes__dialog-meta-grid">
+                                    <div class="visibloc-guided-recipes__dialog-meta-item">
+                                        <dt><?php esc_html_e( 'Objectif', 'visi-bloc-jlg' ); ?></dt>
+                                        <dd data-visibloc-recipe-meta="goal"></dd>
+                                    </div>
+                                    <div class="visibloc-guided-recipes__dialog-meta-item">
+                                        <dt><?php esc_html_e( 'Audience cible', 'visi-bloc-jlg' ); ?></dt>
+                                        <dd data-visibloc-recipe-meta="audience"></dd>
+                                    </div>
+                                    <div class="visibloc-guided-recipes__dialog-meta-item">
+                                        <dt><?php esc_html_e( 'Indicateur clé', 'visi-bloc-jlg' ); ?></dt>
+                                        <dd data-visibloc-recipe-meta="kpi"></dd>
+                                    </div>
+                                    <div class="visibloc-guided-recipes__dialog-meta-item">
+                                        <dt><?php esc_html_e( 'Durée estimée', 'visi-bloc-jlg' ); ?></dt>
+                                        <dd data-visibloc-recipe-meta="time"></dd>
+                                    </div>
+                                </dl>
+                                <div class="visibloc-guided-recipes__dialog-blocks" data-visibloc-recipe-dialog-blocks hidden>
+                                    <h4 class="visibloc-guided-recipes__dialog-blocks-title"><?php esc_html_e( 'Blocs recommandés', 'visi-bloc-jlg' ); ?></h4>
+                                    <ul class="visibloc-guided-recipes__dialog-blocks-list" data-visibloc-recipe-dialog-blocks-list></ul>
+                                </div>
+                            </div>
+                            <div class="visibloc-guided-recipes__dialog-progress" role="group" aria-label="<?php esc_attr_e( 'Progression de l’assistant', 'visi-bloc-jlg' ); ?>">
+                                <progress value="0" max="4" class="visibloc-guided-recipes__progress" data-visibloc-recipe-progress>
+                                    <?php esc_html_e( 'Progression de l’assistant', 'visi-bloc-jlg' ); ?>
+                                </progress>
+                                <span class="visibloc-guided-recipes__progress-label" data-visibloc-recipe-progress-label data-visibloc-progress-template="<?php echo esc_attr__( 'Étape %1$s sur %2$s', 'visi-bloc-jlg' ); ?>"></span>
+                            </div>
+                            <div class="visibloc-guided-recipes__dialog-body">
+                                <div class="visibloc-guided-recipes__stepper" data-visibloc-recipe-stepper>
+                                    <div class="visibloc-guided-recipes__stepper-tabs" role="tablist" aria-label="<?php esc_attr_e( 'Étapes de la recette', 'visi-bloc-jlg' ); ?>" data-visibloc-recipe-tabs></div>
+                                    <div class="visibloc-guided-recipes__stepper-panels" data-visibloc-recipe-panels></div>
+                                </div>
+                            </div>
+                            <div class="screen-reader-text" aria-live="polite" data-visibloc-recipe-step-live></div>
+                            <footer class="visibloc-guided-recipes__dialog-footer">
+                                <button type="button" class="button button-secondary" data-visibloc-recipe-prev>
+                                    <?php esc_html_e( 'Étape précédente', 'visi-bloc-jlg' ); ?>
+                                </button>
+                                <button
+                                    type="button"
+                                    class="button button-primary visibloc-guided-recipes__dialog-next"
+                                    data-visibloc-recipe-next
+                                    data-visibloc-label-next="<?php echo esc_attr__( 'Étape suivante', 'visi-bloc-jlg' ); ?>"
+                                    data-visibloc-label-finish="<?php echo esc_attr__( 'Terminer', 'visi-bloc-jlg' ); ?>"
+                                >
+                                    <?php esc_html_e( 'Étape suivante', 'visi-bloc-jlg' ); ?>
+                                </button>
+                            </footer>
+                        </div>
+                    </div>
+                <?php endif; ?>
+            </section>
         </div>
     </div>
     <?php

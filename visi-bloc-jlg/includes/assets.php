@@ -447,6 +447,29 @@ function visibloc_jlg_enqueue_admin_navigation_script( $hook_suffix ) {
     );
 }
 
+add_action( 'admin_enqueue_scripts', 'visibloc_jlg_enqueue_admin_recipes_script' );
+function visibloc_jlg_enqueue_admin_recipes_script( $hook_suffix ) {
+    if ( 'toplevel_page_visi-bloc-jlg-help' !== $hook_suffix ) {
+        return;
+    }
+
+    $script_relative_path   = 'assets/admin-recipes.js';
+    $default_script_version = defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : '1.1';
+    $script_version         = visibloc_jlg_get_asset_version( $script_relative_path, $default_script_version );
+
+    wp_enqueue_script(
+        'visibloc-jlg-admin-recipes',
+        visibloc_jlg_get_asset_url( $script_relative_path ),
+        [ 'wp-dom-ready', 'wp-i18n' ],
+        $script_version,
+        true
+    );
+
+    if ( function_exists( 'wp_set_script_translations' ) ) {
+        wp_set_script_translations( 'visibloc-jlg-admin-recipes', 'visi-bloc-jlg' );
+    }
+}
+
 add_action( 'enqueue_block_editor_assets', 'visibloc_jlg_enqueue_editor_assets' );
 function visibloc_jlg_enqueue_editor_assets() {
     $asset_file_path = visibloc_jlg_get_asset_path( 'build/index.asset.php' );
