@@ -578,13 +578,19 @@ function visibloc_jlg_get_preview_role_from_cookie() {
         $cookie_value = $_COOKIE['visibloc_preview_role'];
 
         if ( ! is_string( $cookie_value ) ) {
-            return '';
+            return null;
         }
 
         return sanitize_key( $cookie_value );
     }
 
-    return $GLOBALS['visibloc_test_state']['preview_role'];
+    $state_preview_role = $GLOBALS['visibloc_test_state']['preview_role'];
+
+    if ( ! is_string( $state_preview_role ) || '' === $state_preview_role ) {
+        return null;
+    }
+
+    return sanitize_key( $state_preview_role );
 }
 
 function visibloc_jlg_get_preview_runtime_context( $reset_cache = false ) {

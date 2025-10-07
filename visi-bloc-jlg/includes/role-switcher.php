@@ -17,7 +17,7 @@ if ( ! function_exists( 'visibloc_jlg_get_preview_role_from_cookie' ) ) {
         $cookie_value = $_COOKIE[ $cookie_name ];
 
         if ( ! is_string( $cookie_value ) ) {
-            return '';
+            return null;
         }
 
         return sanitize_key( wp_unslash( $cookie_value ) );

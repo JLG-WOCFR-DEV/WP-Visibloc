@@ -42,25 +42,9 @@ if ( ! defined( 'VISIBLOC_JLG_PLUGIN_URL' ) ) {
     }
 }
 
-if ( ! defined( 'VISIBLOC_JLG_VERSION' ) ) {
-    $visibloc_version = '0.0.0';
+require_once __DIR__ . '/includes/plugin-meta.php';
 
-    if ( function_exists( 'get_file_data' ) ) {
-        $plugin_data = get_file_data( __FILE__, [ 'Version' => 'Version' ] );
-
-        if ( isset( $plugin_data['Version'] ) && '' !== $plugin_data['Version'] ) {
-            $visibloc_version = $plugin_data['Version'];
-        }
-    } else {
-        $plugin_contents = @file_get_contents( __FILE__ );
-
-        if ( false !== $plugin_contents && preg_match( '/^\s*\*\s*Version:\s*(.+)$/mi', $plugin_contents, $matches ) ) {
-            $visibloc_version = trim( $matches[1] );
-        }
-    }
-
-    define( 'VISIBLOC_JLG_VERSION', $visibloc_version );
-}
+visibloc_jlg_define_version_constant();
 
 require_once __DIR__ . '/autoload.php';
 require_once __DIR__ . '/includes/i18n-inline.php';
