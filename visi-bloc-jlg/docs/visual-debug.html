@@ -76,6 +76,258 @@
         </div>
     </section>
 
+    <section class="preview" id="guided-recipes-preview">
+        <h2>Assistant guidé (aperçu statique)</h2>
+        <div class="postbox visibloc-guided-recipes-box">
+            <div class="inside">
+                <section class="visibloc-guided-recipes" data-visibloc-recipes>
+                    <header class="visibloc-guided-recipes__intro">
+                        <div class="visibloc-guided-recipes__text">
+                            <h3 class="visibloc-guided-recipes__title">Lancez une recette en quatre étapes</h3>
+                            <p class="visibloc-guided-recipes__subtitle">Cette démonstration reprend la structure du panneau d’aide WordPress. Elle montre deux scénarios exemples et déclenche le même assistant accessible que dans le plugin.</p>
+                        </div>
+                        <div class="visibloc-guided-recipes__filters">
+                            <label class="visibloc-guided-recipes__filter-label" for="demo-guided-filter">Filtrer par thématique</label>
+                            <select id="demo-guided-filter" class="visibloc-guided-recipes__filter-select" data-visibloc-recipes-filter aria-controls="visibloc-section-guided-recipes-list">
+                                <option value="">Toutes les thématiques</option>
+                                <option value="onboarding">Onboarding</option>
+                                <option value="conversion">Conversion</option>
+                            </select>
+                        </div>
+                    </header>
+                    <div class="screen-reader-text" data-visibloc-recipes-live aria-live="polite"></div>
+                    <ul class="visibloc-guided-recipes__list" id="visibloc-section-guided-recipes-list" role="list">
+                        <li
+                            class="visibloc-guided-recipes__item"
+                            data-visibloc-recipe-card
+                            data-theme="onboarding"
+                            data-recipe-id="demo-welcome"
+                            data-recipe-title="Bienvenue personnalisée"
+                            data-recipe-description="Déclenche un bloc de bienvenue pour les nouveaux abonnés."
+                            data-recipe-goal="Accélérer l’activation initiale"
+                            data-recipe-audience="Nouveaux inscrits connectés"
+                            data-recipe-kpi="Clic sur le CTA principal"
+                            data-recipe-time="5 minutes"
+                            data-recipe-theme-label="Onboarding"
+                            data-recipe-step-count="4"
+                            data-recipe-blocks='["Bloc Bannière","Bloc Bouton"]'
+                            data-recipe-template="visibloc-recipe-template-demo-welcome"
+                        >
+                            <article class="visibloc-recipe-card" aria-labelledby="visibloc-recipe-card-demo-welcome-title">
+                                <header class="visibloc-recipe-card__header">
+                                    <span class="visibloc-recipe-card__tag">Onboarding</span>
+                                    <h3 id="visibloc-recipe-card-demo-welcome-title" class="visibloc-recipe-card__title">Bienvenue personnalisée</h3>
+                                    <p class="visibloc-recipe-card__description">Affichez un message chaleureux aux nouveaux membres, avec un focus visible et un objectif clair.</p>
+                                </header>
+                                <ul class="visibloc-recipe-card__blocks" aria-label="Blocs recommandés">
+                                    <li>Bloc Bannière</li>
+                                    <li>Bloc Bouton</li>
+                                </ul>
+                                <dl class="visibloc-recipe-card__meta">
+                                    <div class="visibloc-recipe-card__meta-item">
+                                        <dt>Durée estimée</dt>
+                                        <dd>5 minutes</dd>
+                                    </div>
+                                    <div class="visibloc-recipe-card__meta-item">
+                                        <dt>Objectif</dt>
+                                        <dd>Accélérer l’activation initiale</dd>
+                                    </div>
+                                    <div class="visibloc-recipe-card__meta-item">
+                                        <dt>Audience</dt>
+                                        <dd>Nouveaux inscrits connectés</dd>
+                                    </div>
+                                </dl>
+                                <div class="visibloc-recipe-card__footer">
+                                    <p class="visibloc-recipe-card__kpi"><strong>Indicateur clé&nbsp;:</strong> <span>Clic sur le CTA principal</span></p>
+                                    <p class="visibloc-recipe-card__steps" aria-label="Nombre d’étapes de l’assistant">4 étapes</p>
+                                </div>
+                                <div class="visibloc-recipe-card__actions">
+                                    <button type="button" class="button button-primary visibloc-recipe-card__button" data-visibloc-recipe-start>Lancer l’assistant</button>
+                                </div>
+                            </article>
+                            <template id="visibloc-recipe-template-demo-welcome" data-visibloc-recipe-template>
+                                <div class="visibloc-recipe-step" data-visibloc-recipe-step data-step-title="Objectif" data-step-summary="Rappelez le bénéfice principal du message de bienvenue.">
+                                    <ul class="visibloc-recipe-step__list">
+                                        <li>Indiquez clairement l’action attendue dans le bloc.</li>
+                                        <li>Ajoutez un rappel interne sur le KPI suivi.</li>
+                                    </ul>
+                                </div>
+                                <div class="visibloc-recipe-step" data-visibloc-recipe-step data-step-title="Audience" data-step-summary="Ciblez uniquement les rôles autorisés et les nouveaux inscrits.">
+                                    <ul class="visibloc-recipe-step__list">
+                                        <li>Activez la condition « Statut de connexion ».</li>
+                                        <li>Limitez l’affichage aux sept premiers jours via un cookie.</li>
+                                    </ul>
+                                    <div class="visibloc-recipe-step__notes" role="note">
+                                        <strong class="visibloc-recipe-step__notes-title">Points de vigilance</strong>
+                                        <ul>
+                                            <li>Vérifiez le contraste du bouton (≥ 4.5:1).</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="visibloc-recipe-step" data-visibloc-recipe-step data-step-title="Timing" data-step-summary="Programmez une durée limitée pour éviter la fatigue visuelle.">
+                                    <ul class="visibloc-recipe-step__list">
+                                        <li>Définissez une fin automatique au bout d’une semaine.</li>
+                                        <li>Combinez avec un créneau horaire 8h-21h.</li>
+                                    </ul>
+                                </div>
+                                <div class="visibloc-recipe-step" data-visibloc-recipe-step data-step-title="Fallback" data-step-summary="Préparez une alternative accessible pour les visiteurs récurrents.">
+                                    <ul class="visibloc-recipe-step__list">
+                                        <li>Sélectionnez un bloc de repli informatif.</li>
+                                        <li>Ajoutez une classe <code>vb-desktop-only</code> si nécessaire.</li>
+                                    </ul>
+                                </div>
+                            </template>
+                        </li>
+                        <li
+                            class="visibloc-guided-recipes__item"
+                            data-visibloc-recipe-card
+                            data-theme="conversion"
+                            data-recipe-id="demo-cart"
+                            data-recipe-title="Relance panier"
+                            data-recipe-description="Relancez un panier abandonné avec un message accessible."
+                            data-recipe-goal="Relancer les paniers abandonnés"
+                            data-recipe-audience="Clients connectés avec panier actif"
+                            data-recipe-kpi="Taux de récupération du panier"
+                            data-recipe-time="8 minutes"
+                            data-recipe-theme-label="Conversion"
+                            data-recipe-step-count="4"
+                            data-recipe-blocks='["Bannière","Liste de produits"]'
+                            data-recipe-template="visibloc-recipe-template-demo-cart"
+                        >
+                            <article class="visibloc-recipe-card" aria-labelledby="visibloc-recipe-card-demo-cart-title">
+                                <header class="visibloc-recipe-card__header">
+                                    <span class="visibloc-recipe-card__tag">Conversion</span>
+                                    <h3 id="visibloc-recipe-card-demo-cart-title" class="visibloc-recipe-card__title">Relance panier</h3>
+                                    <p class="visibloc-recipe-card__description">Affichez une bannière contextualisée et respectez les critères WCAG pour favoriser la conversion.</p>
+                                </header>
+                                <ul class="visibloc-recipe-card__blocks" aria-label="Blocs recommandés">
+                                    <li>Bannière</li>
+                                    <li>Liste de produits</li>
+                                </ul>
+                                <dl class="visibloc-recipe-card__meta">
+                                    <div class="visibloc-recipe-card__meta-item">
+                                        <dt>Durée estimée</dt>
+                                        <dd>8 minutes</dd>
+                                    </div>
+                                    <div class="visibloc-recipe-card__meta-item">
+                                        <dt>Objectif</dt>
+                                        <dd>Relancer les paniers abandonnés</dd>
+                                    </div>
+                                    <div class="visibloc-recipe-card__meta-item">
+                                        <dt>Audience</dt>
+                                        <dd>Clients connectés avec panier actif</dd>
+                                    </div>
+                                </dl>
+                                <div class="visibloc-recipe-card__footer">
+                                    <p class="visibloc-recipe-card__kpi"><strong>Indicateur clé&nbsp;:</strong> <span>Taux de récupération</span></p>
+                                    <p class="visibloc-recipe-card__steps" aria-label="Nombre d’étapes de l’assistant">4 étapes</p>
+                                </div>
+                                <div class="visibloc-recipe-card__actions">
+                                    <button type="button" class="button button-primary visibloc-recipe-card__button" data-visibloc-recipe-start>Lancer l’assistant</button>
+                                </div>
+                            </article>
+                            <template id="visibloc-recipe-template-demo-cart" data-visibloc-recipe-template>
+                                <div class="visibloc-recipe-step" data-visibloc-recipe-step data-step-title="Objectif" data-step-summary="Rappelez la valeur du message de relance.">
+                                    <ul class="visibloc-recipe-step__list">
+                                        <li>Choisissez un avantage pertinent (livraison offerte, assistance).</li>
+                                        <li>Définissez un libellé de bouton explicite.</li>
+                                    </ul>
+                                </div>
+                                <div class="visibloc-recipe-step" data-visibloc-recipe-step data-step-title="Audience" data-step-summary="Filtrez les clients connectés disposant d’un panier.">
+                                    <ul class="visibloc-recipe-step__list">
+                                        <li>Ajoutez la condition WooCommerce « Panier non vide ».</li>
+                                        <li>Excluez les segments déjà relancés par email.</li>
+                                    </ul>
+                                    <div class="visibloc-recipe-step__notes" role="note">
+                                        <strong class="visibloc-recipe-step__notes-title">Points de vigilance</strong>
+                                        <ul>
+                                            <li>Contrôlez la navigation clavier sur chaque bouton.</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="visibloc-recipe-step" data-visibloc-recipe-step data-step-title="Timing" data-step-summary="Limitez la fréquence d’affichage.">
+                                    <ul class="visibloc-recipe-step__list">
+                                        <li>Ajoutez un cookie de fréquence pour éviter plus de trois affichages par jour.</li>
+                                        <li>Planifiez l’expiration du message après 72 heures.</li>
+                                    </ul>
+                                </div>
+                                <div class="visibloc-recipe-step" data-visibloc-recipe-step data-step-title="Fallback" data-step-summary="Fournissez une alternative claire.">
+                                    <ul class="visibloc-recipe-step__list">
+                                        <li>Affichez un lien vers les catégories principales si le panier est vide.</li>
+                                        <li>Ajoutez un bouton secondaire vers le support.</li>
+                                    </ul>
+                                </div>
+                            </template>
+                        </li>
+                    </ul>
+                    <p class="visibloc-guided-recipes__empty" data-visibloc-recipes-empty hidden>Aucune recette ne correspond au filtre sélectionné.</p>
+                    <div class="visibloc-guided-recipes__dialog" data-visibloc-recipe-dialog hidden>
+                        <div class="visibloc-guided-recipes__dialog-backdrop" data-visibloc-recipe-close></div>
+                        <div
+                            class="visibloc-guided-recipes__dialog-window"
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="demo-guided-title"
+                            aria-describedby="demo-guided-description"
+                            data-visibloc-recipe-dialog-window
+                        >
+                            <header class="visibloc-guided-recipes__dialog-header">
+                                <div class="visibloc-guided-recipes__dialog-heading">
+                                    <h3 id="demo-guided-title" class="visibloc-guided-recipes__dialog-title" data-visibloc-recipe-dialog-title></h3>
+                                    <p id="demo-guided-description" class="visibloc-guided-recipes__dialog-description" data-visibloc-recipe-dialog-description></p>
+                                </div>
+                                <button type="button" class="visibloc-guided-recipes__dialog-close" data-visibloc-recipe-close>
+                                    <span aria-hidden="true">&times;</span>
+                                    <span class="screen-reader-text">Fermer l’assistant</span>
+                                </button>
+                            </header>
+                            <div class="visibloc-guided-recipes__dialog-meta" data-visibloc-recipe-dialog-meta>
+                                <dl class="visibloc-guided-recipes__dialog-meta-grid">
+                                    <div class="visibloc-guided-recipes__dialog-meta-item">
+                                        <dt>Objectif</dt>
+                                        <dd data-visibloc-recipe-meta="goal"></dd>
+                                    </div>
+                                    <div class="visibloc-guided-recipes__dialog-meta-item">
+                                        <dt>Audience cible</dt>
+                                        <dd data-visibloc-recipe-meta="audience"></dd>
+                                    </div>
+                                    <div class="visibloc-guided-recipes__dialog-meta-item">
+                                        <dt>Indicateur clé</dt>
+                                        <dd data-visibloc-recipe-meta="kpi"></dd>
+                                    </div>
+                                    <div class="visibloc-guided-recipes__dialog-meta-item">
+                                        <dt>Durée estimée</dt>
+                                        <dd data-visibloc-recipe-meta="time"></dd>
+                                    </div>
+                                </dl>
+                                <div class="visibloc-guided-recipes__dialog-blocks" data-visibloc-recipe-dialog-blocks hidden>
+                                    <h4 class="visibloc-guided-recipes__dialog-blocks-title">Blocs recommandés</h4>
+                                    <ul class="visibloc-guided-recipes__dialog-blocks-list" data-visibloc-recipe-dialog-blocks-list></ul>
+                                </div>
+                            </div>
+                            <div class="visibloc-guided-recipes__dialog-progress" role="group" aria-label="Progression de l’assistant">
+                                <progress value="0" max="4" class="visibloc-guided-recipes__progress" data-visibloc-recipe-progress>Progression de l’assistant</progress>
+                                <span class="visibloc-guided-recipes__progress-label" data-visibloc-recipe-progress-label data-visibloc-progress-template="Étape %1$s sur %2$s"></span>
+                            </div>
+                            <div class="visibloc-guided-recipes__dialog-body">
+                                <div class="visibloc-guided-recipes__stepper" data-visibloc-recipe-stepper>
+                                    <div class="visibloc-guided-recipes__stepper-tabs" role="tablist" aria-label="Étapes de la recette" data-visibloc-recipe-tabs></div>
+                                    <div class="visibloc-guided-recipes__stepper-panels" data-visibloc-recipe-panels></div>
+                                </div>
+                            </div>
+                            <div class="screen-reader-text" aria-live="polite" data-visibloc-recipe-step-live></div>
+                            <footer class="visibloc-guided-recipes__dialog-footer">
+                                <button type="button" class="button button-secondary" data-visibloc-recipe-prev>Étape précédente</button>
+                                <button type="button" class="button button-primary visibloc-guided-recipes__dialog-next" data-visibloc-recipe-next data-visibloc-label-next="Étape suivante" data-visibloc-label-finish="Terminer">Étape suivante</button>
+                            </footer>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </section>
+
+    <script src="../assets/admin-recipes.js"></script>
     <script>
         const toggle = document.getElementById('dark-toggle');
         const applyDarkTheme = () => {
