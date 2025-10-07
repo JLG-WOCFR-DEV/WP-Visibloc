@@ -1,7 +1,16 @@
 /* global VisiBlocData */
-import { Fragment, cloneElement, Children, useMemo, useState, RawHTML } from '@wordpress/element';
+import {
+    Fragment,
+    cloneElement,
+    Children,
+    useMemo,
+    useState,
+    useEffect,
+    useRef,
+    RawHTML,
+} from '@wordpress/element';
 import { addFilter, applyFilters } from '@wordpress/hooks';
-import { createHigherOrderComponent } from '@wordpress/compose';
+import { createHigherOrderComponent, useInstanceId } from '@wordpress/compose';
 import { BlockControls, InspectorControls } from '@wordpress/block-editor';
 import {
     ToolbarGroup,
@@ -1355,6 +1364,27 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
         const fallbackPreviewHtmlContent = fallbackPreviewDetails.html;
         const fallbackPreviewNoticeStatus = fallbackPreviewDetails.status;
         const fallbackPreviewNoticeMessage = fallbackPreviewDetails.message;
+        const fallbackPreviewRegionRef = useRef(null);
+        const fallbackPreviewRegionId = useInstanceId(
+            withVisibilityControls,
+            'visibloc-fallback-preview',
+        );
+        const fallbackPreviewRegionLabelId = `${fallbackPreviewRegionId}__label`;
+
+        useEffect(() => {
+            if (
+                isFallbackPreviewVisible &&
+                fallbackEnabled &&
+                fallbackPreviewRegionRef.current
+            ) {
+                fallbackPreviewRegionRef.current.focus({ preventScroll: true });
+            }
+        }, [
+            isFallbackPreviewVisible,
+            fallbackEnabled,
+            fallbackPreviewHtmlContent,
+            fallbackPreviewNoticeStatus,
+        ]);
 
 
         const updateAdvancedVisibility = (updater) => {
@@ -2734,9 +2764,25 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                                 setFallbackPreviewVisible((currentValue) => !currentValue)
                                             }
                                             disabled={!fallbackEnabled}
+                                            aria-controls={fallbackPreviewRegionId}
+                                            aria-expanded={isFallbackPreviewVisible && fallbackEnabled}
                                         />
                                         {isFallbackPreviewVisible && fallbackEnabled && (
-                                            <div className="visibloc-fallback-preview" role="region" aria-live="polite">
+                                            <div
+                                                ref={fallbackPreviewRegionRef}
+                                                id={fallbackPreviewRegionId}
+                                                className="visibloc-fallback-preview"
+                                                role="region"
+                                                aria-live="polite"
+                                                aria-labelledby={fallbackPreviewRegionLabelId}
+                                                tabIndex="-1"
+                                            >
+                                                <span
+                                                    id={fallbackPreviewRegionLabelId}
+                                                    className="screen-reader-text"
+                                                >
+                                                    {__('Aperçu du contenu de repli', 'visi-bloc-jlg')}
+                                                </span>
                                                 {fallbackPreviewHtmlContent ? (
                                                     <div className="visibloc-fallback-preview__content">
                                                         <RawHTML>{fallbackPreviewHtmlContent}</RawHTML>
