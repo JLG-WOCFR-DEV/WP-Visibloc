@@ -154,6 +154,45 @@ Les améliorations ci-dessous approfondissent les axes identifiés précédemmen
 - **Sécurité & RGPD** – documenter les traitements de données personnelles et proposer des hooks pour anonymiser/agréger les données (ex. stockage des impressions sans IP complète).
 
 
+### Roadmap d'implémentation recommandée
+
+Pour transformer ces orientations en plan d'action concret, il est utile de prioriser les chantiers selon l'effort requis et l'impact attendu.
+
+1. **Phase 1 – Fondations produit & UX (0-3 mois)**
+   - Déployer la bibliothèque de recettes guidées et le mode assistant pour sécuriser l'onboarding.
+   - Ajouter les contrôles d'accessibilité (navigation clavier, annonces ARIA, focus management) et les micro-interactions critiques.
+   - Structurer le design system (couleurs, typographie, composants transverses) pour homogénéiser l'interface.
+2. **Phase 2 – Pilotage & gouvernance (3-6 mois)**
+   - Mettre en place le centre de notifications, l'audit log et les permissions dédiées aux workflows d'approbation.
+   - Introduire la vue canvas des parcours et les filtres rapides afin de donner une vision macroscopique des règles.
+   - Livrer un premier tableau de bord synthétique avec métriques clés (règles actives, expirations imminentes).
+3. **Phase 3 – Analytics & automatisation (6-12 mois)**
+   - Développer la brique de mesure (impressions, conversions, heatmaps) et l'A/B testing natif.
+   - Ouvrir l'écosystème via API REST enrichie, webhooks bidirectionnels et automatisations CLI.
+   - Expérimenter les segments marketing dynamiques connectés aux solutions CRM et marketing automation.
+
+Chaque phase devrait être ponctuée d'ateliers utilisateurs (éditeurs, marketeurs, administrateurs techniques) pour valider les prototypes et ajuster la feuille de route en fonction des retours terrain.
+
+### Indicateurs de succès et instrumentation
+
+Pour mesurer la valeur créée, suivez un ensemble d'indicateurs quantitatifs et qualitatifs :
+
+- **Adoption** – taux d'utilisation des recettes guidées, nombre de règles créées via l'assistant, part des blocs configurés avec fallback.
+- **Efficacité opérationnelle** – durée moyenne de configuration d'une règle, volume d'alertes résolues, temps de revue/approbation.
+- **Performance marketing** – évolution des conversions associées aux scénarios personnalisés, uplift mesuré par les tests A/B, couverture des segments ciblés.
+- **Qualité et conformité** – taux d'erreurs de configuration détectées, ratio de règles conformes (consentement/zone géo), satisfaction des équipes conformité.
+
+Instrumentez ces métriques via un module de telemetry léger (collecte anonymisée respectant la confidentialité), des exports CSV programmés et l'intégration possible avec les outils BI existants. Complétez par des enquêtes NPS internes et des interviews trimestrielles pour capter le ressenti utilisateur.
+
+### Documentation et accompagnement produit
+
+Au-delà du plugin, l'écosystème documentaire doit soutenir la prise en main et la scalabilité :
+
+- **Playbooks thématiques** – rédiger des guides « cas d'usage » (upsell e-commerce, nurturing B2B, relance de panier) alignés sur les recettes disponibles, avec captures d'écran et checklists.
+- **Académie en ligne** – proposer une mini-formation autoportée (vidéos courtes, quiz, sandbox) permettant aux nouvelles recrues d'être opérationnelles en moins d'une heure.
+- **Documentation API** – publier un portail développeur détaillant endpoints REST, webhooks, schémas JSON et exemples de scripts WP-CLI pour favoriser l'adoption technique.
+- **Support communautaire** – animer un espace (forum, Slack ou Discord) où partager scripts, recettes, retours d'expérience, et recueillir les demandes de fonctionnalités pour nourrir la roadmap.
+
 ## Installation
 1. Download or clone this repository into `wp-content/plugins/` of your WordPress installation.
 2. Ensure the plugin folder is named `visi-bloc-jlg`.
