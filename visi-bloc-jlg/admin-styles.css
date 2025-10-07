@@ -20,6 +20,15 @@
     }
 }
 
+body.is-dark-theme {
+    --visibloc-surface: rgba(15, 23, 42, 0.75);
+    --visibloc-surface-tinted: rgba(30, 41, 59, 0.7);
+    --visibloc-border-subtle: rgba(148, 163, 184, 0.25);
+    --visibloc-border-strong: rgba(148, 163, 184, 0.35);
+    --visibloc-shadow-subtle: 0 1px 2px rgba(15, 23, 42, 0.5);
+    --visibloc-shadow-elevated: 0 28px 64px -30px rgba(2, 6, 23, 0.85);
+}
+
 /* Badges d'état */
 .visibloc-status-badge {
     --visibloc-badge-bg: rgba(148, 163, 184, 0.12);
@@ -138,6 +147,15 @@
     .visibloc-status-badge__icon {
         background: rgba(148, 163, 184, 0.16);
     }
+}
+
+body.is-dark-theme .visibloc-status-badge {
+    color: var(--visibloc-badge-foreground);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.72), var(--visibloc-badge-bg));
+}
+
+body.is-dark-theme .visibloc-status-badge__icon {
+    background: rgba(148, 163, 184, 0.16);
 }
 
 /* Style pour les aperçus des blocs */
