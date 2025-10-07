@@ -65,6 +65,8 @@ Des extensions commerciales de personnalisation de contenu (p. ex. Block Visibil
 - **Support multilingue et conformité** – proposer des déclinaisons automatiques des règles par langue (WPML/Polylang) et des mécanismes respectant le consentement (masquer des blocs tant qu’aucun consentement analytics n’est donné, par exemple) sécuriserait les déploiements dans des environnements réglementés.
 - **Améliorations UI/UX ciblées** – Concevoir une page d’overview centralisant les règles actives par contenu, avec filtres, indicateurs de statut et navigation par segments permettrait d’aligner le produit sur les standards pro. Ajouter un mode « diagramme d’audience » ou une frise temporelle interactive aiderait à visualiser les chevauchements de règles. Dans l’éditeur, des badges colorés, des tooltips contextualisés et une palette de couleurs cohérente avec le design system WordPress renforceraient la lisibilité, tandis que des modales d’onboarding (checklist, vidéo courte) et un centre d’aide contextuel fluidifieraient les premiers usages.
 - **Design system et responsive preview** – Introduire un mini design system (typographie, couleurs, icônes, composants réutilisables) assurerait une expérience homogène entre la page d’options, les panneaux et les modales. Un sélecteur de preview responsive directement accessible depuis le panneau Visibloc, couplé à des captures d’écran générées automatiquement pour chaque breakpoint, offrirait une perception immédiate du rendu final et des éventuels conflits de fallback.
+- **Monitoring de performance** – mettre à disposition un tableau de bord corrélant règles actives, temps de rendu et incidents détectés (erreurs PHP, cache expiré) aiderait à prioriser les optimisations techniques.
+- **Gouvernance multi-environnements** – formaliser des parcours de promotion (staging → production) avec export/import signé, journal d’audit et hooks de pré-déploiement garantirait une cohérence entre environnements.
 
 ### Améliorations techniques complémentaires
 
@@ -116,6 +118,40 @@ Les améliorations ci-dessous approfondissent les axes identifiés précédemmen
 - **Journal des modifications** – consigner chaque changement (création, modification, suppression) avec auteur, date, anciennes valeurs et nouvelles valeurs. Le journal serait exportable en CSV pour être intégré aux procédures internes des entreprises.
 - **Filtrage par conformité** – offrir des tags « RGPD », « Consentement », « Localisation » attribuables aux règles. Un panneau dédié permettrait de filtrer les règles sensibles et de vérifier rapidement leur état (actif, en révision, expiré).
 - **Rapport de contrôle** – générer automatiquement un rapport mensuel listant les règles critiques, les écarts détectés (ex. règle active sans consentement enregistré) et les actions recommandées. Le rapport pourrait être envoyé par e-mail aux responsables conformité.
+
+### Feuille de route priorisée
+
+| Priorité | Thématique | Objectifs clés | Livrables principaux |
+| --- | --- | --- | --- |
+| 🟥 Court terme | Parcours guidés & onboarding | Réduire le temps de prise en main pour les éditeurs | Assistant 4 étapes, tutoriels contextuels, playbooks prêts à l’emploi |
+| 🟧 Court/moyen terme | Analytics & feedback | Mesurer l’impact réel des règles et détecter les conflits | Tableau de bord métrique, heatmap de couverture, notifications proactives |
+| 🟨 Moyen terme | Ciblage enrichi | Étendre les scénarios marketing et comportementaux | Géolocalisation, conditions comportementales, segments CRM natifs |
+| 🟩 Long terme | Gouvernance & conformité | Sécuriser les usages enterprise et multilingues | Audit log avancé, workflows d’approbation, support WPML/Polylang |
+
+### Approche technique par axe
+
+- **Onboarding assisté** – tirer parti des `wp.data` stores existants pour enregistrer l’état du wizard, persister les brouillons de scénarios via des options personnalisées, et utiliser `@wordpress/components` (Stepper, Guide) pour rester cohérent avec l’écosystème Gutenberg.
+- **Géociblage** – encapsuler les services de géolocalisation dans une classe `Visibloc_Geolocation_Provider` avec pilotes interchangeables (MaxMind, IP2Location, API SaaS). Prévoir un cache transitoire (transients) pour limiter l’impact sur les performances.
+- **Segments CRM** – exposer un module PHP dédié (`includes/integrations/class-visibloc-crm-sync.php`) capable de récupérer les segments via REST/GraphQL, stocker les correspondances côté serveur et fournir un `DataProvider` JavaScript pour l’éditeur.
+- **Analytics** – utiliser `wp_track_event` ou un endpoint REST personnalisé pour capter les impressions. Une tâche cron agrègerait les données brutes dans une table dédiée (`wp_visibloc_insights`) afin d’alimenter le tableau de bord et les heatmaps.
+- **Notifications & alertes** – implémenter une table `wp_visibloc_alerts` avec un statut, un niveau de sévérité et un horodatage. Les alertes seraient exposées via l’API REST et un `wp.data.select` dans l’éditeur fournirait un badge en temps réel.
+- **Audit & gouvernance** – enregistrer les événements (création, update, suppression) via des hooks centralisés (`visibloc_rule_saved`, etc.) et un middleware qui signe les snapshots JSON. Des commandes WP-CLI (`wp visibloc export-rules --signed`) faciliteraient l’automatisation.
+- **Accessibilité renforcée** – définir une checklist de critères WCAG 2.1 AA pour chaque composant interactif. Ajouter des tests Playwright axés sur le focus management et intégrer `axe-core` dans la CI pour détecter automatiquement les régressions.
+- **Design system** – établir une bibliothèque Figma/Storybook alignée sur le 8pt grid et intégrer un thème Sass partagé (`assets/scss/_tokens.scss`) afin d’assurer la cohérence des futurs modules (heatmaps, notifications, dashboards).
+
+### Métriques de succès recommandées
+
+- **Adoption des recettes** – % de règles créées via le wizard ou les playbooks vs création manuelle.
+- **Temps de configuration** – durée moyenne entre l’activation du plugin et la première règle publiée (objectif : < 10 min après onboarding guidé).
+- **Qualité et fiabilité** – nombre de conflits détectés automatiquement vs conflits signalés par les utilisateurs.
+- **Performance front** – variation du TTFB/LCP avant/après activation de scénarios avancés, pour garantir que l’ajout d’analytics ou de géociblage n’impacte pas l’expérience utilisateur.
+- **Satisfaction des équipes** – score CSAT recueilli après résolution d’une alerte ou utilisation du centre d’aide immersif.
+
+### Dépendances et prérequis
+
+- **Budget API** – certains axes (géolocalisation, CRM) nécessitent des licences ou des quotas API ; prévoir un mécanisme de configuration sécurisée des clés (chiffrage via `wp_sodium` ou dépendance à `defuse/php-encryption`).
+- **Compatibilité PHP/JS** – s’assurer que les nouvelles briques restent compatibles avec la matrice WordPress supportée (PHP 7.4+, WordPress 6.2+). Les packages front devront respecter les contraintes de bundling existantes (`@wordpress/scripts`).
+- **Sécurité & RGPD** – documenter les traitements de données personnelles et proposer des hooks pour anonymiser/agréger les données (ex. stockage des impressions sans IP complète).
 
 
 ## Installation
