@@ -1,3 +1,26 @@
+
+:root {
+    --visibloc-surface: #ffffff;
+    --visibloc-surface-subtle: #f8fafc;
+    --visibloc-border-subtle: rgba(15, 23, 42, 0.08);
+    --visibloc-border-strong: rgba(15, 23, 42, 0.16);
+    --visibloc-radius-base: 12px;
+    --visibloc-radius-pill: 999px;
+    --visibloc-shadow-subtle: 0 1px 2px rgba(15, 23, 42, 0.08);
+    --visibloc-shadow-strong: 0 14px 30px -20px rgba(15, 23, 42, 0.55);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --visibloc-surface: #0f1729;
+        --visibloc-surface-subtle: rgba(30, 41, 59, 0.65);
+        --visibloc-border-subtle: rgba(148, 163, 184, 0.18);
+        --visibloc-border-strong: rgba(148, 163, 184, 0.28);
+        --visibloc-shadow-subtle: 0 1px 2px rgba(15, 23, 42, 0.6);
+        --visibloc-shadow-strong: 0 18px 38px -18px rgba(15, 23, 42, 0.85);
+    }
+}
+
 .visi-bloc-panel-schedule .components-base-control {
     margin-bottom: 16px;
 }
@@ -36,51 +59,75 @@
 }
 
 .visibloc-status-badge {
+    --visibloc-badge-bg: rgba(148, 163, 184, 0.14);
+    --visibloc-badge-border: var(--visibloc-border-strong);
+    --visibloc-badge-foreground: #0f172a;
+    --visibloc-badge-shadow: 0 10px 26px -18px rgba(15, 23, 42, 0.65);
     display: inline-flex;
     flex-direction: column;
     align-items: flex-start;
     justify-content: center;
-    gap: 4px;
-    padding: 6px 12px;
-    border-radius: 12px;
+    gap: 6px;
+    padding: 10px 14px;
+    border-radius: var(--visibloc-radius-base);
+    border: 1px solid var(--visibloc-badge-border);
+    background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.95),
+        var(--visibloc-badge-bg)
+    );
+    background-clip: padding-box;
     font-family: var(--wp-admin-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
-    color: #fff;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-    max-width: 260px;
+    color: var(--visibloc-badge-foreground);
+    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.08), var(--visibloc-badge-shadow);
+    max-width: 320px;
     white-space: normal;
     word-break: break-word;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
 }
 
 .visibloc-status-badge__label {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-    line-height: 1.3;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    text-transform: none;
+    line-height: 1.4;
+    color: inherit;
 }
 
 .visibloc-status-badge__description {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 400;
-    line-height: 1.4;
-    opacity: 0.95;
+    line-height: 1.5;
+    opacity: 0.9;
     text-transform: none;
     white-space: pre-line;
 }
 
 .visibloc-status-badge--hidden {
-    background-color: rgba(220, 20, 60, 0.85);
-    box-shadow: 0 2px 6px rgba(220, 20, 60, 0.25);
+    --visibloc-badge-bg: rgba(239, 68, 68, 0.16);
+    --visibloc-badge-border: rgba(248, 113, 113, 0.45);
+    --visibloc-badge-foreground: #991b1b;
+    --visibloc-badge-shadow: 0 14px 34px -18px rgba(239, 68, 68, 0.75);
 }
 
 .visibloc-status-badge--fallback {
-    background-color: rgba(30, 64, 175, 0.85);
+    --visibloc-badge-bg: rgba(37, 99, 235, 0.16);
+    --visibloc-badge-border: rgba(59, 130, 246, 0.45);
+    --visibloc-badge-foreground: #1d4ed8;
+    --visibloc-badge-shadow: 0 14px 34px -18px rgba(37, 99, 235, 0.75);
+}
+
+.block-editor-block-list__block.bloc-editeur-cache,
+.block-editor-block-list__block.bloc-editeur-repli {
+    position: relative;
+    border-radius: var(--visibloc-radius-base);
+    outline: none;
+    transition: box-shadow 0.2s ease;
 }
 
 .block-editor-block-list__block.bloc-editeur-cache {
-    position: relative;
-    outline: 2px dashed rgba(220, 20, 60, 0.7);
-    outline-offset: 4px;
+    box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.45), 0 0 0 6px rgba(239, 68, 68, 0.12);
 }
 
 .block-editor-block-list__block.bloc-editeur-cache > .visibloc-status-badge {
@@ -92,9 +139,7 @@
 }
 
 .block-editor-block-list__block.bloc-editeur-repli {
-    position: relative;
-    outline: 2px dashed rgba(30, 64, 175, 0.6);
-    outline-offset: 4px;
+    box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.45), 0 0 0 6px rgba(37, 99, 235, 0.1);
 }
 
 .block-editor-block-list__block.bloc-editeur-repli > .visibloc-status-badge.visibloc-status-badge--fallback {
@@ -107,23 +152,25 @@
 
 .block-editor-list-view__block.bloc-editeur-cache {
     position: relative;
-    background: rgba(220, 20, 60, 0.08);
-    border-left: 4px solid rgba(220, 20, 60, 0.6);
+    border-radius: 10px;
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.18);
 }
 
 .block-editor-list-view__block.bloc-editeur-repli {
     position: relative;
-    background: rgba(30, 64, 175, 0.08);
-    border-left: 4px solid rgba(30, 64, 175, 0.5);
+    border-radius: 10px;
+    background: rgba(37, 99, 235, 0.08);
+    border: 1px solid rgba(37, 99, 235, 0.18);
 }
 
 .visibloc-fallback-preview {
     margin-top: 16px;
-    padding: 16px;
-    border: 1px solid var(--wp-admin-border-color, #dcdcde);
-    border-radius: 4px;
-    background: #fff;
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+    padding: 18px;
+    border: 1px solid var(--visibloc-border-subtle);
+    border-radius: var(--visibloc-radius-base);
+    background: var(--visibloc-surface-subtle);
+    box-shadow: var(--visibloc-shadow-subtle);
     max-height: 280px;
     overflow: auto;
 }
@@ -142,10 +189,11 @@
         position: static;
         transform: none;
         margin: 0 0 10px;
-        box-shadow: none;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
     }
 
-    .block-editor-block-list__block.bloc-editeur-cache {
-        outline-offset: 2px;
+    .block-editor-block-list__block.bloc-editeur-cache,
+    .block-editor-block-list__block.bloc-editeur-repli {
+        box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.16);
     }
 }

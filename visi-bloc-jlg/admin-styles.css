@@ -1,35 +1,70 @@
+:root {
+    --visibloc-surface: #ffffff;
+    --visibloc-surface-tinted: #f8fafc;
+    --visibloc-border-subtle: rgba(15, 23, 42, 0.08);
+    --visibloc-border-strong: rgba(15, 23, 42, 0.16);
+    --visibloc-radius-base: 12px;
+    --visibloc-radius-pill: 999px;
+    --visibloc-shadow-subtle: 0 1px 2px rgba(15, 23, 42, 0.08);
+    --visibloc-shadow-elevated: 0 18px 40px -24px rgba(15, 23, 42, 0.6);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --visibloc-surface: rgba(15, 23, 42, 0.75);
+        --visibloc-surface-tinted: rgba(30, 41, 59, 0.7);
+        --visibloc-border-subtle: rgba(148, 163, 184, 0.25);
+        --visibloc-border-strong: rgba(148, 163, 184, 0.35);
+        --visibloc-shadow-subtle: 0 1px 2px rgba(15, 23, 42, 0.5);
+        --visibloc-shadow-elevated: 0 28px 64px -30px rgba(2, 6, 23, 0.85);
+    }
+}
+
 /* Badges d'état */
 .visibloc-status-badge {
-    --visibloc-badge-bg: #f8fafc;
-    --visibloc-badge-border: #0f172a;
+    --visibloc-badge-bg: rgba(148, 163, 184, 0.12);
+    --visibloc-badge-border: var(--visibloc-border-strong);
     --visibloc-badge-foreground: #0f172a;
-    --visibloc-badge-pattern: none;
+    --visibloc-badge-shadow: 0 12px 32px -20px rgba(15, 23, 42, 0.6);
     display: inline-flex;
-    align-items: center;
+    flex-direction: column;
+    align-items: flex-start;
     justify-content: center;
-    gap: 6px;
-    padding: 4px 12px;
-    border-radius: 999px;
-    border: 2px solid var(--visibloc-badge-border);
-    background-color: var(--visibloc-badge-bg);
-    background-image: var(--visibloc-badge-pattern);
-    background-size: 16px 16px;
+    gap: 4px;
+    padding: 10px 16px;
+    border-radius: var(--visibloc-radius-base);
+    border: 1px solid var(--visibloc-badge-border);
+    background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.92),
+        var(--visibloc-badge-bg)
+    );
+    background-clip: padding-box;
     color: var(--visibloc-badge-foreground);
-    font-size: 11px;
-    font-family: var(--wp-admin-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    line-height: 1.4;
-    text-transform: uppercase;
-    box-shadow: none;
+    font-size: 12px;
+    font-family: var(--wp-admin-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1.45;
+    text-transform: none;
+    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.08), var(--visibloc-badge-shadow);
+    min-width: 0;
+    max-width: 320px;
+    white-space: normal;
+    word-break: break-word;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
 }
 
 .visibloc-status-badge__icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.1em;
-    height: 1.1em;
+    width: 1.2em;
+    height: 1.2em;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.08);
+    color: inherit;
+    flex-shrink: 0;
 }
 
 .visibloc-status-badge__icon svg {
@@ -38,187 +73,152 @@
     display: block;
 }
 
+.visibloc-status-badge__label {
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
 .visibloc-status-badge__description {
     display: block;
-    font-weight: 600;
+    font-weight: 400;
+    opacity: 0.9;
     letter-spacing: normal;
     text-transform: none;
 }
 
-.visibloc-status-badge__label {
-    display: inline-block;
-}
-
 .visibloc-status-badge--hidden {
-    --visibloc-badge-bg: rgba(239, 68, 68, 0.14);
-    --visibloc-badge-border: #b91c1c;
-    --visibloc-badge-foreground: #7f1d1d;
-    --visibloc-badge-pattern: repeating-linear-gradient(
-        135deg,
-        rgba(185, 28, 28, 0.2) 0,
-        rgba(185, 28, 28, 0.2) 6px,
-        transparent 6px,
-        transparent 12px
-    );
+    --visibloc-badge-bg: rgba(239, 68, 68, 0.18);
+    --visibloc-badge-border: rgba(248, 113, 113, 0.48);
+    --visibloc-badge-foreground: #991b1b;
+    --visibloc-badge-shadow: 0 18px 46px -24px rgba(239, 68, 68, 0.85);
 }
 
 .visibloc-status-badge--schedule {
-    --visibloc-badge-bg: rgba(22, 163, 74, 0.16);
-    --visibloc-badge-border: #15803d;
+    --visibloc-badge-bg: rgba(34, 197, 94, 0.18);
+    --visibloc-badge-border: rgba(74, 222, 128, 0.45);
     --visibloc-badge-foreground: #166534;
-    --visibloc-badge-pattern: repeating-linear-gradient(
-        135deg,
-        rgba(34, 197, 94, 0.18) 0,
-        rgba(34, 197, 94, 0.18) 8px,
-        transparent 8px,
-        transparent 16px
-    );
+    --visibloc-badge-shadow: 0 18px 46px -24px rgba(34, 197, 94, 0.65);
 }
 
 .visibloc-status-badge--schedule-error {
     --visibloc-badge-bg: rgba(239, 68, 68, 0.24);
-    --visibloc-badge-border: #991b1b;
+    --visibloc-badge-border: rgba(248, 113, 113, 0.58);
     --visibloc-badge-foreground: #7f1d1d;
-    --visibloc-badge-pattern: repeating-linear-gradient(
-        45deg,
-        rgba(153, 27, 27, 0.28) 0,
-        rgba(153, 27, 27, 0.28) 5px,
-        transparent 5px,
-        transparent 10px
-    );
+    --visibloc-badge-shadow: 0 18px 46px -24px rgba(239, 68, 68, 0.85);
 }
 
 .visibloc-status-badge--advanced {
-    --visibloc-badge-bg: rgba(147, 51, 234, 0.18);
-    --visibloc-badge-border: #7c3aed;
+    --visibloc-badge-bg: rgba(168, 85, 247, 0.2);
+    --visibloc-badge-border: rgba(196, 181, 253, 0.5);
     --visibloc-badge-foreground: #5b21b6;
-    --visibloc-badge-pattern: repeating-linear-gradient(
-        135deg,
-        rgba(124, 58, 237, 0.18) 0,
-        rgba(124, 58, 237, 0.18) 7px,
-        transparent 7px,
-        transparent 14px
-    );
+    --visibloc-badge-shadow: 0 18px 46px -24px rgba(168, 85, 247, 0.65);
 }
 
 .visibloc-status-badge--fallback {
-    --visibloc-badge-bg: rgba(30, 64, 175, 0.16);
-    --visibloc-badge-border: #1d4ed8;
-    --visibloc-badge-foreground: #1e3a8a;
-    --visibloc-badge-pattern: repeating-linear-gradient(
-        135deg,
-        rgba(37, 99, 235, 0.16) 0,
-        rgba(37, 99, 235, 0.16) 10px,
-        transparent 10px,
-        transparent 20px
-    );
+    --visibloc-badge-bg: rgba(59, 130, 246, 0.2);
+    --visibloc-badge-border: rgba(96, 165, 250, 0.5);
+    --visibloc-badge-foreground: #1d4ed8;
+    --visibloc-badge-shadow: 0 18px 46px -24px rgba(59, 130, 246, 0.7);
 }
 
 @media (prefers-contrast: more) {
     .visibloc-status-badge {
-        border-width: 3px;
-        background-image: none !important;
+        border-width: 2px;
         box-shadow: inset 0 0 0 1px currentColor;
+        background: var(--visibloc-badge-bg) !important;
     }
 }
 
 @media (prefers-color-scheme: dark) {
     .visibloc-status-badge {
-        --visibloc-badge-bg: rgba(148, 163, 184, 0.26);
-        --visibloc-badge-border: #cbd5f5;
-        --visibloc-badge-foreground: #e2e8f0;
+        color: var(--visibloc-badge-foreground);
+        background: linear-gradient(180deg, rgba(30, 41, 59, 0.72), var(--visibloc-badge-bg));
     }
 
-    .visibloc-status-badge--hidden {
-        --visibloc-badge-foreground: #fecaca;
-        --visibloc-badge-border: #f87171;
-    }
-
-    .visibloc-status-badge--schedule {
-        --visibloc-badge-foreground: #bbf7d0;
-        --visibloc-badge-border: #4ade80;
-    }
-
-    .visibloc-status-badge--schedule-error {
-        --visibloc-badge-foreground: #fecaca;
-        --visibloc-badge-border: #f87171;
-    }
-
-    .visibloc-status-badge--advanced {
-        --visibloc-badge-foreground: #ddd6fe;
-        --visibloc-badge-border: #c4b5fd;
-    }
-
-    .visibloc-status-badge--fallback {
-        --visibloc-badge-foreground: #bfdbfe;
-        --visibloc-badge-border: #93c5fd;
+    .visibloc-status-badge__icon {
+        background: rgba(148, 163, 184, 0.16);
     }
 }
 
-/* Style pour l'aperçu des blocs cachés manuellement (œil) */
-.bloc-cache-apercu {
-    border: 2px dashed rgba(220, 20, 60, 0.7); /* Rouge */
+/* Style pour les aperçus des blocs */
+.bloc-cache-apercu,
+.bloc-schedule-apercu,
+.bloc-fallback-apercu,
+.bloc-advanced-apercu {
     position: relative;
-    padding-top: 10px;
-    margin-top: 10px;
-    box-sizing: border-box;
+    margin-top: 18px;
+    padding: 26px 22px 20px;
+    border-radius: var(--visibloc-radius-base);
+    border: 1px solid var(--visibloc-border-subtle);
+    background: var(--visibloc-surface);
+    box-shadow: var(--visibloc-shadow-subtle);
+    overflow: hidden;
+}
+
+.bloc-cache-apercu {
+    border-color: rgba(239, 68, 68, 0.35);
+    box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.18), var(--visibloc-shadow-subtle);
+    background: linear-gradient(180deg, rgba(239, 68, 68, 0.08), rgba(239, 68, 68, 0.02));
+}
+
+.bloc-advanced-apercu {
+    border-color: rgba(168, 85, 247, 0.3);
+    box-shadow: 0 0 0 1px rgba(168, 85, 247, 0.16), var(--visibloc-shadow-subtle);
+    background: linear-gradient(180deg, rgba(168, 85, 247, 0.08), rgba(168, 85, 247, 0.02));
+}
+
+.bloc-schedule-apercu {
+    border-color: rgba(34, 197, 94, 0.32);
+    box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.18), var(--visibloc-shadow-subtle);
+    background: linear-gradient(180deg, rgba(34, 197, 94, 0.08), rgba(34, 197, 94, 0.02));
+}
+
+.bloc-fallback-apercu {
+    border-color: rgba(59, 130, 246, 0.32);
+    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.18), var(--visibloc-shadow-subtle);
+    background: linear-gradient(180deg, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0.02));
 }
 
 .bloc-cache-apercu > .visibloc-status-badge,
-.bloc-advanced-apercu > .visibloc-status-badge {
+.bloc-advanced-apercu > .visibloc-status-badge,
+.bloc-fallback-apercu > .visibloc-status-badge {
     position: absolute;
-    top: -12px;
-    left: 10px;
+    top: 0;
+    left: 22px;
     transform: translateY(-50%);
     z-index: 100;
-}
-
-/* Style pour les règles avancées */
-.bloc-advanced-apercu {
-    border: 2px dashed rgba(107, 33, 168, 0.6);
-    position: relative;
-    padding-top: 10px;
-    margin-top: 10px;
-    box-sizing: border-box;
-}
-
-/* Style pour l'aperçu de la programmation */
-.bloc-schedule-apercu {
-    position: relative;
-    outline: 2px dashed #4CAF50; /* Vert */
-    outline-offset: 2px;
 }
 
 .bloc-schedule-apercu > .visibloc-status-badge {
     position: absolute;
-    top: -12px;
-    right: 10px;
-    transform: translateY(-50%);
-    z-index: 100;
-}
-
-/* Style pour les aperçus de repli */
-.bloc-fallback-apercu {
-    border: 2px dashed rgba(30, 64, 175, 0.6);
-    padding: 16px;
-    margin-top: 16px;
-    position: relative;
-}
-
-.bloc-fallback-apercu > .visibloc-status-badge {
-    position: absolute;
-    top: -12px;
-    left: 10px;
+    top: 0;
+    right: 22px;
     transform: translateY(-50%);
     z-index: 100;
 }
 
 .bloc-fallback-apercu__replacement {
-    margin-top: 16px;
-    padding: 12px;
-    border-radius: 6px;
-    border: 1px solid rgba(30, 64, 175, 0.3);
-    background-color: rgba(30, 64, 175, 0.08);
+    margin-top: 18px;
+    padding: 16px;
+    border-radius: calc(var(--visibloc-radius-base) - 4px);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    background: rgba(59, 130, 246, 0.08);
+    box-shadow: inset 0 1px 0 rgba(59, 130, 246, 0.15);
+}
+
+@media (prefers-color-scheme: dark) {
+    .bloc-cache-apercu,
+    .bloc-schedule-apercu,
+    .bloc-fallback-apercu,
+    .bloc-advanced-apercu {
+        background: var(--visibloc-surface-tinted);
+        box-shadow: var(--visibloc-shadow-elevated);
+    }
+
+    .bloc-fallback-apercu__replacement {
+        background: rgba(59, 130, 246, 0.14);
+        border-color: rgba(59, 130, 246, 0.32);
+    }
 }
 
 @media (max-width: 782px) {
@@ -226,7 +226,7 @@
     .bloc-schedule-apercu,
     .bloc-fallback-apercu,
     .bloc-advanced-apercu {
-        padding-top: 16px;
+        padding: 22px 16px 18px;
     }
 
     .bloc-cache-apercu > .visibloc-status-badge,
@@ -235,11 +235,8 @@
     .bloc-advanced-apercu > .visibloc-status-badge {
         position: static;
         display: inline-flex;
-        align-items: center;
-        margin: 0 0 8px;
-        padding: 4px 12px;
-        border-radius: 999px;
+        margin: 0 0 10px;
         transform: none;
-        box-shadow: none;
+        box-shadow: var(--visibloc-shadow-subtle);
     }
 }
