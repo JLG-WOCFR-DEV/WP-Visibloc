@@ -73,6 +73,57 @@ class VisibilityLogicTest extends TestCase {
         }
     }
 
+    public function test_supported_blocks_cache_is_invalidated_on_option_update(): void {
+        global $visibloc_test_options;
+
+        $visibloc_test_options['visibloc_supported_blocks'] = [ 'vendor/first-block' ];
+
+        $initial_list = visibloc_jlg_get_supported_blocks();
+
+        $this->assertContains(
+            'vendor/first-block',
+            $initial_list,
+            'The initial supported blocks list should include the configured block.'
+        );
+
+        $visibloc_test_options['visibloc_supported_blocks'] = [ 'vendor/second-block' ];
+
+        visibloc_jlg_supported_blocks_runtime_cache( null, true );
+
+        $stale_list = visibloc_jlg_get_supported_blocks();
+
+        $this->assertContains(
+            'vendor/first-block',
+            $stale_list,
+            'Without invalidation the cached list should still reflect the previous option value.'
+        );
+
+        $this->assertNotContains(
+            'vendor/second-block',
+            $stale_list,
+            'The persistent cache must not update automatically before invalidation.'
+        );
+
+        $visibloc_test_options['visibloc_supported_blocks'] = [ 'vendor/second-block' ];
+
+        visibloc_jlg_handle_supported_blocks_option_mutation();
+        visibloc_jlg_supported_blocks_runtime_cache( null, true );
+
+        $fresh_list = visibloc_jlg_get_supported_blocks();
+
+        $this->assertContains(
+            'vendor/second-block',
+            $fresh_list,
+            'After invalidation the cache should expose the newly configured block.'
+        );
+
+        $this->assertNotContains(
+            'vendor/first-block',
+            $fresh_list,
+            'The stale block should no longer appear once the cache has been cleared.'
+        );
+    }
+
     public function test_blocks_without_visibility_rules_do_not_initialize_fallback(): void {
         $filter_calls = 0;
         $hook = 'pre_option_visibloc_fallback_settings';

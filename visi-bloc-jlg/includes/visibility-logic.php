@@ -59,6 +59,17 @@ function visibloc_jlg_invalidate_supported_blocks_cache() {
     if ( function_exists( 'wp_cache_delete' ) ) {
         wp_cache_delete( VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_KEY, VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_GROUP );
     }
+
+    if ( function_exists( 'do_action' ) ) {
+        /**
+         * Fires when the supported blocks cache has been invalidated.
+         *
+         * This allows integrations to rebuild any dependent caches or
+         * re-run expensive calculations that rely on the supported
+         * blocks list.
+         */
+        do_action( 'visibloc_jlg_supported_blocks_cache_invalidated' );
+    }
 }
 
 /**
