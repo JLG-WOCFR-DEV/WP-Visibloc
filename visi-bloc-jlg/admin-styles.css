@@ -7,6 +7,7 @@
     --visibloc-radius-pill: 999px;
     --visibloc-shadow-subtle: 0 1px 2px rgba(15, 23, 42, 0.08);
     --visibloc-shadow-elevated: 0 18px 40px -24px rgba(15, 23, 42, 0.6);
+    --visibloc-font-family: var(--wp-admin-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
     --visibloc-accent: #4f46e5;
     --visibloc-accent-strong: #312e81;
     --visibloc-text-primary: #0f172a;
@@ -22,6 +23,7 @@
         --visibloc-border-strong: rgba(148, 163, 184, 0.35);
         --visibloc-shadow-subtle: 0 1px 2px rgba(15, 23, 42, 0.5);
         --visibloc-shadow-elevated: 0 28px 64px -30px rgba(2, 6, 23, 0.85);
+        --visibloc-font-family: var(--wp-admin-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
         --visibloc-text-primary: #f8fafc;
         --visibloc-text-subtle: rgba(226, 232, 240, 0.75);
         --visibloc-accent: #818cf8;
@@ -37,6 +39,7 @@ body.is-dark-theme {
     --visibloc-border-strong: rgba(148, 163, 184, 0.35);
     --visibloc-shadow-subtle: 0 1px 2px rgba(15, 23, 42, 0.5);
     --visibloc-shadow-elevated: 0 28px 64px -30px rgba(2, 6, 23, 0.85);
+    --visibloc-font-family: var(--wp-admin-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
     --visibloc-text-primary: #f8fafc;
     --visibloc-text-subtle: rgba(226, 232, 240, 0.75);
     --visibloc-accent: #818cf8;
@@ -303,7 +306,7 @@ body.is-dark-theme {
     background-clip: padding-box;
     color: var(--visibloc-badge-foreground);
     font-size: 12px;
-    font-family: var(--wp-admin-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+    font-family: var(--visibloc-font-family, var(--wp-admin-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif));
     font-weight: 600;
     letter-spacing: 0.01em;
     line-height: 1.45;

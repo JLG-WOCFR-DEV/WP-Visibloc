@@ -9,6 +9,7 @@ require_once __DIR__ . '/plugin-meta.php';
 require_once __DIR__ . '/cache-constants.php';
 require_once __DIR__ . '/datetime-utils.php';
 require_once __DIR__ . '/fallback.php';
+require_once __DIR__ . '/presets.php';
 
 if ( ! function_exists( 'visibloc_jlg_path_join' ) ) {
     /**
@@ -348,6 +349,7 @@ function visibloc_jlg_clear_editor_data_cache( $slugs = null ) {
 
 add_action( 'wp_enqueue_scripts', 'visibloc_jlg_enqueue_public_styles' );
 function visibloc_jlg_enqueue_public_styles() {
+    visibloc_jlg_register_visual_preset_styles();
     $can_preview    = visibloc_jlg_can_user_preview();
     $default_mobile = 781;
     $default_tablet = 1024;
@@ -398,6 +400,8 @@ function visibloc_jlg_enqueue_admin_styles( $hook_suffix ) {
     if ( 'toplevel_page_visi-bloc-jlg-help' !== $hook_suffix ) {
         return;
     }
+
+    visibloc_jlg_register_visual_preset_styles();
 
     $style_version    = defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : '1.1';
 
@@ -480,6 +484,7 @@ function visibloc_jlg_enqueue_editor_assets() {
     }
 
     visibloc_jlg_clear_missing_editor_assets_flag();
+    visibloc_jlg_register_visual_preset_styles();
     $asset_file = include( $asset_file_path );
     wp_enqueue_script(
         'visibloc-jlg-editor-script',
@@ -518,6 +523,7 @@ function visibloc_jlg_enqueue_editor_assets() {
             'commonCookies'     => visibloc_jlg_get_editor_common_cookies(),
             'fallbackSettings' => visibloc_jlg_get_editor_fallback_settings(),
             'fallbackBlocks'   => visibloc_jlg_get_editor_fallback_blocks(),
+            'visualPresets'    => visibloc_jlg_get_editor_visual_presets(),
         ]
     );
 }
