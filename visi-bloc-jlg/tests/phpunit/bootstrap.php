@@ -1094,12 +1094,20 @@ function get_edit_post_link( $post_id ) {
 function update_option( $name, $value, $autoload = null ) {
     $GLOBALS['visibloc_test_options'][ $name ] = $value;
 
+    if ( 'visibloc_supported_blocks' === $name && function_exists( 'visibloc_jlg_invalidate_supported_blocks_cache' ) ) {
+        visibloc_jlg_invalidate_supported_blocks_cache();
+    }
+
     return true;
 }
 
 function delete_option( $name ) {
     if ( isset( $GLOBALS['visibloc_test_options'][ $name ] ) ) {
         unset( $GLOBALS['visibloc_test_options'][ $name ] );
+    }
+
+    if ( 'visibloc_supported_blocks' === $name && function_exists( 'visibloc_jlg_invalidate_supported_blocks_cache' ) ) {
+        visibloc_jlg_invalidate_supported_blocks_cache();
     }
 
     return true;

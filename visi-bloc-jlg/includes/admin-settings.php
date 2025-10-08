@@ -334,6 +334,10 @@ function visibloc_jlg_update_supported_blocks( $block_names ) {
 
     update_option( 'visibloc_supported_blocks', $normalized_blocks );
 
+    if ( function_exists( 'visibloc_jlg_invalidate_supported_blocks_cache' ) ) {
+        visibloc_jlg_invalidate_supported_blocks_cache();
+    }
+
     if ( $has_list_changed ) {
         visibloc_jlg_rebuild_group_block_summary_index();
     }
@@ -2419,6 +2423,10 @@ function visibloc_jlg_clear_caches( $unused_post_id = null ) {
 
     if ( function_exists( 'visibloc_jlg_clear_editor_data_cache' ) ) {
         visibloc_jlg_clear_editor_data_cache();
+    }
+
+    if ( function_exists( 'visibloc_jlg_invalidate_supported_blocks_cache' ) ) {
+        visibloc_jlg_invalidate_supported_blocks_cache();
     }
 
     delete_transient( 'visibloc_hidden_posts' );
