@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "wp-env": "wp-env",
     "build": "wp-scripts build",
-    "test:e2e": "wp-scripts test-e2e",
-    "test:e2e:debug": "PWDEBUG=1 wp-scripts test-e2e -- --debug"
+    "test:e2e": "playwright test --config=playwright.config.js",
+    "test:e2e:debug": "PWDEBUG=1 playwright test --config=playwright.config.js --debug"
   },
   "devDependencies": {
     "@wordpress/e2e-test-utils-playwright": "^1.31.0",
