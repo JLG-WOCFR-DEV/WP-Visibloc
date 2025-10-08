@@ -179,21 +179,9 @@ class Plugin {
      * @return bool
      */
     public function normalize_boolean( $value ) {
-        if ( is_bool( $value ) ) {
-            return $value;
-        }
+        require_once $this->plugin_dir . '/includes/utils.php';
 
-        if ( null === $value ) {
-            return false;
-        }
-
-        if ( is_array( $value ) || is_object( $value ) ) {
-            return false;
-        }
-
-        $filtered = filter_var( $value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE );
-
-        return true === $filtered;
+        return visibloc_jlg_normalize_boolean_value( $value );
     }
 
     /**

@@ -153,6 +153,16 @@ Les améliorations ci-dessous approfondissent les axes identifiés précédemmen
 - **Compatibilité PHP/JS** – s’assurer que les nouvelles briques restent compatibles avec la matrice WordPress supportée (PHP 7.4+, WordPress 6.2+). Les packages front devront respecter les contraintes de bundling existantes (`@wordpress/scripts`).
 - **Sécurité & RGPD** – documenter les traitements de données personnelles et proposer des hooks pour anonymiser/agréger les données (ex. stockage des impressions sans IP complète).
 
+### Synthèse opérationnelle
+
+| Périmètre | Actions identifiées | Statut |
+| --- | --- | --- |
+| **Fonctionnalités** | Assistant de scénarisation guidé, centre de notifications, heatmaps de visibilité, intégration géolocalisation, analytics & A/B testing, API REST/webhooks étendus, segmentation CRM native. | À cadrer (priorisation détaillée dans la feuille de route). |
+| **Refactoring technique** | ✅ Centralisation de la constante `VISIBLOC_JLG_VERSION` et normalisation booléenne partagée livrées, prochaines étapes : mécanisme de cache respectant `apply_filters()`, fallback sur échec `plugins_url()`, suppression des dépendances npm obsolètes. | En cours (voir `REVIEW.md` et `docs/code-review.md`). |
+| **Qualité & DX** | Compléter la batterie de tests (helpers PHP, scénarios Playwright), documenter les hooks publics, aligner les presets graphiques (`assets/presets/`) et fournir captures/tokens dans la doc d’onboarding. | En attente d’implémentation. |
+
+> ℹ️ **Suivi** – Ces éléments synthétisent les besoins recensés dans les différentes revues (`REVIEW.md`, `docs/code-review.md`, `docs/presets-graphiques.md`). Maintenez ce tableau à jour à mesure que les chantiers avancent pour disposer d’une vue consolidée.
+
 
 ### Roadmap d'implémentation recommandée
 

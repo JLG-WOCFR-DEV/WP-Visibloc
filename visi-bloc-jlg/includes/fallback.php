@@ -3,6 +3,8 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+require_once __DIR__ . '/utils.php';
+
 /**
  * Normalize fallback settings.
  *
