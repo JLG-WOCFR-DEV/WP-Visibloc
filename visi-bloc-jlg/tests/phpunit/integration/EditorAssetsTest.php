@@ -165,6 +165,35 @@ class EditorAssetsTest extends TestCase {
         $this->assertSame( 1, $visibloc_test_counters['get_terms'] ?? 0 );
     }
 
+    public function test_visual_presets_definitions_are_available(): void {
+        $presets = visibloc_jlg_get_visual_presets_definitions();
+
+        $this->assertCount( 6, $presets );
+
+        foreach ( $presets as $preset ) {
+            $this->assertIsArray( $preset );
+            $this->assertArrayHasKey( 'slug', $preset );
+            $this->assertArrayHasKey( 'name', $preset );
+            $this->assertArrayHasKey( 'handle', $preset );
+            $this->assertArrayHasKey( 'stylesheet_path', $preset );
+            $this->assertNotSame( '', $preset['slug'] );
+            $this->assertNotSame( '', $preset['handle'] );
+            $this->assertStringEndsWith( '.css', $preset['stylesheet_path'] );
+        }
+
+        $editor = visibloc_jlg_get_editor_visual_presets();
+
+        $this->assertCount( 6, $editor );
+        foreach ( $editor as $preset ) {
+            $this->assertArrayHasKey( 'slug', $preset );
+            $this->assertArrayHasKey( 'name', $preset );
+            $this->assertArrayHasKey( 'tokens', $preset );
+            $this->assertArrayHasKey( 'features', $preset );
+            $this->assertIsArray( $preset['tokens'] );
+            $this->assertIsArray( $preset['features'] );
+        }
+    }
+
     public function test_editor_cache_can_be_cleared_explicitly(): void {
         global $visibloc_test_post_types, $visibloc_test_counters;
 

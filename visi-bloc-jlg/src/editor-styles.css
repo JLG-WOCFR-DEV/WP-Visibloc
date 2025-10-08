@@ -8,6 +8,7 @@
     --visibloc-radius-pill: 999px;
     --visibloc-shadow-subtle: 0 1px 2px rgba(15, 23, 42, 0.08);
     --visibloc-shadow-strong: 0 14px 30px -20px rgba(15, 23, 42, 0.55);
+    --visibloc-font-family: var(--wp-admin-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -18,6 +19,7 @@
         --visibloc-border-strong: rgba(148, 163, 184, 0.28);
         --visibloc-shadow-subtle: 0 1px 2px rgba(15, 23, 42, 0.6);
         --visibloc-shadow-strong: 0 18px 38px -18px rgba(15, 23, 42, 0.85);
+        --visibloc-font-family: var(--wp-admin-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
     }
 }
 
@@ -77,7 +79,7 @@
         var(--visibloc-badge-bg)
     );
     background-clip: padding-box;
-    font-family: var(--wp-admin-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+    font-family: var(--visibloc-font-family, var(--wp-admin-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif));
     color: var(--visibloc-badge-foreground);
     box-shadow: 0 1px 0 rgba(15, 23, 42, 0.08), var(--visibloc-badge-shadow);
     max-width: 320px;

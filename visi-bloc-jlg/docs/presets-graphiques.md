@@ -1,6 +1,8 @@
 # Presets graphiques proposés pour Visibloc
 
-Ce document présente plusieurs presets graphiques prêts à l'emploi pour accélérer la conception d'interfaces autour du plugin Visi-Bloc – JLG. Chaque preset reprend les codes visuels et les interactions de bibliothèques populaires comme Headless UI, shadcn/ui, Radix UI, Bootstrap, Semantic UI et Anime.js, tout en indiquant comment décliner ces inspirations dans l'écosystème WordPress/Gutenberg.
+Ce document présente plusieurs presets graphiques prêts à l'emploi pour accélérer la conception d'interfaces autour du plugin Visi-Bloc – JLG. Chaque preset dispose désormais d’un fichier CSS chargeable à la demande dans `assets/presets/`. Les styles sont exposés via des attributs `data-visibloc-preset` et des classes utilitaires (`visibloc-preset--slug`) utilisables sur l’interface Gutenberg et dans l’administration.
+
+Chaque preset reprend les codes visuels et les interactions de bibliothèques populaires comme Headless UI, shadcn/ui, Radix UI, Bootstrap, Semantic UI et Anime.js, tout en indiquant comment décliner ces inspirations dans l'écosystème WordPress/Gutenberg.
 
 ## 1. Preset « Headless Fluent » (inspiré de Headless UI)
 - **Philosophie** : composants sans styles imposés, basés sur l'accessibilité, personnalisables via Tailwind ou tokens internes.

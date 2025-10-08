@@ -1,0 +1,86 @@
+/*!
+ * Radix Structured preset for Visi-Bloc – JLG
+ * Inspired by Radix UI primitives with clear elevations.
+ */
+:root[data-visibloc-preset="radix-structured"],
+body[data-visibloc-preset="radix-structured"],
+.visibloc-preset--radix-structured {
+    --visibloc-font-family: "IBM Plex Sans", "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --visibloc-surface: #f9f8ff;
+    --visibloc-surface-subtle: #f4f1ff;
+    --visibloc-surface-tinted: #edebff;
+    --visibloc-border-subtle: rgba(76, 29, 149, 0.12);
+    --visibloc-border-strong: rgba(76, 29, 149, 0.28);
+    --visibloc-shadow-subtle: 0 18px 46px -38px rgba(58, 27, 126, 0.45);
+    --visibloc-shadow-elevated: 0 42px 120px -64px rgba(58, 27, 126, 0.5);
+    --visibloc-accent: #6d28d9;
+    --visibloc-accent-strong: #4c1d95;
+    --visibloc-focus-ring: 0 0 0 3px rgba(109, 40, 217, 0.35);
+    --visibloc-radius-tight: 4px;
+    --visibloc-radius-base: 10px;
+    --visibloc-radius-loose: 16px;
+    --visibloc-radius-pill: 999px;
+    --visibloc-text-primary: #1e1b4b;
+    --visibloc-text-subtle: rgba(30, 27, 75, 0.68);
+}
+
+:root[data-visibloc-preset="radix-structured"].is-dark-theme,
+body.is-dark-theme[data-visibloc-preset="radix-structured"],
+.visibloc-preset--radix-structured.is-dark-theme {
+    --visibloc-surface: rgba(26, 24, 60, 0.92);
+    --visibloc-surface-subtle: rgba(36, 30, 80, 0.86);
+    --visibloc-border-subtle: rgba(196, 181, 253, 0.22);
+    --visibloc-border-strong: rgba(196, 181, 253, 0.32);
+    --visibloc-shadow-subtle: 0 20px 48px -36px rgba(13, 9, 40, 0.7);
+    --visibloc-shadow-elevated: 0 58px 140px -70px rgba(13, 9, 40, 0.78);
+    --visibloc-accent: #c4b5fd;
+    --visibloc-accent-strong: #a78bfa;
+    --visibloc-focus-ring: 0 0 0 3px rgba(167, 139, 250, 0.35);
+    --visibloc-text-primary: #f3f4ff;
+    --visibloc-text-subtle: rgba(226, 232, 240, 0.74);
+}
+
+[data-visibloc-preset="radix-structured"] .visibloc-guided-recipes__card,
+.visibloc-preset--radix-structured .visibloc-guided-recipes__card {
+    border-radius: var(--visibloc-radius-loose);
+    border: 1px solid var(--visibloc-border-subtle);
+    box-shadow: 0 20px 60px -50px rgba(109, 40, 217, 0.5);
+    transition: border-color 120ms ease, box-shadow 160ms ease;
+}
+
+[data-visibloc-preset="radix-structured"] .visibloc-guided-recipes__card:focus-within,
+.visibloc-preset--radix-structured .visibloc-guided-recipes__card:focus-within {
+    border-color: rgba(109, 40, 217, 0.55);
+    box-shadow: 0 30px 80px -60px rgba(109, 40, 217, 0.45);
+}
+
+[data-visibloc-preset="radix-structured"] .visibloc-status-badge,
+.visibloc-preset--radix-structured .visibloc-status-badge {
+    border-radius: var(--visibloc-radius-loose);
+    font-family: var(--visibloc-font-family);
+    text-transform: none;
+    letter-spacing: 0.01em;
+    box-shadow: 0 14px 40px -32px rgba(109, 40, 217, 0.32);
+}
+
+[data-visibloc-preset="radix-structured"] .components-toggle-group-control,
+.visibloc-preset--radix-structured .components-toggle-group-control {
+    border-radius: var(--visibloc-radius-base);
+    padding: 6px;
+    gap: 4px;
+    background: rgba(109, 40, 217, 0.08);
+}
+
+[data-visibloc-preset="radix-structured"] .components-button.is-primary,
+.visibloc-preset--radix-structured .components-button.is-primary {
+    border-radius: var(--visibloc-radius-pill);
+    padding-inline: 22px;
+    min-height: 42px;
+    font-weight: 600;
+    box-shadow: 0 16px 40px -28px rgba(109, 40, 217, 0.55);
+}
+
+[data-visibloc-preset="radix-structured"] .components-button.is-primary:hover,
+.visibloc-preset--radix-structured .components-button.is-primary:hover {
+    box-shadow: 0 28px 70px -36px rgba(109, 40, 217, 0.55);
+}

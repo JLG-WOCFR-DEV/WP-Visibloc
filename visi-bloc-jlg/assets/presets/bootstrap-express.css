@@ -1,0 +1,77 @@
+/*!
+ * Bootstrap Express preset for Visi-Bloc – JLG
+ * Classic Bootstrap-inspired colors and rounded controls.
+ */
+:root[data-visibloc-preset="bootstrap-express"],
+body[data-visibloc-preset="bootstrap-express"],
+.visibloc-preset--bootstrap-express {
+    --visibloc-font-family: "Helvetica Neue", Arial, sans-serif;
+    --visibloc-surface: #ffffff;
+    --visibloc-surface-subtle: #f8f9fa;
+    --visibloc-surface-tinted: #eef2ff;
+    --visibloc-border-subtle: rgba(13, 110, 253, 0.12);
+    --visibloc-border-strong: rgba(13, 110, 253, 0.28);
+    --visibloc-shadow-subtle: 0 10px 30px -22px rgba(13, 110, 253, 0.4);
+    --visibloc-shadow-elevated: 0 38px 90px -60px rgba(13, 110, 253, 0.35);
+    --visibloc-accent: #0d6efd;
+    --visibloc-accent-strong: #0b5ed7;
+    --visibloc-focus-ring: 0 0 0 4px rgba(13, 110, 253, 0.32);
+    --visibloc-radius-base: 12px;
+    --visibloc-radius-pill: 50rem;
+    --visibloc-text-primary: #052c65;
+    --visibloc-text-subtle: rgba(5, 44, 101, 0.72);
+}
+
+:root[data-visibloc-preset="bootstrap-express"].is-dark-theme,
+body.is-dark-theme[data-visibloc-preset="bootstrap-express"],
+.visibloc-preset--bootstrap-express.is-dark-theme {
+    --visibloc-surface: rgba(18, 25, 42, 0.9);
+    --visibloc-surface-subtle: rgba(22, 31, 51, 0.82);
+    --visibloc-border-subtle: rgba(96, 165, 250, 0.22);
+    --visibloc-border-strong: rgba(96, 165, 250, 0.32);
+    --visibloc-shadow-subtle: 0 14px 36px -28px rgba(2, 6, 23, 0.68);
+    --visibloc-shadow-elevated: 0 52px 130px -70px rgba(2, 6, 23, 0.75);
+    --visibloc-accent: #4ea8ff;
+    --visibloc-accent-strong: #7cc1ff;
+    --visibloc-focus-ring: 0 0 0 4px rgba(78, 168, 255, 0.35);
+    --visibloc-text-primary: #f8f9fa;
+    --visibloc-text-subtle: rgba(226, 232, 240, 0.72);
+}
+
+[data-visibloc-preset="bootstrap-express"] .visibloc-onboarding,
+.visibloc-preset--bootstrap-express .visibloc-onboarding {
+    border: 1px solid rgba(13, 110, 253, 0.18);
+    border-radius: calc(var(--visibloc-radius-base) + 4px);
+    box-shadow: 0 24px 70px -52px rgba(13, 110, 253, 0.45);
+}
+
+[data-visibloc-preset="bootstrap-express"] .components-button.is-primary,
+.visibloc-preset--bootstrap-express .components-button.is-primary {
+    border-radius: var(--visibloc-radius-pill);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding-inline: 22px;
+    min-height: 44px;
+    box-shadow: 0 16px 36px -24px rgba(13, 110, 253, 0.45);
+}
+
+[data-visibloc-preset="bootstrap-express"] .components-button.is-secondary,
+.visibloc-preset--bootstrap-express .components-button.is-secondary {
+    border-radius: var(--visibloc-radius-pill);
+    border-width: 2px;
+}
+
+[data-visibloc-preset="bootstrap-express"] .visibloc-status-badge,
+.visibloc-preset--bootstrap-express .visibloc-status-badge {
+    border-radius: calc(var(--visibloc-radius-base) + 4px);
+    font-family: var(--visibloc-font-family);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(13, 110, 253, 0.14));
+    box-shadow: 0 18px 60px -45px rgba(13, 110, 253, 0.55);
+}
+
+[data-visibloc-preset="bootstrap-express"] .components-panel,
+.visibloc-preset--bootstrap-express .components-panel {
+    border-radius: var(--visibloc-radius-base);
+    overflow: hidden;
+}
