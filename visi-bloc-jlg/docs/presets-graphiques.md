@@ -52,3 +52,16 @@ Chaque preset reprend les codes visuels et les interactions de bibliothèques po
 - **Performance** : livrer les CSS via `assets/build/presets/{preset}.css` chargés à la demande et regrouper les scripts optionnels (Anime.js) sous forme de chunks dynamiques.
 - **Documentation** : ajouter une section par preset dans le guide d'onboarding, avec captures d'écran, exemples de blocs et snippets de configuration.
 
+## Checklist d'implémentation
+
+| Preset | Fichier CSS dédié | Tokens documentés | Captures/Guides | Statut |
+| --- | --- | --- | --- | --- |
+| Headless Fluent | `assets/presets/headless-fluent.css` à générer depuis `scss/presets/_headless-fluent.scss`. | Palette + échelles `spacing`, `radius`. | À produire (screens Gutenberg + admin). | ⏳ À faire |
+| Shadcn Minimal | `assets/presets/shadcn-minimal.css` via build Tailwind restreint. | Typographie `Inter`, mapping `--primary`, `--muted`. | Storyboard du Command Palette + sheet latéral. | ⏳ À faire |
+| Radix Structured | `assets/presets/radix-structured.css` avec animations `toast`. | Tokens `radius`, `elevation`, `motion`. | GIF démontrant slider + collapsible. | ⏳ À faire |
+| Bootstrap Express | `assets/presets/bootstrap-express.css` sélectionnant modules nécessaires. | Table de correspondance Bootstrap ↔ Visibloc. | Captures de la navbar secondaire + alertes. | 🔄 En cours (sélection modules). |
+| Semantic Harmony | `assets/presets/semantic-harmony.css` alimenté par variables CSS. | Documentation `--brand-*` + variations d'état. | Modèles Steps/Cards commentés. | ⏳ À faire |
+| Anime Kinetic | `assets/presets/anime-kinetic.css` + chunk JS `anime-kinetic.js`. | Tokens `gradient`, `motion`, `timing`. | Vidéo courte sur timeline + loaders. | ⏳ À faire |
+
+> 🗂️ **Organisation** – Créer un dossier `docs/presets/` pour héberger les captures et guides au fur et à mesure, puis référencer chaque ressource dans la documentation produit principale.
+

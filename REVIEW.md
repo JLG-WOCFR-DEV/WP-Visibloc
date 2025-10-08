@@ -18,3 +18,13 @@
 ## Pistes complémentaires
 - Couvrir les helpers exposés (normalisation, lecture de cookie, etc.) par des tests unitaires supplémentaires pour détecter rapidement les régressions de type/valeur.
 - Ajouter une documentation développeur décrivant les hooks publics et les points d'extension disponibles.
+
+## Synthèse des suivis
+
+| Domaine | Prochaines étapes | Blocage éventuel |
+| --- | --- | --- |
+| Refactoring | Déplacer la définition de version et les helpers de normalisation vers un module partagé, introduire un cache respectueux des filtres pour `visibloc_jlg_get_supported_blocks()`, revoir la gestion d'URL d'asset. | Décision attendue sur la mise en cache (transient vs. runtime) pour éviter les régressions côté intégrations. |
+| Qualité | Ajouter des tests PHP ciblant les helpers (`normalize_boolean`, `get_preview_role_from_cookie`) et couvrir un scénario Playwright « bloc masqué + utilisateur sans droit ». | Infrastructure de test disponible ; nécessite planification dans le sprint QA. |
+| Fonctionnalités | Prioriser l'assistant guidé, le centre de notifications et l'exposition API avancée en s'alignant sur la feuille de route produit décrite dans `README.md`. | Validation produit requise pour découpage et jalons. |
+
+> 🔁 **Mise à jour** – Ce tableau récapitule les actions ouvertes issues de cette revue. Synchroniser régulièrement avec la roadmap (cf. README) évite la dispersion des suivis.
