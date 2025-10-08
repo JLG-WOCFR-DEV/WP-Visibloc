@@ -11,30 +11,6 @@ require_once __DIR__ . '/fallback.php';
 require_once __DIR__ . '/presets.php';
 require_once __DIR__ . '/plugin-meta.php';
 
-if ( ! function_exists( 'visibloc_jlg_path_join' ) ) {
-    /**
-     * Join path or URL segments without duplicating separators.
-     *
-     * @param string $base Base path.
-     * @param string $path Relative segment.
-     * @return string
-     */
-    function visibloc_jlg_path_join( $base, $path ) {
-        $base = rtrim( (string) $base, '/\\' );
-        $path = ltrim( (string) $path, '/\\' );
-
-        if ( '' === $base ) {
-            return $path;
-        }
-
-        if ( '' === $path ) {
-            return $base;
-        }
-
-        return $base . '/' . $path;
-    }
-}
-
 if ( ! function_exists( 'visibloc_jlg_get_asset_path' ) ) {
     /**
      * Build an absolute path inside the plugin directory.
@@ -43,7 +19,18 @@ if ( ! function_exists( 'visibloc_jlg_get_asset_path' ) ) {
      * @return string
      */
     function visibloc_jlg_get_asset_path( $relative_path ) {
-        return visibloc_jlg_path_join( visibloc_jlg_get_plugin_dir_path(), $relative_path );
+        $base_path     = visibloc_jlg_get_plugin_dir_path();
+        $relative_path = is_string( $relative_path ) ? $relative_path : (string) $relative_path;
+
+        if ( function_exists( 'path_join' ) ) {
+            return path_join( $base_path, $relative_path );
+        }
+
+        if ( '' === $relative_path ) {
+            return $base_path;
+        }
+
+        return rtrim( $base_path, '/\\' ) . '/' . ltrim( $relative_path, '/\\' );
     }
 }
 
@@ -60,6 +47,32 @@ if ( ! function_exists( 'visibloc_jlg_get_asset_url' ) ) {
 
         if ( function_exists( 'plugins_url' ) ) {
             return plugins_url( $relative_path, $plugin_main_file );
+        }
+
+        $base_url = defined( 'VISIBLOC_JLG_PLUGIN_URL' ) ? (string) VISIBLOC_JLG_PLUGIN_URL : '';
+
+        if ( '' !== $base_url ) {
+            if ( function_exists( 'trailingslashit' ) ) {
+                $base_url = trailingslashit( $base_url );
+            } else {
+                $base_url = rtrim( $base_url, '/\\' ) . '/';
+            }
+
+            return $base_url . $relative_path;
+        }
+
+        $fallback = '';
+
+        if ( function_exists( 'apply_filters' ) ) {
+            $fallback = apply_filters( 'visibloc_jlg_asset_url_fallback', $fallback, $relative_path );
+        }
+
+        if ( '' !== $fallback ) {
+            return $fallback;
+        }
+
+        if ( function_exists( 'do_action' ) ) {
+            do_action( 'visibloc_jlg_missing_asset_url', $relative_path );
         }
 
         return '';
@@ -494,7 +507,9 @@ function visibloc_jlg_enqueue_editor_assets() {
     wp_set_script_translations(
         'visibloc-jlg-editor-script',
         'visi-bloc-jlg',
-        visibloc_jlg_path_join( visibloc_jlg_get_plugin_dir_path(), 'languages' )
+        function_exists( 'trailingslashit' )
+            ? trailingslashit( visibloc_jlg_get_asset_path( 'languages' ) )
+            : visibloc_jlg_get_asset_path( 'languages' )
     );
     wp_enqueue_style(
         'visibloc-jlg-editor-style',

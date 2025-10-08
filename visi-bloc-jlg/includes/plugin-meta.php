@@ -99,3 +99,29 @@ if ( ! function_exists( 'visibloc_jlg_get_plugin_version' ) ) {
     }
 }
 
+if ( ! function_exists( 'visibloc_jlg_define_default_supported_blocks' ) ) {
+    /**
+     * Ensure the default supported blocks constant is declared.
+     *
+     * @return array The list of default block slugs.
+     */
+    function visibloc_jlg_define_default_supported_blocks() {
+        if ( ! defined( 'VISIBLOC_JLG_DEFAULT_SUPPORTED_BLOCKS' ) ) {
+            define( 'VISIBLOC_JLG_DEFAULT_SUPPORTED_BLOCKS', [ 'core/group' ] );
+        }
+
+        return (array) VISIBLOC_JLG_DEFAULT_SUPPORTED_BLOCKS;
+    }
+}
+
+if ( ! function_exists( 'visibloc_jlg_get_default_supported_blocks' ) ) {
+    /**
+     * Retrieve the default supported blocks list.
+     *
+     * @return array
+     */
+    function visibloc_jlg_get_default_supported_blocks() {
+        return visibloc_jlg_define_default_supported_blocks();
+    }
+}
+

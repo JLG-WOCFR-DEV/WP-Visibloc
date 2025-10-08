@@ -231,8 +231,8 @@ class Plugin {
      * Ensure the default supported blocks constant is declared.
      */
     protected function define_default_supported_blocks() {
-        if ( ! defined( 'VISIBLOC_JLG_DEFAULT_SUPPORTED_BLOCKS' ) ) {
-            define( 'VISIBLOC_JLG_DEFAULT_SUPPORTED_BLOCKS', [ 'core/group' ] );
-        }
+        require_once $this->plugin_dir . '/includes/plugin-meta.php';
+
+        visibloc_jlg_define_default_supported_blocks();
     }
 }
