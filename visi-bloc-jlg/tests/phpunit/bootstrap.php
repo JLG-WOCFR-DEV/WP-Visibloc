@@ -219,6 +219,10 @@ function visibloc_test_reset_state() {
     if ( function_exists( 'visibloc_jlg_clear_editor_data_cache' ) ) {
         visibloc_jlg_clear_editor_data_cache();
     }
+
+    if ( function_exists( 'visibloc_jlg_flush_asset_versions_cache' ) ) {
+        visibloc_jlg_flush_asset_versions_cache();
+    }
 }
 
 if ( ! function_exists( 'get_post_types' ) ) {

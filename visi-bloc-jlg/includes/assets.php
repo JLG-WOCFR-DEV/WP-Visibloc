@@ -79,6 +79,47 @@ if ( ! function_exists( 'visibloc_jlg_get_asset_url' ) ) {
     }
 }
 
+if ( ! function_exists( 'visibloc_jlg_asset_versions_runtime_cache' ) ) {
+    /**
+     * Runtime cache accessor for computed asset versions.
+     *
+     * @param string|null $key   Cache key.
+     * @param string|null $value Value to store.
+     * @param bool        $reset Whether to flush the cache.
+     * @return string|null
+     */
+    function visibloc_jlg_asset_versions_runtime_cache( $key = null, $value = null, $reset = false ) {
+        static $cache = [];
+
+        if ( $reset ) {
+            $cache = [];
+
+            return null;
+        }
+
+        if ( null === $key ) {
+            return null;
+        }
+
+        if ( null !== $value ) {
+            $cache[ $key ] = $value;
+
+            return $cache[ $key ];
+        }
+
+        return $cache[ $key ] ?? null;
+    }
+}
+
+if ( ! function_exists( 'visibloc_jlg_flush_asset_versions_cache' ) ) {
+    /**
+     * Clear the runtime cache storing computed asset versions.
+     */
+    function visibloc_jlg_flush_asset_versions_cache() {
+        visibloc_jlg_asset_versions_runtime_cache( null, null, true );
+    }
+}
+
 if ( ! function_exists( 'visibloc_jlg_get_asset_version' ) ) {
     /**
      * Retrieve a cache-busting version for an asset.
@@ -88,21 +129,46 @@ if ( ! function_exists( 'visibloc_jlg_get_asset_version' ) ) {
      * @return string
      */
     function visibloc_jlg_get_asset_version( $relative_path, $default_version = null ) {
+        $relative_path = ltrim( (string) $relative_path, '/\\' );
+        $cache_key     = sprintf(
+            '%s|%s',
+            $relative_path,
+            null === $default_version ? '__null__' : (string) $default_version
+        );
+
+        $cached_version = visibloc_jlg_asset_versions_runtime_cache( $cache_key );
+
+        if ( null !== $cached_version ) {
+            return $cached_version;
+        }
+
         $absolute_path = visibloc_jlg_get_asset_path( $relative_path );
 
         if ( file_exists( $absolute_path ) ) {
             $file_version = filemtime( $absolute_path );
 
             if ( false !== $file_version ) {
-                return (string) $file_version;
+                $version = (string) $file_version;
+
+                visibloc_jlg_asset_versions_runtime_cache( $cache_key, $version );
+
+                return $version;
             }
         }
 
         if ( null !== $default_version ) {
-            return (string) $default_version;
+            $version = (string) $default_version;
+
+            visibloc_jlg_asset_versions_runtime_cache( $cache_key, $version );
+
+            return $version;
         }
 
-        return visibloc_jlg_get_plugin_version();
+        $version = visibloc_jlg_get_plugin_version();
+
+        visibloc_jlg_asset_versions_runtime_cache( $cache_key, $version );
+
+        return $version;
     }
 }
 
