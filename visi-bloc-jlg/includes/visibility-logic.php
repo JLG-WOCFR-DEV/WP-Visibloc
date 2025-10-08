@@ -7,8 +7,12 @@ require_once __DIR__ . '/plugin-meta.php';
 
 visibloc_jlg_define_default_supported_blocks();
 
+if ( ! defined( 'VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_LEGACY_KEY' ) ) {
+    define( 'VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_LEGACY_KEY', 'visibloc_supported_blocks' );
+}
+
 if ( ! defined( 'VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_KEY' ) ) {
-    define( 'VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_KEY', 'visibloc_supported_blocks' );
+    define( 'VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_KEY', 'visibloc_supported_blocks_normalized_v1' );
 }
 
 if ( ! defined( 'VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_GROUP' ) ) {
@@ -57,6 +61,27 @@ function visibloc_jlg_invalidate_supported_blocks_cache() {
 
     if ( function_exists( 'wp_cache_delete' ) ) {
         wp_cache_delete( VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_KEY, VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_GROUP );
+
+        if ( defined( 'VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_LEGACY_KEY' ) ) {
+            wp_cache_delete( VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_LEGACY_KEY, VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_GROUP );
+        }
+    }
+}
+
+/**
+ * Clear cached values stored under the legacy cache key when migrating versions.
+ */
+function visibloc_jlg_migrate_supported_blocks_cache_key() {
+    static $migrated = false;
+
+    if ( $migrated ) {
+        return;
+    }
+
+    $migrated = true;
+
+    if ( function_exists( 'wp_cache_delete' ) ) {
+        wp_cache_delete( VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_LEGACY_KEY, VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_GROUP );
     }
 }
 
@@ -78,6 +103,8 @@ function visibloc_jlg_prime_supported_blocks_cache( array $supported_blocks ) {
  * @return array
  */
 function visibloc_jlg_get_configured_supported_blocks_from_cache() {
+    visibloc_jlg_migrate_supported_blocks_cache_key();
+
     if ( function_exists( 'wp_cache_get' ) ) {
         $cached_value = wp_cache_get( VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_KEY, VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_GROUP );
 
