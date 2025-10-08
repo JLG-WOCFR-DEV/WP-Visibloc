@@ -16,6 +16,10 @@ class EditorAssetsTest extends TestCase {
             visibloc_test_reset_state();
         }
 
+        if ( function_exists( 'visibloc_jlg_flush_asset_versions_cache' ) ) {
+            visibloc_jlg_flush_asset_versions_cache();
+        }
+
         $this->assetFile   = dirname( __DIR__, 3 ) . '/build/index.asset.php';
         $this->assetBackup = $this->assetFile . '.bak-test';
 
@@ -41,7 +45,42 @@ class EditorAssetsTest extends TestCase {
             visibloc_test_reset_state();
         }
 
+        if ( function_exists( 'visibloc_jlg_flush_asset_versions_cache' ) ) {
+            visibloc_jlg_flush_asset_versions_cache();
+        }
+
         parent::tearDown();
+    }
+
+    public function test_asset_versions_are_cached_per_request(): void {
+        $relative_path = 'build/index.js';
+        $absolute_path = dirname( __DIR__, 3 ) . '/' . $relative_path;
+
+        $this->assertFileExists( $absolute_path );
+
+        $original_mtime = filemtime( $absolute_path );
+        $this->assertNotFalse( $original_mtime );
+
+        try {
+            $first = visibloc_jlg_get_asset_version( $relative_path );
+            $this->assertNotSame( '', $first );
+
+            $bumped_mtime = $original_mtime + 120;
+            touch( $absolute_path, $bumped_mtime );
+            clearstatcache( true, $absolute_path );
+
+            $second = visibloc_jlg_get_asset_version( $relative_path );
+            $this->assertSame( $first, $second, 'Expected runtime cache to return the initial version.' );
+
+            visibloc_jlg_flush_asset_versions_cache();
+
+            $third = visibloc_jlg_get_asset_version( $relative_path );
+            $this->assertNotSame( $first, $third, 'Expected cache flush to reflect the updated mtime.' );
+        } finally {
+            touch( $absolute_path, $original_mtime );
+            clearstatcache( true, $absolute_path );
+            visibloc_jlg_flush_asset_versions_cache();
+        }
     }
 
     public function test_missing_asset_sets_transient_flag(): void {
