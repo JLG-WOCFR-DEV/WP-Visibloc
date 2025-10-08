@@ -16,6 +16,63 @@ class VisibilityLogicTest extends TestCase {
         }
     }
 
+    public function test_supported_blocks_filters_execute_even_when_cache_is_warm(): void {
+        $first_filter_calls  = 0;
+        $second_filter_calls = 0;
+
+        $first_filter = static function ( $blocks ) use ( &$first_filter_calls ) {
+            $first_filter_calls++;
+            $blocks[] = 'vendor/first-block';
+
+            return array_values( array_unique( $blocks ) );
+        };
+
+        add_filter( 'visibloc_supported_blocks', $first_filter );
+
+        try {
+            $first_result = visibloc_jlg_get_supported_blocks();
+
+            $this->assertSame( 1, $first_filter_calls, 'The first filter should run exactly once.' );
+            $this->assertContains(
+                'vendor/first-block',
+                $first_result,
+                'The first filter should be able to append supported blocks.'
+            );
+        } finally {
+            remove_filter( 'visibloc_supported_blocks', $first_filter );
+        }
+
+        visibloc_jlg_supported_blocks_runtime_cache( null, true );
+
+        $second_filter = static function ( $blocks ) use ( &$second_filter_calls ) {
+            $second_filter_calls++;
+            $blocks = array_diff( (array) $blocks, [ 'vendor/first-block' ] );
+            $blocks[] = 'vendor/second-block';
+
+            return array_values( array_unique( $blocks ) );
+        };
+
+        add_filter( 'visibloc_supported_blocks', $second_filter );
+
+        try {
+            $second_result = visibloc_jlg_get_supported_blocks();
+
+            $this->assertSame( 1, $second_filter_calls, 'The second filter should run even after caches are warmed.' );
+            $this->assertContains(
+                'vendor/second-block',
+                $second_result,
+                'The second filter should control the supported blocks list after cache priming.'
+            );
+            $this->assertNotContains(
+                'vendor/first-block',
+                $second_result,
+                'The cached value must not bypass subsequent filter updates.'
+            );
+        } finally {
+            remove_filter( 'visibloc_supported_blocks', $second_filter );
+        }
+    }
+
     public function test_blocks_without_visibility_rules_do_not_initialize_fallback(): void {
         $filter_calls = 0;
         $hook = 'pre_option_visibloc_fallback_settings';

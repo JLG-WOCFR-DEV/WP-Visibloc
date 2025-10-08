@@ -46,17 +46,6 @@ function visibloc_jlg_supported_blocks_runtime_cache( $new_value = null, $reset 
         return $cache['value'];
     }
 
-    if ( function_exists( 'wp_cache_get' ) ) {
-        $cached_value = wp_cache_get( VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_KEY, VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_GROUP );
-
-        if ( false !== $cached_value && is_array( $cached_value ) ) {
-            $cache['initialized'] = true;
-            $cache['value']       = $cached_value;
-
-            return $cached_value;
-        }
-    }
-
     return null;
 }
 
@@ -78,14 +67,37 @@ function visibloc_jlg_invalidate_supported_blocks_cache() {
  */
 function visibloc_jlg_prime_supported_blocks_cache( array $supported_blocks ) {
     visibloc_jlg_supported_blocks_runtime_cache( $supported_blocks );
+}
+
+/**
+ * Retrieve the normalized supported blocks configured via the option.
+ *
+ * Results are cached persistently to avoid repeated option lookups while still
+ * allowing dynamic filters to run on every request.
+ *
+ * @return array
+ */
+function visibloc_jlg_get_configured_supported_blocks_from_cache() {
+    if ( function_exists( 'wp_cache_get' ) ) {
+        $cached_value = wp_cache_get( VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_KEY, VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_GROUP );
+
+        if ( is_array( $cached_value ) ) {
+            return $cached_value;
+        }
+    }
+
+    $option_value      = get_option( 'visibloc_supported_blocks', [] );
+    $configured_blocks = visibloc_jlg_normalize_block_names( $option_value );
 
     if ( function_exists( 'wp_cache_set' ) ) {
         wp_cache_set(
             VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_KEY,
-            $supported_blocks,
+            $configured_blocks,
             VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_GROUP
         );
     }
+
+    return $configured_blocks;
 }
 
 /**
@@ -132,9 +144,8 @@ function visibloc_jlg_get_supported_blocks() {
         return $cached_blocks;
     }
 
-    $default_blocks   = (array) VISIBLOC_JLG_DEFAULT_SUPPORTED_BLOCKS;
-    $option_value     = get_option( 'visibloc_supported_blocks', [] );
-    $configured_blocks = visibloc_jlg_normalize_block_names( $option_value );
+    $default_blocks    = (array) VISIBLOC_JLG_DEFAULT_SUPPORTED_BLOCKS;
+    $configured_blocks = visibloc_jlg_get_configured_supported_blocks_from_cache();
     $merged_blocks     = array_merge( $default_blocks, $configured_blocks );
     $filtered_blocks   = apply_filters( 'visibloc_supported_blocks', $merged_blocks );
 
