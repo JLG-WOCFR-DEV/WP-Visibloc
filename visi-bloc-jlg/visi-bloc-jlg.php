@@ -43,6 +43,7 @@ if ( ! defined( 'VISIBLOC_JLG_PLUGIN_URL' ) ) {
 }
 
 require_once __DIR__ . '/includes/plugin-meta.php';
+require_once __DIR__ . '/includes/utils.php';
 
 visibloc_jlg_get_plugin_version();
 
@@ -67,9 +68,12 @@ if ( ! function_exists( 'visibloc_jlg_get_sanitized_query_arg' ) ) {
     }
 }
 
+// The global helper is defined inside includes/utils.php. Keep the function
+// available even if third-parties load this file directly before the utils
+// helpers.
 if ( ! function_exists( 'visibloc_jlg_normalize_boolean' ) ) {
     function visibloc_jlg_normalize_boolean( $value ) {
-        return visibloc_jlg()->normalize_boolean( $value );
+        return visibloc_jlg_normalize_boolean_value( $value );
     }
 }
 

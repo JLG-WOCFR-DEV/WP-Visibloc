@@ -6,6 +6,7 @@
 
 ## Améliorations proposées
 1. **Définition de version dupliquée** – Le numéro de version est calculé deux fois : dans le fichier principal du plugin et dans `includes/assets.php`. Cette duplication risque de diverger si l'un des chemins évolue (ex. gestion d'erreur différente, ajout de mise en cache). Centraliser la logique (par exemple via une fonction utilitaire unique) réduirait le risque et simplifierait les tests. 【F:visi-bloc-jlg/visi-bloc-jlg.php†L45-L62】【F:visi-bloc-jlg/includes/assets.php†L124-L137】
+   > ✅ **Mise à jour** – La constante `VISIBLOC_JLG_VERSION` est désormais exposée depuis `includes/plugin-meta.php` et partagée dans l'ensemble du code.
 2. **Retour de type incohérent pour le cookie d'aperçu** – `visibloc_jlg_get_preview_role_from_cookie()` renvoie `null` si le cookie est absent mais une chaîne vide si le contenu n'est pas une chaîne. Harmoniser le retour (par exemple toujours `null` dans les cas non valides) éviterait des comparaisons fragiles et faciliterait l'utilisation de types stricts. 【F:visi-bloc-jlg/includes/role-switcher.php†L10-L23】
 3. **URL d'asset en mode dégradé** – Lorsque `plugins_url()` est indisponible, `visibloc_jlg_get_asset_url()` renvoie une chaîne vide. Il serait pertinent d'exposer un mécanisme de secours (filtre, hook d'erreur, fallback configurable) pour ne pas perdre silencieusement les assets critiques. 【F:visi-bloc-jlg/includes/assets.php†L49-L69】
 4. **Constante métier déclarée à plusieurs endroits** – `VISIBLOC_JLG_DEFAULT_SUPPORTED_BLOCKS` est définie dans `Plugin::define_default_supported_blocks()` et redéclarée dans `includes/block-utils.php`. Lors d'une évolution, il faudra penser à modifier deux emplacements. Centraliser la définition (par exemple uniquement dans `plugin-meta.php` ou un fichier de constantes) limite les risques d'incohérence et simplifie les tests unitaires. 【F:visi-bloc-jlg/src/Plugin.php†L129-L141】【F:visi-bloc-jlg/includes/block-utils.php†L7-L9】
@@ -17,14 +18,15 @@
 
 ## Pistes complémentaires
 - Couvrir les helpers exposés (normalisation, lecture de cookie, etc.) par des tests unitaires supplémentaires pour détecter rapidement les régressions de type/valeur.
+  > ✅ **Mise à jour** – Un test d'intégration `BooleanNormalizationTest` sécurise la logique partagée de normalisation booléenne.
 - Ajouter une documentation développeur décrivant les hooks publics et les points d'extension disponibles.
 
 ## Synthèse des suivis
 
 | Domaine | Prochaines étapes | Blocage éventuel |
 | --- | --- | --- |
-| Refactoring | Déplacer la définition de version et les helpers de normalisation vers un module partagé, introduire un cache respectueux des filtres pour `visibloc_jlg_get_supported_blocks()`, revoir la gestion d'URL d'asset. | Décision attendue sur la mise en cache (transient vs. runtime) pour éviter les régressions côté intégrations. |
-| Qualité | Ajouter des tests PHP ciblant les helpers (`normalize_boolean`, `get_preview_role_from_cookie`) et couvrir un scénario Playwright « bloc masqué + utilisateur sans droit ». | Infrastructure de test disponible ; nécessite planification dans le sprint QA. |
+| Refactoring | ✅ Définition de version et normalisation booléenne désormais centralisées ; prochaines étapes : cache respectueux des filtres pour `visibloc_jlg_get_supported_blocks()` et gestion d'URL d'asset. | Décision attendue sur la mise en cache (transient vs. runtime) pour éviter les régressions côté intégrations. |
+| Qualité | Tests PHP sur la normalisation booléenne ajoutés ; reste à couvrir `get_preview_role_from_cookie` et un scénario Playwright « bloc masqué + utilisateur sans droit ». | Infrastructure de test disponible ; nécessite planification dans le sprint QA. |
 | Fonctionnalités | Prioriser l'assistant guidé, le centre de notifications et l'exposition API avancée en s'alignant sur la feuille de route produit décrite dans `README.md`. | Validation produit requise pour découpage et jalons. |
 
 > 🔁 **Mise à jour** – Ce tableau récapitule les actions ouvertes issues de cette revue. Synchroniser régulièrement avec la roadmap (cf. README) évite la dispersion des suivis.
