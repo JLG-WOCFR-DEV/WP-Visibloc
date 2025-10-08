@@ -3,6 +3,9 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 require_once __DIR__ . '/datetime-utils.php';
 require_once __DIR__ . '/fallback.php';
+require_once __DIR__ . '/plugin-meta.php';
+
+visibloc_jlg_define_default_supported_blocks();
 
 final class Visibloc_Jlg_Visibility_Decision {
     public $is_visible;

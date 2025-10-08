@@ -3,9 +3,9 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-if ( ! defined( 'VISIBLOC_JLG_DEFAULT_SUPPORTED_BLOCKS' ) ) {
-    define( 'VISIBLOC_JLG_DEFAULT_SUPPORTED_BLOCKS', [ 'core/group' ] );
-}
+require_once __DIR__ . '/plugin-meta.php';
+
+visibloc_jlg_define_default_supported_blocks();
 
 if ( ! function_exists( 'visibloc_jlg_normalize_block_names' ) ) {
     /**

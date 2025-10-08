@@ -7,6 +7,8 @@ require_once __DIR__ . '/block-utils.php';
 require_once __DIR__ . '/fallback.php';
 require_once __DIR__ . '/plugin-meta.php';
 
+visibloc_jlg_define_default_supported_blocks();
+
 /**
  * Build the onboarding checklist items displayed on the help page.
  *
