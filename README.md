@@ -357,3 +357,22 @@ add_filter(
 ```
 
 Complementary filters `visibloc_jlg_visit_count_cookie_name` et `visibloc_jlg_visit_count_cookie_lifetime` permettent de personnaliser le cookie (`visibloc_visit_count` par défaut) et sa durée de vie.
+
+## Actions
+
+### `visibloc_jlg_supported_blocks_cache_invalidated`
+
+Triggered whenever the supported blocks cache is cleared. Use this hook to rebuild any dependent caches or to synchronise
+external services that rely on the list of supported blocks:
+
+```php
+add_action(
+    'visibloc_jlg_supported_blocks_cache_invalidated',
+    static function () {
+        // Recompute derived data or flush related caches here.
+    }
+);
+```
+
+The action fires after both the runtime and persistent caches have been flushed, ensuring that subsequent calls to
+`visibloc_jlg_get_supported_blocks()` recompute the list using the latest option value and filters.

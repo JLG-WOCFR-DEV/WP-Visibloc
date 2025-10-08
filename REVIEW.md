@@ -25,7 +25,7 @@
 
 | Domaine | Prochaines étapes | Blocage éventuel |
 | --- | --- | --- |
-| Refactoring | ✅ Définition de version et normalisation booléenne désormais centralisées ; prochaines étapes : cache respectueux des filtres pour `visibloc_jlg_get_supported_blocks()` et gestion d'URL d'asset. | Décision attendue sur la mise en cache (transient vs. runtime) pour éviter les régressions côté intégrations. |
+| Refactoring | ✅ Définition de version et normalisation booléenne désormais centralisées ; hook d'invalidation `visibloc_jlg_supported_blocks_cache_invalidated` + test d'intégration ajoutés. Prochaines étapes : documenter la stratégie côté intégrateurs et finaliser la gestion d'URL d'asset. | Décision attendue sur la mise en cache (transient vs. runtime) pour éviter les régressions côté intégrations. |
 | Qualité | Tests PHP sur la normalisation booléenne ajoutés ; reste à couvrir `get_preview_role_from_cookie` et un scénario Playwright « bloc masqué + utilisateur sans droit ». | Infrastructure de test disponible ; nécessite planification dans le sprint QA. |
 | Fonctionnalités | Prioriser l'assistant guidé, le centre de notifications et l'exposition API avancée en s'alignant sur la feuille de route produit décrite dans `README.md`. | Validation produit requise pour découpage et jalons. |
 

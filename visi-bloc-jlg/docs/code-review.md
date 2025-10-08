@@ -14,6 +14,7 @@
 
 ## Régression détectée
 1. **Le cache persistant court-circuite les filtres personnalisés.** `visibloc_jlg_get_supported_blocks()` ne passe dans `apply_filters()` que lorsque le cache est vide. Dès qu'un résultat est stocké via `visibloc_jlg_prime_supported_blocks_cache()`, les appels suivants chargent directement la valeur sérialisée depuis `wp_cache_get()` et retournent avant que le moindre filtre n'exécute sa logique. Cela gèle définitivement la liste pour tous les visiteurs, même si un plugin/ thème active ou modifie un filtre après coup (installation, mise à jour, `remove_filter`, dépendance à un autre réglage, etc.). Les intégrations existantes cessent donc de fonctionner jusqu'à ce qu'un administrateur modifie manuellement l'option pour invalider le cache. Il faut soit abandonner la mise en cache persistante, soit stocker une version brute et continuer d'appliquer les filtres à chaque requête. 【F:visi-bloc-jlg/includes/visibility-logic.php†L18-L78】【F:visi-bloc-jlg/includes/visibility-logic.php†L98-L132】
+   > ✅ **Mise à jour** – L'invalidation du cache déclenche désormais un hook `visibloc_jlg_supported_blocks_cache_invalidated` et un test d'intégration vérifie que la liste se régénère bien après mutation de l'option. 【F:visi-bloc-jlg/includes/visibility-logic.php†L53-L76】【F:visi-bloc-jlg/tests/phpunit/integration/VisibilityLogicTest.php†L57-L107】
 
 ## Plan d'action priorisé
 
