@@ -11,6 +11,9 @@ class VisibilityLogicTest extends TestCase {
         if ( isset( $GLOBALS['visibloc_test_options']['visibloc_supported_blocks'] ) ) {
             unset( $GLOBALS['visibloc_test_options']['visibloc_supported_blocks'] );
         }
+        if ( function_exists( 'visibloc_jlg_invalidate_supported_blocks_cache' ) ) {
+            visibloc_jlg_invalidate_supported_blocks_cache();
+        }
     }
 
     public function test_blocks_without_visibility_rules_do_not_initialize_fallback(): void {
@@ -920,6 +923,44 @@ class VisibilityLogicTest extends TestCase {
         $this->assertContains( 'core/columns', $supported );
         $this->assertContains( 'custom/accordion', $supported );
         $this->assertNotContains( 'invalid-block', $supported );
+    }
+
+    public function test_supported_blocks_cache_resets_after_option_update(): void {
+        update_option( 'visibloc_supported_blocks', [ 'core/columns' ] );
+        $initial = visibloc_jlg_get_supported_blocks();
+
+        $this->assertContains( 'core/columns', $initial );
+
+        update_option( 'visibloc_supported_blocks', [ 'core/quote' ] );
+        $updated = visibloc_jlg_get_supported_blocks();
+
+        $this->assertContains( 'core/quote', $updated );
+        $this->assertNotContains( 'core/columns', $updated );
+    }
+
+    public function test_supported_blocks_cache_can_be_cleared_manually(): void {
+        add_filter( 'visibloc_supported_blocks', static function () {
+            return [ 'core/group', 'custom/first' ];
+        } );
+
+        try {
+            $first = visibloc_jlg_get_supported_blocks();
+            $this->assertContains( 'custom/first', $first );
+
+            visibloc_jlg_invalidate_supported_blocks_cache();
+            remove_all_filters( 'visibloc_supported_blocks' );
+
+            add_filter( 'visibloc_supported_blocks', static function () {
+                return [ 'core/group', 'custom/second' ];
+            } );
+
+            $second = visibloc_jlg_get_supported_blocks();
+
+            $this->assertContains( 'custom/second', $second );
+            $this->assertNotContains( 'custom/first', $second );
+        } finally {
+            remove_all_filters( 'visibloc_supported_blocks' );
+        }
     }
 
     public function visibloc_falsey_attribute_provider(): array {

@@ -7,6 +7,102 @@ require_once __DIR__ . '/plugin-meta.php';
 
 visibloc_jlg_define_default_supported_blocks();
 
+if ( ! defined( 'VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_KEY' ) ) {
+    define( 'VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_KEY', 'visibloc_supported_blocks' );
+}
+
+if ( ! defined( 'VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_GROUP' ) ) {
+    define( 'VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_GROUP', 'visibloc_jlg' );
+}
+
+/**
+ * Internal runtime cache accessor for supported block lists.
+ *
+ * @param array|null $new_value Optional value to prime the cache.
+ * @param bool       $reset     Whether to flush the runtime cache.
+ * @return array|null
+ */
+function visibloc_jlg_supported_blocks_runtime_cache( $new_value = null, $reset = false ) {
+    static $cache = [
+        'initialized' => false,
+        'value'       => [],
+    ];
+
+    if ( $reset ) {
+        $cache['initialized'] = false;
+        $cache['value']       = [];
+
+        return null;
+    }
+
+    if ( null !== $new_value ) {
+        $cache['initialized'] = true;
+        $cache['value']       = $new_value;
+
+        return $cache['value'];
+    }
+
+    if ( $cache['initialized'] ) {
+        return $cache['value'];
+    }
+
+    if ( function_exists( 'wp_cache_get' ) ) {
+        $cached_value = wp_cache_get( VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_KEY, VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_GROUP );
+
+        if ( false !== $cached_value && is_array( $cached_value ) ) {
+            $cache['initialized'] = true;
+            $cache['value']       = $cached_value;
+
+            return $cached_value;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Flush the supported blocks caches (runtime + object cache).
+ */
+function visibloc_jlg_invalidate_supported_blocks_cache() {
+    visibloc_jlg_supported_blocks_runtime_cache( null, true );
+
+    if ( function_exists( 'wp_cache_delete' ) ) {
+        wp_cache_delete( VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_KEY, VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_GROUP );
+    }
+}
+
+/**
+ * Persist the supported blocks list inside caches for the current request.
+ *
+ * @param array $supported_blocks Normalized list of supported blocks.
+ */
+function visibloc_jlg_prime_supported_blocks_cache( array $supported_blocks ) {
+    visibloc_jlg_supported_blocks_runtime_cache( $supported_blocks );
+
+    if ( function_exists( 'wp_cache_set' ) ) {
+        wp_cache_set(
+            VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_KEY,
+            $supported_blocks,
+            VISIBLOC_JLG_SUPPORTED_BLOCKS_CACHE_GROUP
+        );
+    }
+}
+
+/**
+ * Reset caches when the supported blocks option changes.
+ *
+ * @internal Hooked to option lifecycle events.
+ */
+function visibloc_jlg_handle_supported_blocks_option_mutation( ...$unused ) {
+    visibloc_jlg_invalidate_supported_blocks_cache();
+}
+
+if ( function_exists( 'add_action' ) ) {
+    add_action( 'update_option_visibloc_supported_blocks', 'visibloc_jlg_handle_supported_blocks_option_mutation', 10, 3 );
+    add_action( 'add_option_visibloc_supported_blocks', 'visibloc_jlg_handle_supported_blocks_option_mutation', 10, 2 );
+    add_action( 'delete_option_visibloc_supported_blocks', 'visibloc_jlg_handle_supported_blocks_option_mutation', 10, 1 );
+}
+
 final class Visibloc_Jlg_Visibility_Decision {
     public $is_visible;
 
@@ -30,6 +126,12 @@ final class Visibloc_Jlg_Visibility_Decision {
 }
 
 function visibloc_jlg_get_supported_blocks() {
+    $cached_blocks = visibloc_jlg_supported_blocks_runtime_cache();
+
+    if ( null !== $cached_blocks ) {
+        return $cached_blocks;
+    }
+
     $default_blocks   = (array) VISIBLOC_JLG_DEFAULT_SUPPORTED_BLOCKS;
     $option_value     = get_option( 'visibloc_supported_blocks', [] );
     $configured_blocks = visibloc_jlg_normalize_block_names( $option_value );
@@ -50,7 +152,11 @@ function visibloc_jlg_get_supported_blocks() {
         return $default_blocks;
     }
 
-    return array_keys( $sanitized );
+    $supported_blocks = array_keys( $sanitized );
+
+    visibloc_jlg_prime_supported_blocks_cache( $supported_blocks );
+
+    return $supported_blocks;
 }
 
 function visibloc_jlg_is_supported_block( $block_name ) {
