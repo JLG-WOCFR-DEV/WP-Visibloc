@@ -44,7 +44,7 @@ if ( ! defined( 'VISIBLOC_JLG_PLUGIN_URL' ) ) {
 
 require_once __DIR__ . '/includes/plugin-meta.php';
 
-visibloc_jlg_define_version_constant();
+visibloc_jlg_get_plugin_version();
 
 require_once __DIR__ . '/autoload.php';
 require_once __DIR__ . '/includes/i18n-inline.php';

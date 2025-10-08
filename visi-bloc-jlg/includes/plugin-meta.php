@@ -84,3 +84,18 @@ if ( ! function_exists( 'visibloc_jlg_define_version_constant' ) ) {
     }
 }
 
+if ( ! function_exists( 'visibloc_jlg_get_plugin_version' ) ) {
+    /**
+     * Retrieve the plugin version ensuring the constant is initialized.
+     *
+     * @return string
+     */
+    function visibloc_jlg_get_plugin_version() {
+        if ( defined( 'VISIBLOC_JLG_VERSION' ) ) {
+            return VISIBLOC_JLG_VERSION;
+        }
+
+        return visibloc_jlg_define_version_constant();
+    }
+}
+
