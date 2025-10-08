@@ -5,11 +5,11 @@ if ( ! defined( 'VISIBLOC_JLG_MISSING_EDITOR_ASSETS_TRANSIENT' ) ) {
     define( 'VISIBLOC_JLG_MISSING_EDITOR_ASSETS_TRANSIENT', 'visibloc_jlg_missing_editor_assets' );
 }
 
-require_once __DIR__ . '/plugin-meta.php';
 require_once __DIR__ . '/cache-constants.php';
 require_once __DIR__ . '/datetime-utils.php';
 require_once __DIR__ . '/fallback.php';
 require_once __DIR__ . '/presets.php';
+require_once __DIR__ . '/plugin-meta.php';
 
 if ( ! function_exists( 'visibloc_jlg_path_join' ) ) {
     /**
@@ -89,11 +89,9 @@ if ( ! function_exists( 'visibloc_jlg_get_asset_version' ) ) {
             return (string) $default_version;
         }
 
-        return defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : '0.0.0';
+        return visibloc_jlg_get_plugin_version();
     }
 }
-
-visibloc_jlg_define_version_constant();
 
 if ( ! defined( 'VISIBLOC_JLG_EDITOR_DATA_CACHE_GROUP' ) ) {
     define( 'VISIBLOC_JLG_EDITOR_DATA_CACHE_GROUP', 'visibloc_jlg_editor_data' );
@@ -160,7 +158,7 @@ function visibloc_jlg_get_editor_data_cache_prefix() {
         return $prefix;
     }
 
-    $version = defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : '0.0.0';
+    $version = visibloc_jlg_get_plugin_version();
     $locale  = visibloc_jlg_get_editor_data_locale();
 
     $prefix = sprintf( '%s:%s', $version, $locale );
@@ -360,7 +358,7 @@ function visibloc_jlg_enqueue_public_styles() {
     $has_custom_breakpoints = ( $mobile_bp !== $default_mobile ) || ( $tablet_bp !== $default_tablet );
     $default_handle         = 'visibloc-jlg-device-visibility';
     $dynamic_handle         = 'visibloc-jlg-device-visibility-dynamic';
-    $style_version          = defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : '1.1';
+    $style_version          = visibloc_jlg_get_plugin_version();
 
     if ( $has_custom_breakpoints ) {
         wp_dequeue_style( $default_handle );
@@ -403,7 +401,7 @@ function visibloc_jlg_enqueue_admin_styles( $hook_suffix ) {
 
     visibloc_jlg_register_visual_preset_styles();
 
-    $style_version    = defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : '1.1';
+    $style_version    = visibloc_jlg_get_plugin_version();
 
     wp_enqueue_style(
         'visibloc-jlg-admin-responsive',
@@ -420,7 +418,7 @@ function visibloc_jlg_enqueue_admin_supported_blocks_script( $hook_suffix ) {
     }
 
     $script_relative_path  = 'assets/admin-supported-blocks.js';
-    $default_script_version = defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : '1.1';
+    $default_script_version = visibloc_jlg_get_plugin_version();
     $script_version        = visibloc_jlg_get_asset_version( $script_relative_path, $default_script_version );
 
     wp_enqueue_script(
@@ -439,7 +437,7 @@ function visibloc_jlg_enqueue_admin_navigation_script( $hook_suffix ) {
     }
 
     $script_relative_path   = 'assets/admin-nav.js';
-    $default_script_version = defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : '1.1';
+    $default_script_version = visibloc_jlg_get_plugin_version();
     $script_version         = visibloc_jlg_get_asset_version( $script_relative_path, $default_script_version );
 
     wp_enqueue_script(
@@ -458,7 +456,7 @@ function visibloc_jlg_enqueue_admin_recipes_script( $hook_suffix ) {
     }
 
     $script_relative_path   = 'assets/admin-recipes.js';
-    $default_script_version = defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : '1.1';
+    $default_script_version = visibloc_jlg_get_plugin_version();
     $script_version         = visibloc_jlg_get_asset_version( $script_relative_path, $default_script_version );
 
     wp_enqueue_script(
@@ -1480,7 +1478,7 @@ function visibloc_jlg_generate_device_visibility_css( $can_preview, $mobile_bp =
 
     $cache_group = VISIBLOC_JLG_DEVICE_CSS_CACHE_GROUP;
     $cache_key   = VISIBLOC_JLG_DEVICE_CSS_CACHE_KEY;
-    $version     = defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : '0.0.0';
+    $version     = visibloc_jlg_get_plugin_version();
     $bucket_key  = sprintf(
         '%s:%d:%d:%d',
         $version,

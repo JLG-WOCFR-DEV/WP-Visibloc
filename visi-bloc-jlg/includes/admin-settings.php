@@ -5,6 +5,7 @@ require_once __DIR__ . '/cache-constants.php';
 
 require_once __DIR__ . '/block-utils.php';
 require_once __DIR__ . '/fallback.php';
+require_once __DIR__ . '/plugin-meta.php';
 
 /**
  * Build the onboarding checklist items displayed on the help page.
@@ -640,7 +641,7 @@ function visibloc_jlg_get_settings_snapshot() {
         'debug_mode'       => ( 'on' === $debug_mode ) ? 'on' : 'off',
         'fallback'         => visibloc_jlg_get_fallback_settings(),
         'exported_at'      => gmdate( 'c' ),
-        'version'          => defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : 'unknown',
+        'version'          => visibloc_jlg_get_plugin_version(),
     ];
 }
 
@@ -2454,7 +2455,7 @@ function visibloc_jlg_clear_caches( $unused_post_id = null ) {
 
         $mobile_bp = $mobile_bp > 0 ? $mobile_bp : $default_mobile_bp;
         $tablet_bp = $tablet_bp > 0 ? $tablet_bp : $default_tablet_bp;
-        $version   = defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : '0.0.0';
+        $version   = visibloc_jlg_get_plugin_version();
 
         $bucket_keys_to_clear = [
             sprintf( '%s:%d:%d:%d', $version, 0, (int) $mobile_bp, (int) $tablet_bp ),

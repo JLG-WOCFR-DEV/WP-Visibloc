@@ -6,6 +6,18 @@ if ( ! isset( $visibloc_jlg_real_user_id ) ) {
     $visibloc_jlg_real_user_id = null;
 }
 
+if ( ! function_exists( 'visibloc_jlg_get_plugin_version' ) ) {
+    $plugin_meta_path = __DIR__ . '/plugin-meta.php';
+
+    if ( ! file_exists( $plugin_meta_path ) ) {
+        $plugin_meta_path = dirname( __DIR__, 2 ) . '/includes/plugin-meta.php';
+    }
+
+    if ( file_exists( $plugin_meta_path ) ) {
+        require_once $plugin_meta_path;
+    }
+}
+
 if ( ! function_exists( 'visibloc_jlg_get_preview_role_from_cookie' ) ) {
     function visibloc_jlg_get_preview_role_from_cookie() {
         $cookie_name = 'visibloc_preview_role';
@@ -20,7 +32,13 @@ if ( ! function_exists( 'visibloc_jlg_get_preview_role_from_cookie' ) ) {
             return null;
         }
 
-        return sanitize_key( wp_unslash( $cookie_value ) );
+        $sanitized_value = sanitize_key( wp_unslash( $cookie_value ) );
+
+        if ( '' === $sanitized_value ) {
+            return null;
+        }
+
+        return $sanitized_value;
     }
 }
 
@@ -1048,7 +1066,7 @@ function visibloc_jlg_enqueue_role_switcher_frontend_assets() {
     }
 
     $plugin_main_file = __DIR__ . '/../visi-bloc-jlg.php';
-    $version          = defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : '1.0.0';
+    $version          = visibloc_jlg_get_plugin_version();
 
     wp_enqueue_style(
         'visibloc-jlg-role-switcher',

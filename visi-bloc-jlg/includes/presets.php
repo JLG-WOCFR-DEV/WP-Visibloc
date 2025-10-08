@@ -1,6 +1,8 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+require_once __DIR__ . '/plugin-meta.php';
+
 if ( ! function_exists( 'visibloc_jlg_get_visual_presets_definitions' ) ) {
     /**
      * Return the curated list of visual presets available for the UI.
@@ -14,7 +16,7 @@ if ( ! function_exists( 'visibloc_jlg_get_visual_presets_definitions' ) ) {
             return $presets;
         }
 
-        $default_version = defined( 'VISIBLOC_JLG_VERSION' ) ? VISIBLOC_JLG_VERSION : '1.1';
+        $default_version = visibloc_jlg_get_plugin_version();
         $base_dir        = 'assets/presets';
 
         $definitions = [
