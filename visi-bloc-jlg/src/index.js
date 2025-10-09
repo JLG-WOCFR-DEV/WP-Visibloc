@@ -50,6 +50,8 @@ import apiFetch from '@wordpress/api-fetch';
 import { subscribe, select, useSelect } from '@wordpress/data';
 import autop from '@wordpress/autop';
 import debounce from 'lodash/debounce';
+import { decodeEntities } from '@wordpress/html-entities';
+import { addQueryArgs } from '@wordpress/url';
 
 import './editor-styles.css';
 
@@ -704,6 +706,7 @@ const DEFAULT_RECURRING_SCHEDULE = Object.freeze({
 });
 
 const SITE_TIMEZONE_VALUE = 'site';
+const FALLBACK_BLOCKS_PER_PAGE = 20;
 
 const getVisiBlocArray = (key) => {
     if (typeof VisiBlocData !== 'object' || VisiBlocData === null) {
@@ -727,6 +730,16 @@ const getVisiBlocObject = (key) => {
     }
 
     return value;
+};
+
+const getVisiBlocString = (key) => {
+    if (typeof VisiBlocData !== 'object' || VisiBlocData === null) {
+        return '';
+    }
+
+    const value = VisiBlocData[key];
+
+    return typeof value === 'string' ? value : '';
 };
 
 const FALLBACK_PREVIEW_UNSAFE_SELECTORS =
@@ -775,6 +788,340 @@ const sanitizeFallbackPreviewHtml = (html) => {
     });
 
     return template.innerHTML.trim();
+};
+
+const normalizeFallbackBlockOption = (item) => {
+    if (!item || typeof item !== 'object') {
+        return null;
+    }
+
+    const rawValue = typeof item.value === 'number' ? item.value : parseInt(item.value, 10);
+    const numericValue = Number.isNaN(rawValue) ? 0 : rawValue;
+
+    if (numericValue <= 0) {
+        return null;
+    }
+
+    const label = typeof item.label === 'string' && item.label.trim() ? item.label.trim() : `#${numericValue}`;
+
+    return {
+        value: String(numericValue),
+        label,
+    };
+};
+
+const createFallbackOptionFromRestRecord = (record) => {
+    if (!record || typeof record !== 'object') {
+        return null;
+    }
+
+    const idCandidate = typeof record.id === 'number' ? record.id : parseInt(record.id, 10);
+
+    if (Number.isNaN(idCandidate) || idCandidate <= 0) {
+        return null;
+    }
+
+    const label = record.title && typeof record.title.rendered === 'string'
+        ? decodeEntities(record.title.rendered).trim()
+        : '';
+
+    return normalizeFallbackBlockOption({
+        value: idCandidate,
+        label,
+    });
+};
+
+const normalizeRestPath = (url) => {
+    if (typeof url !== 'string') {
+        return '';
+    }
+
+    const trimmed = url.trim();
+
+    if (!trimmed) {
+        return '';
+    }
+
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+        const match = trimmed.match(/^https?:\/\/[^/]+(.*)$/);
+
+        if (match && match[1]) {
+            return match[1] || '/';
+        }
+    }
+
+    return trimmed;
+};
+
+const FallbackBlockSelect = ({
+    value,
+    onChange,
+    disabled,
+    endpoint,
+    initialOptions,
+    onOptionsLoaded,
+}) => {
+    const normalizedInitialOptions = useMemo(() => {
+        if (!Array.isArray(initialOptions)) {
+            return [];
+        }
+
+        return initialOptions
+            .map((option) => normalizeFallbackBlockOption(option))
+            .filter(Boolean);
+    }, [initialOptions]);
+    const [options, setOptions] = useState(normalizedInitialOptions);
+    const [searchValue, setSearchValue] = useState('');
+    const [page, setPage] = useState(1);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isEnsuringSelection, setIsEnsuringSelection] = useState(false);
+    const [hasMore, setHasMore] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
+
+    useEffect(() => {
+        setOptions(normalizedInitialOptions);
+
+        if (typeof onOptionsLoaded === 'function' && normalizedInitialOptions.length) {
+            onOptionsLoaded(normalizedInitialOptions);
+        }
+    }, [normalizedInitialOptions, onOptionsLoaded]);
+
+    useEffect(() => {
+        if (!endpoint) {
+            setHasMore(false);
+            setIsLoading(false);
+
+            return undefined;
+        }
+
+        let isMounted = true;
+        const controller = new AbortController();
+
+        setIsLoading(true);
+        setErrorMessage('');
+
+        const fetchBlocks = async () => {
+            try {
+                const query = {
+                    page,
+                    per_page: FALLBACK_BLOCKS_PER_PAGE,
+                };
+
+                if (searchValue && searchValue.trim()) {
+                    query.search = searchValue.trim();
+                }
+
+                const requestPath = addQueryArgs(endpoint, query);
+                const response = await apiFetch({
+                    path: requestPath,
+                    signal: controller.signal,
+                    parse: false,
+                });
+                const payload = await response.json();
+
+                if (!isMounted) {
+                    return;
+                }
+
+                const items = Array.isArray(payload?.items) ? payload.items : [];
+                const nextOptions = items
+                    .map((item) => normalizeFallbackBlockOption(item) || createFallbackOptionFromRestRecord(item))
+                    .filter(Boolean);
+                const pagination = payload && payload.pagination ? payload.pagination : {};
+                const totalPages = pagination && typeof pagination.totalPages !== 'undefined'
+                    ? parseInt(pagination.totalPages, 10)
+                    : null;
+                const effectiveTotalPages = Number.isNaN(totalPages) ? null : totalPages;
+
+                setHasMore(
+                    effectiveTotalPages
+                        ? page < effectiveTotalPages
+                        : nextOptions.length === FALLBACK_BLOCKS_PER_PAGE,
+                );
+
+                setOptions((currentOptions) => {
+                    if (page === 1) {
+                        return nextOptions;
+                    }
+
+                    const merged = [...currentOptions];
+
+                    nextOptions.forEach((option) => {
+                        const existingIndex = merged.findIndex((item) => item.value === option.value);
+
+                        if (existingIndex === -1) {
+                            merged.push(option);
+                        } else {
+                            merged[existingIndex] = option;
+                        }
+                    });
+
+                    return merged;
+                });
+
+                if (typeof onOptionsLoaded === 'function' && nextOptions.length) {
+                    onOptionsLoaded(nextOptions);
+                }
+            } catch (error) {
+                if (!isMounted || (error && error.name === 'AbortError')) {
+                    return;
+                }
+
+                setErrorMessage(
+                    __('Impossible de charger la liste des blocs de repli.', 'visi-bloc-jlg'),
+                );
+                setHasMore(false);
+            } finally {
+                if (isMounted) {
+                    setIsLoading(false);
+                }
+            }
+        };
+
+        fetchBlocks();
+
+        return () => {
+            isMounted = false;
+            controller.abort();
+        };
+    }, [endpoint, page, searchValue, onOptionsLoaded]);
+
+    useEffect(() => {
+        if (!value) {
+            return;
+        }
+
+        const optionValue = String(value);
+
+        if (options.some((option) => option.value === optionValue)) {
+            return;
+        }
+
+        let isMounted = true;
+        setIsEnsuringSelection(true);
+
+        apiFetch({
+            path: addQueryArgs(`/wp/v2/blocks/${value}`, {
+                context: 'edit',
+                _fields: 'id,title.rendered',
+            }),
+        })
+            .then((record) => {
+                if (!isMounted) {
+                    return;
+                }
+
+                const option = createFallbackOptionFromRestRecord(record);
+
+                if (!option) {
+                    return;
+                }
+
+                setOptions((currentOptions) => {
+                    if (currentOptions.some((item) => item.value === option.value)) {
+                        return currentOptions;
+                    }
+
+                    return [...currentOptions, option];
+                });
+
+                if (typeof onOptionsLoaded === 'function') {
+                    onOptionsLoaded([option]);
+                }
+            })
+            .catch(() => {})
+            .finally(() => {
+                if (isMounted) {
+                    setIsEnsuringSelection(false);
+                }
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [value, options, onOptionsLoaded]);
+
+    const handleFilterValueChange = useCallback((inputValue) => {
+        setSearchValue(inputValue || '');
+        setPage(1);
+    }, []);
+
+    const handleChange = useCallback(
+        (nextValue) => {
+            if (typeof onChange !== 'function') {
+                return;
+            }
+
+            if (typeof nextValue !== 'string') {
+                onChange(undefined);
+
+                return;
+            }
+
+            const parsedValue = parseInt(nextValue, 10);
+
+            if (Number.isNaN(parsedValue) || parsedValue <= 0) {
+                onChange(undefined);
+
+                return;
+            }
+
+            onChange(parsedValue);
+        },
+        [onChange],
+    );
+
+    const currentValue = value ? String(value) : '';
+    const showEmptyNotice = !isLoading && !isEnsuringSelection && !errorMessage && !options.length;
+
+    return (
+        <div className="visibloc-fallback-selector">
+            <ComboboxControl
+                label={__('Bloc réutilisable', 'visi-bloc-jlg')}
+                value={currentValue}
+                options={options}
+                onChange={handleChange}
+                onFilterValueChange={handleFilterValueChange}
+                __nextHasNoMarginBottom
+                placeholder={__('Rechercher un bloc réutilisable…', 'visi-bloc-jlg')}
+                disabled={disabled}
+            />
+            {(isLoading || isEnsuringSelection) && (
+                <div className="visibloc-fallback-selector__status" role="status">
+                    <Spinner />
+                    <span>{__('Chargement des blocs…', 'visi-bloc-jlg')}</span>
+                </div>
+            )}
+            {!isLoading && !isEnsuringSelection && errorMessage && (
+                <Notice status="error" isDismissible={false}>
+                    {errorMessage}
+                </Notice>
+            )}
+            {showEmptyNotice && !searchValue.trim() && (
+                <Notice status="warning" isDismissible={false}>
+                    {__('Aucun bloc réutilisable publié n’est disponible.', 'visi-bloc-jlg')}
+                </Notice>
+            )}
+            {showEmptyNotice && searchValue.trim() && (
+                <p className="visibloc-fallback-selector__message">
+                    {__('Aucun bloc ne correspond à votre recherche.', 'visi-bloc-jlg')}
+                </p>
+            )}
+            {hasMore && !errorMessage && endpoint && (
+                <div className="visibloc-fallback-selector__actions">
+                    <Button
+                        variant="secondary"
+                        onClick={() => setPage((currentPage) => currentPage + 1)}
+                        disabled={isLoading || isEnsuringSelection}
+                    >
+                        {isLoading
+                            ? __('Chargement…', 'visi-bloc-jlg')
+                            : __('Charger plus de blocs', 'visi-bloc-jlg')}
+                    </Button>
+                </div>
+            )}
+        </div>
+    );
 };
 
 const getTextFallbackPreviewHtml = (text) => {
@@ -845,6 +1192,8 @@ const registeredSupportedClientIds = new Set();
 const blockAttributeHashes = new Map();
 const dirtyClientIds = new Set();
 let lastClientIdsSignature = '';
+let lastRootBlocksReference = null;
+let lastKnownClientIds = [];
 let listViewRafHandle = null;
 let listViewDensityObserver = null;
 let observedListViewElement = null;
@@ -1909,7 +2258,55 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             () => getVisiBlocObject('fallbackSettings') || {},
             [],
         );
-        const fallbackBlocks = useMemo(() => getVisiBlocArray('fallbackBlocks'), []);
+        const fallbackBlockBootstrapOptions = useMemo(
+            () =>
+                getVisiBlocArray('fallbackBlocks')
+                    .map((item) => normalizeFallbackBlockOption(item))
+                    .filter(Boolean),
+            [],
+        );
+        const fallbackBlocksEndpoint = useMemo(
+            () => normalizeRestPath(getVisiBlocString('fallbackBlocksEndpoint')),
+            [],
+        );
+        const fallbackBlockLabelsRef = useRef(new Map());
+        const [fallbackBlockLabelsVersion, setFallbackBlockLabelsVersion] = useState(0);
+        const registerFallbackOptions = useCallback((optionsToRegister) => {
+            if (!Array.isArray(optionsToRegister) || !optionsToRegister.length) {
+                return;
+            }
+
+            const labelsMap = fallbackBlockLabelsRef.current;
+            let hasChanges = false;
+
+            optionsToRegister.forEach((option) => {
+                if (!option || typeof option !== 'object') {
+                    return;
+                }
+
+                const key = typeof option.value === 'string' ? option.value : String(option.value || '');
+
+                if (!key) {
+                    return;
+                }
+
+                const label = typeof option.label === 'string' ? option.label : '';
+
+                if (!labelsMap.has(key) || labelsMap.get(key) !== label) {
+                    labelsMap.set(key, label);
+                    hasChanges = true;
+                }
+            });
+
+            if (hasChanges) {
+                setFallbackBlockLabelsVersion((current) => current + 1);
+            }
+        }, []);
+        useEffect(() => {
+            if (fallbackBlockBootstrapOptions.length) {
+                registerFallbackOptions(fallbackBlockBootstrapOptions);
+            }
+        }, [fallbackBlockBootstrapOptions, registerFallbackOptions]);
         const rolesMap = useMemo(() => getVisiBlocObject('roles') || {}, []);
         const availableRoleKeys = useMemo(() => Object.keys(rolesMap), [rolesMap]);
         const guidedRecipes = useMemo(() => getVisiBlocArray('guidedRecipes'), []);
@@ -1922,7 +2319,7 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
         const scenarioContext = useMemo(
             () => ({
                 availableRoles: availableRoleKeys,
-                fallbackBlocks,
+                fallbackBlocks: fallbackBlockBootstrapOptions,
                 fallbackSettings,
                 userSegments,
                 woocommerceTaxonomies,
@@ -1930,7 +2327,7 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             }),
             [
                 availableRoleKeys,
-                fallbackBlocks,
+                fallbackBlockBootstrapOptions,
                 fallbackSettings,
                 userSegments,
                 woocommerceTaxonomies,
@@ -1953,6 +2350,20 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             }),
             [],
         );
+        const fallbackBlockLabel = useMemo(() => {
+            if (!fallbackBlockId) {
+                return '';
+            }
+
+            const key = String(fallbackBlockId);
+            const storedLabel = fallbackBlockLabelsRef.current.get(key);
+
+            if (storedLabel && storedLabel.trim()) {
+                return storedLabel.trim();
+            }
+
+            return `#${fallbackBlockId}`;
+        }, [fallbackBlockId, fallbackBlockLabelsVersion]);
         const normalizeSeverity = useCallback((value) => {
             const allowed = ['critical', 'high', 'medium', 'low'];
 
@@ -2041,19 +2452,6 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             fallbackSettings && typeof fallbackSettings.previewHtml === 'string'
                 ? fallbackSettings.previewHtml
                 : '';
-        const fallbackBlockOptions = fallbackBlocks
-            .filter((item) => item && typeof item === 'object')
-            .map((item) => {
-                const rawValue = typeof item.value === 'number' ? item.value : parseInt(item.value, 10);
-                const numericValue = Number.isNaN(rawValue) ? 0 : rawValue;
-
-                return {
-                    value: String(numericValue),
-                    label: typeof item.label === 'string' && item.label.trim()
-                        ? item.label
-                        : `#${numericValue}`,
-                };
-            });
         const fallbackBehaviorOptions = [
             { value: 'inherit', label: __('Utiliser le repli global', 'visi-bloc-jlg') },
             { value: 'text', label: __('Texte personnalisé', 'visi-bloc-jlg') },
@@ -3063,15 +3461,18 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                 return '';
             }
 
+            if (fallbackBehavior === 'block') {
+                if (!fallbackBlockId) {
+                    return __('Bloc', 'visi-bloc-jlg');
+                }
+
+                return fallbackBlockLabel || sprintf(__('Bloc #%d', 'visi-bloc-jlg'), fallbackBlockId);
+            }
+
             const summaries = {
                 inherit: __('Global', 'visi-bloc-jlg'),
                 text: __('Texte', 'visi-bloc-jlg'),
-                block: __('Bloc', 'visi-bloc-jlg'),
             };
-
-            if (fallbackBehavior === 'block' && !fallbackBlockId) {
-                return __('Bloc', 'visi-bloc-jlg');
-            }
 
             return summaries[fallbackBehavior] || summaries.inherit;
         })();
@@ -3141,13 +3542,13 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                     fallbackDescriptionParts.push(trimmedText);
                 }
             } else if (fallbackBehavior === 'block' && fallbackBlockId) {
-                const matchingFallbackBlock = fallbackBlockOptions.find(
-                    (option) => option.value === String(fallbackBlockId),
-                );
-
-                if (matchingFallbackBlock && matchingFallbackBlock.label) {
+                if (fallbackBlockLabel) {
                     fallbackDescriptionParts.push(
-                        sprintf(__('Bloc : %s', 'visi-bloc-jlg'), matchingFallbackBlock.label),
+                        sprintf(__('Bloc : %s', 'visi-bloc-jlg'), fallbackBlockLabel),
+                    );
+                } else {
+                    fallbackDescriptionParts.push(
+                        sprintf(__('Bloc #%d', 'visi-bloc-jlg'), fallbackBlockId),
                     );
                 }
             }
@@ -3592,34 +3993,21 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                     />
                                 )}
                                 {fallbackBehavior === 'block' && (
-                                    <Fragment>
-                                        <SelectControl
-                                            label={__('Bloc réutilisable à afficher', 'visi-bloc-jlg')}
-                                            value={fallbackBlockId ? String(fallbackBlockId) : ''}
-                                            options={[
-                                                {
-                                                    value: '',
-                                                    label: __('— Sélectionnez un bloc —', 'visi-bloc-jlg'),
-                                                },
-                                                ...fallbackBlockOptions,
-                                            ]}
-                                            onChange={(newValue) => {
-                                                const parsedValue = parseInt(newValue, 10);
-
-                                                setAttributes({
-                                                    fallbackBlockId: Number.isNaN(parsedValue)
-                                                        ? 0
-                                                        : parsedValue,
-                                                });
-                                            }}
-                                            disabled={!fallbackBlockOptions.length}
-                                        />
-                                        {!fallbackBlockOptions.length && (
-                                            <Notice status="warning" isDismissible={false}>
-                                                {__('Aucun bloc réutilisable publié n’est disponible.', 'visi-bloc-jlg')}
-                                            </Notice>
-                                        )}
-                                    </Fragment>
+                                    <FallbackBlockSelect
+                                        value={fallbackBlockId}
+                                        disabled={!fallbackEnabled}
+                                        endpoint={fallbackBlocksEndpoint}
+                                        initialOptions={fallbackBlockBootstrapOptions}
+                                        onOptionsLoaded={registerFallbackOptions}
+                                        onChange={(newValue) => {
+                                            setAttributes({
+                                                fallbackBlockId:
+                                                    typeof newValue === 'number' && !Number.isNaN(newValue)
+                                                        ? newValue
+                                                        : 0,
+                                            });
+                                        }}
+                                    />
                                 )}
                                 <ToggleControl
                                     label={__('Prévisualiser le repli', 'visi-bloc-jlg')}
@@ -4140,8 +4528,59 @@ function syncListViewInternal() {
         return;
     }
 
-    const allClientIds = getAllClientIds(blockEditor);
-    const signature = allClientIds.join('|');
+    let signature = '';
+    let allClientIds = [];
+    const getFlattenedClientIds = (blocks) => {
+        const collected = [];
+
+        if (!Array.isArray(blocks) || !blocks.length) {
+            return collected;
+        }
+
+        const stack = [...blocks];
+
+        while (stack.length) {
+            const block = stack.shift();
+
+            if (!block || typeof block !== 'object') {
+                continue;
+            }
+
+            if (block.clientId) {
+                collected.push(block.clientId);
+            }
+
+            if (Array.isArray(block.innerBlocks) && block.innerBlocks.length) {
+                stack.unshift(...block.innerBlocks);
+            }
+        }
+
+        return collected;
+    };
+
+    if (typeof blockEditor.getBlocks === 'function') {
+        const rootBlocks = blockEditor.getBlocks();
+
+        if (Array.isArray(rootBlocks)) {
+            if (rootBlocks !== lastRootBlocksReference) {
+                const collected = getFlattenedClientIds(rootBlocks);
+                allClientIds = collected;
+                signature = collected.join('|');
+                lastRootBlocksReference = rootBlocks;
+                lastKnownClientIds = collected;
+            } else {
+                allClientIds = Array.isArray(lastKnownClientIds) ? lastKnownClientIds : [];
+                signature = allClientIds.join('|');
+            }
+        }
+    }
+
+    if (!Array.isArray(allClientIds) || !allClientIds.length) {
+        allClientIds = getAllClientIds(blockEditor);
+        signature = allClientIds.join('|');
+        lastRootBlocksReference = null;
+        lastKnownClientIds = allClientIds;
+    }
 
     if (!allClientIds.length) {
         if (registeredSupportedClientIds.size || blockVisibilityState.size) {
@@ -4152,6 +4591,8 @@ function syncListViewInternal() {
             blockAttributeHashes.clear();
             dirtyClientIds.clear();
             lastClientIdsSignature = '';
+            lastKnownClientIds = [];
+            lastRootBlocksReference = null;
         }
 
         return;

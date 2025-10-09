@@ -602,6 +602,7 @@ function visibloc_jlg_enqueue_editor_assets() {
             'commonCookies'     => visibloc_jlg_get_editor_common_cookies(),
             'fallbackSettings' => visibloc_jlg_get_editor_fallback_settings(),
             'fallbackBlocks'   => visibloc_jlg_get_editor_fallback_blocks(),
+            'fallbackBlocksEndpoint' => visibloc_jlg_get_fallback_blocks_rest_url(),
             'visualPresets'    => visibloc_jlg_get_editor_visual_presets(),
             'guidedRecipes'    => visibloc_jlg_get_editor_guided_recipes(),
         ]

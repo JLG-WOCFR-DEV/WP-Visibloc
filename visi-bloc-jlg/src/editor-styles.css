@@ -9,6 +9,8 @@
     --visibloc-shadow-subtle: 0 1px 2px rgba(15, 23, 42, 0.08);
     --visibloc-shadow-strong: 0 14px 30px -20px rgba(15, 23, 42, 0.55);
     --visibloc-font-family: var(--wp-admin-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+    --visibloc-focus-ring: 0 0 0 3px rgba(60, 80, 224, 0.35);
+    --visibloc-focus-outline: var(--wp-components-color-accent, #3c50e0);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -20,6 +22,8 @@
         --visibloc-shadow-subtle: 0 1px 2px rgba(15, 23, 42, 0.6);
         --visibloc-shadow-strong: 0 18px 38px -18px rgba(15, 23, 42, 0.85);
         --visibloc-font-family: var(--wp-admin-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+        --visibloc-focus-ring: 0 0 0 3px rgba(96, 165, 250, 0.55);
+        --visibloc-focus-outline: var(--wp-components-color-accent, #60a5fa);
     }
 }
 
@@ -232,8 +236,9 @@
 }
 
 .visibloc-stepper .components-tab-panel__tab:focus {
-    outline: none;
-    box-shadow: var(--visibloc-focus-ring);
+    outline: 2px solid var(--visibloc-focus-outline, #3c50e0);
+    outline-offset: 2px;
+    box-shadow: var(--visibloc-focus-ring, 0 0 0 3px rgba(60, 80, 224, 0.35));
 }
 
 @media (max-width: 600px) {
@@ -303,6 +308,32 @@
     margin: 0;
     font-size: 13px;
     color: var(--wp-components-color-foreground-muted, #50575e);
+}
+
+.visibloc-fallback-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.visibloc-fallback-selector__status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--wp-components-color-foreground-muted, #50575e);
+}
+
+.visibloc-fallback-selector__message {
+    margin: 0;
+    font-size: 13px;
+    color: var(--wp-components-color-foreground-muted, #50575e);
+}
+
+.visibloc-fallback-selector__actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
 .visibloc-term-chips {
