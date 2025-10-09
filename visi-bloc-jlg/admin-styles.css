@@ -212,6 +212,251 @@ body.is-dark-theme {
     align-self: flex-start;
 }
 
+.visibloc-contextual-guide {
+    margin: 16px 0;
+    border: 1px solid var(--visibloc-border-subtle);
+    border-radius: var(--visibloc-radius-base);
+    background: var(--visibloc-surface-tinted);
+    padding: 12px 16px;
+}
+
+.visibloc-contextual-guide__summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--visibloc-text-primary);
+}
+
+.visibloc-contextual-guide__content {
+    margin-top: 12px;
+    color: var(--visibloc-text-subtle);
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.visibloc-help-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    margin-top: 24px;
+}
+
+.visibloc-help-groups__nav {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.visibloc-help-groups__tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.visibloc-help-groups__tab {
+    appearance: none;
+    background: var(--visibloc-surface-tinted);
+    border: 1px solid var(--visibloc-border-subtle);
+    border-radius: var(--visibloc-radius-pill);
+    color: var(--visibloc-text-primary);
+    padding: 8px 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.visibloc-help-groups__tab.is-active {
+    background: var(--visibloc-accent);
+    border-color: var(--visibloc-accent);
+    color: #ffffff;
+    box-shadow: var(--visibloc-shadow-subtle);
+}
+
+.visibloc-help-groups__tab:focus {
+    outline: none;
+    box-shadow: var(--visibloc-focus-ring);
+}
+
+.visibloc-help-groups__panels {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.visibloc-help-groups__panel {
+    border: 1px solid var(--visibloc-border-subtle);
+    border-radius: var(--visibloc-radius-base);
+    background: var(--visibloc-surface);
+    box-shadow: var(--visibloc-shadow-subtle);
+    padding: 24px;
+}
+
+.visibloc-help-groups__panel-header {
+    margin-bottom: 20px;
+}
+
+.visibloc-help-groups__panel-title {
+    margin: 0 0 6px;
+    font-size: 22px;
+    line-height: 1.3;
+}
+
+.visibloc-help-groups__panel-description {
+    margin: 0;
+    color: var(--visibloc-text-subtle);
+    max-width: 70ch;
+}
+
+.visibloc-help-groups__panel-content > .postbox {
+    margin-bottom: 24px;
+}
+
+.visibloc-help-groups__panel-content > .postbox:last-child {
+    margin-bottom: 0;
+}
+
+.visibloc-supported-blocks-presets {
+    display: grid;
+    gap: 12px;
+    margin: 12px 0;
+}
+
+.visibloc-supported-blocks-preset {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.visibloc-supported-blocks-preset__description {
+    margin: 0;
+    color: var(--visibloc-text-subtle);
+    font-size: 12px;
+}
+
+.visibloc-supported-blocks-group {
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: var(--visibloc-radius-base);
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    background: var(--visibloc-surface-tinted);
+}
+
+.visibloc-supported-blocks-group__title {
+    margin: 0 0 10px;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.visibloc-supported-blocks-group__list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px 18px;
+}
+
+.visibloc-supported-blocks-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.visibloc-supported-blocks-item:hover {
+    background: rgba(99, 102, 241, 0.08);
+}
+
+.visibloc-supported-blocks-item__label {
+    font-weight: 600;
+}
+
+.visibloc-supported-blocks-item__slug {
+    color: var(--visibloc-text-subtle);
+}
+
+.visibloc-supported-blocks-item__badge {
+    margin-left: auto;
+    background: rgba(59, 130, 246, 0.12);
+    border-radius: var(--visibloc-radius-pill);
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.visibloc-guided-recipes__dialog-tools {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.visibloc-guided-recipes__dialog-navigation {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.visibloc-guided-recipes__dialog-footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: center;
+}
+
+.visibloc-guided-recipes__dialog-feedback {
+    font-size: 12px;
+    color: var(--visibloc-text-subtle);
+}
+
+.visibloc-recipe-card__template {
+    margin: 0;
+    font-size: 12px;
+    color: var(--visibloc-text-subtle);
+}
+
+@media (max-width: 782px) {
+    .visibloc-help-groups__tabs {
+        flex-direction: column;
+    }
+
+    .visibloc-supported-blocks-group__list {
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+    .visibloc-help-groups__tab {
+        background: rgba(148, 163, 184, 0.18);
+        border-color: rgba(148, 163, 184, 0.3);
+        color: #e2e8f0;
+    }
+
+    .visibloc-help-groups__tab.is-active {
+        background: #6366f1;
+        border-color: #6366f1;
+        color: #f8fafc;
+    }
+
+    .visibloc-supported-blocks-group {
+        background: rgba(30, 41, 59, 0.7);
+        border-color: rgba(148, 163, 184, 0.25);
+    }
+
+    .visibloc-supported-blocks-item__badge {
+        background: rgba(96, 165, 250, 0.35);
+        color: #dbeafe;
+    }
+
+    .visibloc-contextual-guide {
+        background: rgba(30, 41, 59, 0.7);
+        border-color: rgba(148, 163, 184, 0.25);
+    }
+}
+
 @media (max-width: 782px) {
     .visibloc-onboarding {
         padding: 20px;

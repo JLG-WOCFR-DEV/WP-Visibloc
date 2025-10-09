@@ -113,6 +113,150 @@ function visibloc_jlg_calculate_onboarding_progress( array $items ) {
 }
 
 /**
+ * Provide a curated block template for a guided recipe.
+ *
+ * @param string $slug Recipe identifier.
+ * @return string
+ */
+function visibloc_jlg_get_recipe_template_markup( $slug ) {
+    switch ( $slug ) {
+        case 'welcome-series':
+            return sprintf(
+                '<!-- wp:group {"align":"full","style":{"spacing":{"padding":{"top":"48px","bottom":"48px","left":"24px","right":"24px"},"blockGap":"24px"},"color":{"background":"#111827","text":"#f8fafc"},"border":{"radius":"18px"}}} -->
+<div class="wp-block-group alignfull has-text-color has-background" style="color:#f8fafc;background-color:#111827;border-radius:18px;padding-top:48px;padding-right:24px;padding-bottom:48px;padding-left:24px"><div class="wp-block-group__inner-container"><!-- wp:heading {"textAlign":"center","level":2,"style":{"typography":{"fontSize":"38px"}}} -->
+<h2 class="has-text-align-center" style="font-size:38px">%1$s</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph {"align":"center","fontSize":"large"} -->
+<p class="has-text-align-center has-large-font-size">%2$s</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:buttons {"layout":{"type":"flex","justifyContent":"center","flexWrap":"wrap"},"style":{"spacing":{"blockGap":"16px"}}} -->
+<div class="wp-block-buttons"><!-- wp:button {"backgroundColor":"primary","textColor":"background","style":{"border":{"radius":"999px"},"typography":{"fontSize":"18px","fontWeight":"600"}}} -->
+<div class="wp-block-button has-custom-font-size" style="font-size:18px;font-weight:600"><a class="wp-block-button__link has-background-color has-primary-background-color has-text-color" href="#">%3$s</a></div>
+<!-- /wp:button -->
+
+<!-- wp:button {"backgroundColor":"background","textColor":"primary","style":{"border":{"radius":"999px","width":"2px"},"color":{"text":"#e5e7eb"}}} -->
+<div class="wp-block-button"><a class="wp-block-button__link has-primary-color has-background-background-color has-text-color has-background" href="#" style="border-radius:999px;border-width:2px;color:#e5e7eb">%4$s</a></div>
+<!-- /wp:button --></div>
+<!-- /wp:buttons -->
+
+<!-- wp:list {"style":{"typography":{"fontSize":"18px"}},"className":"visibloc-welcome-checklist"} -->
+<ul class="visibloc-welcome-checklist" style="font-size:18px"><li>%5$s</li><li>%6$s</li><li>%7$s</li></ul>
+<!-- /wp:list --></div></div>
+<!-- /wp:group -->',
+                esc_html__( 'Bienvenue dans votre espace personnalisé 🎉', 'visi-bloc-jlg' ),
+                esc_html__( 'Nous avons préparé un parcours de démarrage pour vous guider vers la prochaine étape utile.', 'visi-bloc-jlg' ),
+                esc_html__( 'Compléter mon profil', 'visi-bloc-jlg' ),
+                esc_html__( 'Découvrir la bibliothèque de ressources', 'visi-bloc-jlg' ),
+                esc_html__( 'Suivez le check-list pour activer votre compte en moins de 5 minutes.', 'visi-bloc-jlg' ),
+                esc_html__( 'Ajoutez vos centres d’intérêt pour recevoir des recommandations ciblées.', 'visi-bloc-jlg' ),
+                esc_html__( 'Planifiez un rappel pour revenir à ce guide quand vous le souhaitez.', 'visi-bloc-jlg' )
+            );
+        case 'woocommerce-cart-recovery':
+            return sprintf(
+                '<!-- wp:group {"align":"full","style":{"spacing":{"padding":{"top":"48px","bottom":"48px"},"margin":{"top":"0","bottom":"0"},"blockGap":"28px"},"color":{"background":"#111827"}}} -->
+<div class="wp-block-group alignfull has-background" style="background-color:#111827;padding-top:48px;padding-bottom:48px"><div class="wp-block-group__inner-container"><!-- wp:group {"style":{"spacing":{"blockGap":"18px"},"border":{"radius":"18px"},"color":{"background":"#0f172a"},"padding":{"top":"32px","right":"32px","bottom":"32px","left":"32px"}},"layout":{"contentSize":"760px"}} -->
+<div class="wp-block-group" style="border-radius:18px;background-color:#0f172a;padding-top:32px;padding-right:32px;padding-bottom:32px;padding-left:32px"><!-- wp:paragraph {"align":"center","style":{"typography":{"letterSpacing":"0.4em","textTransform":"uppercase","fontSize":"13px"}},"textColor":"cyan-bluish-gray"} -->
+<p class="has-text-align-center has-cyan-bluish-gray-color has-text-color" style="font-size:13px;text-transform:uppercase;letter-spacing:0.4em">%1$s</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading {"textAlign":"center","textColor":"background","fontSize":"huge"} -->
+<h2 class="has-text-align-center has-background-color has-text-color has-huge-font-size">%2$s</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph {"align":"center","textColor":"background","fontSize":"large"} -->
+<p class="has-text-align-center has-background-color has-text-color has-large-font-size">%3$s</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:buttons {"layout":{"type":"flex","justifyContent":"center","flexWrap":"wrap"},"style":{"spacing":{"blockGap":"16px"}}} -->
+<div class="wp-block-buttons"><!-- wp:button {"backgroundColor":"luminous-vivid-orange","textColor":"background","style":{"border":{"radius":"999px"},"typography":{"fontWeight":"700"}}} -->
+<div class="wp-block-button" style="font-weight:700"><a class="wp-block-button__link has-background-color has-luminous-vivid-orange-background-color has-text-color" href="#">%4$s</a></div>
+<!-- /wp:button -->
+
+<!-- wp:button {"backgroundColor":"background","textColor":"luminous-vivid-orange","style":{"border":{"radius":"999px","width":"2px"}}} -->
+<div class="wp-block-button"><a class="wp-block-button__link has-luminous-vivid-orange-color has-background-background-color has-text-color has-background" href="#" style="border-radius:999px;border-width:2px">%5$s</a></div>
+<!-- /wp:button --></div>
+<!-- /wp:buttons -->
+
+<!-- wp:paragraph {"align":"center","textColor":"background","fontSize":"medium"} -->
+<p class="has-text-align-center has-background-color has-text-color has-medium-font-size">%6$s</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:group --></div></div>
+<!-- /wp:group -->',
+                esc_html__( 'Panier sauvegardé', 'visi-bloc-jlg' ),
+                esc_html__( 'Il reste encore votre sélection en boutique ✨', 'visi-bloc-jlg' ),
+                esc_html__( 'Finalisez votre commande avant ce soir pour profiter de la livraison offerte.', 'visi-bloc-jlg' ),
+                esc_html__( 'Reprendre ma commande', 'visi-bloc-jlg' ),
+                esc_html__( 'Contacter le support', 'visi-bloc-jlg' ),
+                esc_html__( 'Votre panier est automatiquement sauvegardé pendant 72 heures.', 'visi-bloc-jlg' )
+            );
+        case 'b2b-lead-nurturing':
+            return sprintf(
+                '<!-- wp:columns {"align":"wide","style":{"spacing":{"blockGap":{"top":"32px","left":"32px"}}}} -->
+<div class="wp-block-columns alignwide"><!-- wp:column {"width":"60%","style":{"spacing":{"blockGap":"20px"},"border":{"radius":"16px"},"color":{"background":"#f1f5f9"},"padding":{"top":"32px","right":"32px","bottom":"32px","left":"32px"}}} -->
+<div class="wp-block-column" style="flex-basis:60%;background-color:#f1f5f9;border-radius:16px;padding-top:32px;padding-right:32px;padding-bottom:32px;padding-left:32px"><!-- wp:heading {"fontSize":"x-large"} -->
+<h2 class="has-x-large-font-size">%1$s</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph {"fontSize":"medium"} -->
+<p class="has-medium-font-size">%2$s</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul><li>%3$s</li><li>%4$s</li><li>%5$s</li></ul>
+<!-- /wp:list -->
+
+<!-- wp:buttons {"layout":{"type":"flex","justifyContent":"flex-start","flexWrap":"wrap"},"style":{"spacing":{"blockGap":"16px"}}} -->
+<div class="wp-block-buttons"><!-- wp:button {"style":{"border":{"radius":"999px"}}} -->
+<div class="wp-block-button"><a class="wp-block-button__link" href="#">%6$s</a></div>
+<!-- /wp:button -->
+
+<!-- wp:button {"backgroundColor":"foreground","textColor":"background","style":{"border":{"radius":"999px"}}} -->
+<div class="wp-block-button"><a class="wp-block-button__link has-background-color has-foreground-background-color has-text-color" href="#">%7$s</a></div>
+<!-- /wp:button --></div>
+<!-- /wp:buttons --></div>
+<!-- /wp:column -->
+
+<!-- wp:column {"width":"40%","style":{"spacing":{"blockGap":"20px"}}} -->
+<div class="wp-block-column" style="flex-basis:40%"><!-- wp:group {"style":{"spacing":{"blockGap":"12px"},"border":{"radius":"16px"},"color":{"background":"#0f172a","text":"#f8fafc"},"padding":{"top":"24px","right":"24px","bottom":"24px","left":"24px"}}} -->
+<div class="wp-block-group has-text-color has-background" style="color:#f8fafc;background-color:#0f172a;border-radius:16px;padding-top:24px;padding-right:24px;padding-bottom:24px;padding-left:24px"><!-- wp:heading {"level":3} -->
+<h3>%8$s</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>%9$s</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>%10$s</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:group -->
+
+<!-- wp:quote {"style":{"border":{"radius":"12px"},"color":{"background":"#ffffff"},"spacing":{"padding":{"top":"24px","right":"24px","bottom":"24px","left":"24px"}}}} -->
+<blockquote class="wp-block-quote" style="border-radius:12px;background-color:#ffffff;padding-top:24px;padding-right:24px;padding-bottom:24px;padding-left:24px"><p>%11$s</p><cite>%12$s</cite></blockquote>
+<!-- /wp:quote --></div>
+<!-- /wp:column --></div>
+<!-- /wp:columns -->',
+                esc_html__( 'Votre prochain palier d’expertise est à portée de clic', 'visi-bloc-jlg' ),
+                esc_html__( 'Téléchargez notre guide pour structurer votre démarche d’automatisation marketing.', 'visi-bloc-jlg' ),
+                esc_html__( 'Évaluez votre maturité en 10 questions.', 'visi-bloc-jlg' ),
+                esc_html__( 'Recevez la matrice de priorisation prête à l’emploi.', 'visi-bloc-jlg' ),
+                esc_html__( 'Découvrez le plan d’action sur 30 jours proposé par nos experts.', 'visi-bloc-jlg' ),
+                esc_html__( 'Télécharger le guide', 'visi-bloc-jlg' ),
+                esc_html__( 'Planifier une démonstration', 'visi-bloc-jlg' ),
+                esc_html__( 'Ressource incluse', 'visi-bloc-jlg' ),
+                esc_html__( 'Un framework détaillé pour prioriser vos campagnes et orchestrer vos leads.', 'visi-bloc-jlg' ),
+                esc_html__( 'Accès instantané, sans carte bancaire.', 'visi-bloc-jlg' ),
+                esc_html__( '« Grâce à ce plan, nous avons doublé nos prises de rendez-vous en un trimestre. »', 'visi-bloc-jlg' ),
+                esc_html__( 'Claire, Responsable Marketing B2B', 'visi-bloc-jlg' )
+            );
+    }
+
+    return '';
+}
+
+/**
  * Return the curated guided recipes displayed in the onboarding wizard.
  *
  * @return array[]
@@ -129,6 +273,7 @@ function visibloc_jlg_get_guided_recipes() {
             'audience'       => __( 'Visiteurs authentifiés avec un cookie d’inscription récent ou un rôle « Nouvel abonné ».', 'visi-bloc-jlg' ),
             'goal'           => __( 'Accueillir chaleureusement chaque nouvel abonné et l’orienter vers l’action clé.', 'visi-bloc-jlg' ),
             'kpi'            => __( 'Taux de clic sur le call-to-action de bienvenue.', 'visi-bloc-jlg' ),
+            'block_template' => visibloc_jlg_get_recipe_template_markup( 'welcome-series' ),
             'blocks'         => [
                 __( 'Bloc Bannière / Couverture', 'visi-bloc-jlg' ),
                 __( 'Bloc Bouton', 'visi-bloc-jlg' ),
@@ -201,6 +346,7 @@ function visibloc_jlg_get_guided_recipes() {
             'audience'       => __( 'Clients connectés avec des articles dans le panier WooCommerce et sans commande validée.', 'visi-bloc-jlg' ),
             'goal'           => __( 'Relancer les paniers abandonnés avec une incitation contextualisée.', 'visi-bloc-jlg' ),
             'kpi'            => __( 'Taux de récupération des paniers sur 7 jours.', 'visi-bloc-jlg' ),
+            'block_template' => visibloc_jlg_get_recipe_template_markup( 'woocommerce-cart-recovery' ),
             'blocks'         => [
                 __( 'Bloc Bannière / Notice', 'visi-bloc-jlg' ),
                 __( 'Bloc Boutons', 'visi-bloc-jlg' ),
@@ -264,6 +410,7 @@ function visibloc_jlg_get_guided_recipes() {
             'audience'       => __( 'Contacts identifiés par votre CRM (segment « MQL ») naviguant sur des pages produits clés.', 'visi-bloc-jlg' ),
             'goal'           => __( 'Convertir les visiteurs engagés en prospects qualifiés grâce à un contenu approfondi.', 'visi-bloc-jlg' ),
             'kpi'            => __( 'Taux de téléchargement du livre blanc ou d’inscription au webinar.', 'visi-bloc-jlg' ),
+            'block_template' => visibloc_jlg_get_recipe_template_markup( 'b2b-lead-nurturing' ),
             'blocks'         => [
                 __( 'Bloc Colonnes avec visuels', 'visi-bloc-jlg' ),
                 __( 'Bloc Formulaire (intégration Gravity Forms / WPForms)', 'visi-bloc-jlg' ),
@@ -809,9 +956,9 @@ function visibloc_jlg_add_admin_menu() {
 }
 
 function visibloc_jlg_render_help_page_content() {
-    $debug_status   = get_option( 'visibloc_debug_mode', 'off' );
-    $mobile_bp      = get_option( 'visibloc_breakpoint_mobile', 781 );
-    $tablet_bp      = get_option( 'visibloc_breakpoint_tablet', 1024 );
+    $debug_status      = get_option( 'visibloc_debug_mode', 'off' );
+    $mobile_bp         = get_option( 'visibloc_breakpoint_mobile', 781 );
+    $tablet_bp         = get_option( 'visibloc_breakpoint_tablet', 1024 );
     $fallback_settings = visibloc_jlg_get_fallback_settings();
     $fallback_blocks   = visibloc_jlg_get_available_fallback_blocks();
 
@@ -857,6 +1004,7 @@ function visibloc_jlg_render_help_page_content() {
     if ( empty( $allowed_roles ) ) {
         $allowed_roles = [ 'administrator' ];
     }
+
     $scheduled_posts = visibloc_jlg_get_scheduled_posts();
     $hidden_posts    = visibloc_jlg_get_hidden_posts();
     $device_posts    = visibloc_jlg_get_device_specific_posts();
@@ -866,78 +1014,7 @@ function visibloc_jlg_render_help_page_content() {
 
     $breakpoints_requirement_message = visibloc_jlg_get_breakpoints_requirement_message();
 
-    $sections = [];
-
-    if ( ! empty( $guided_recipes ) ) {
-        $sections[] = [
-            'id'      => 'visibloc-section-guided-recipes',
-            'label'   => __( 'Recettes guidées', 'visi-bloc-jlg' ),
-            'render'  => 'visibloc_jlg_render_guided_recipes_section',
-            'args'    => [ $guided_recipes ],
-        ];
-    }
-
-    $sections = array_merge(
-        $sections,
-        [
-            [
-                'id'      => 'visibloc-section-blocks',
-                'label'   => __( 'Blocs compatibles', 'visi-bloc-jlg' ),
-                'render'  => 'visibloc_jlg_render_supported_blocks_section',
-                'args'    => [ $registered_block_types, $configured_blocks ],
-            ],
-            [
-                'id'      => 'visibloc-section-permissions',
-                'label'   => __( "Permissions d'Aperçu", 'visi-bloc-jlg' ),
-                'render'  => 'visibloc_jlg_render_permissions_section',
-                'args'    => [ $allowed_roles ],
-            ],
-            [
-                'id'      => 'visibloc-section-hidden',
-                'label'   => __( 'Tableau de bord des blocs masqués (via Œil)', 'visi-bloc-jlg' ),
-                'render'  => 'visibloc_jlg_render_hidden_blocks_section',
-                'args'    => [ $hidden_posts ],
-            ],
-            [
-                'id'      => 'visibloc-section-device',
-                'label'   => __( 'Tableau de bord des blocs avec visibilité par appareil', 'visi-bloc-jlg' ),
-                'render'  => 'visibloc_jlg_render_device_visibility_section',
-                'args'    => [ $device_posts ],
-            ],
-            [
-                'id'      => 'visibloc-section-scheduled',
-                'label'   => __( 'Tableau de bord des blocs programmés', 'visi-bloc-jlg' ),
-                'render'  => 'visibloc_jlg_render_scheduled_blocks_section',
-                'args'    => [ $scheduled_posts ],
-            ],
-            [
-                'id'      => 'visibloc-section-debug',
-                'label'   => __( 'Mode de débogage', 'visi-bloc-jlg' ),
-                'render'  => 'visibloc_jlg_render_debug_mode_section',
-                'args'    => [ $debug_status ],
-            ],
-            [
-                'id'      => 'visibloc-section-breakpoints',
-                'label'   => __( 'Réglage des points de rupture', 'visi-bloc-jlg' ),
-                'render'  => 'visibloc_jlg_render_breakpoints_section',
-                'args'    => [ $mobile_bp, $tablet_bp ],
-            ],
-            [
-                'id'      => 'visibloc-section-fallback',
-                'label'   => __( 'Contenu de repli global', 'visi-bloc-jlg' ),
-                'render'  => 'visibloc_jlg_render_fallback_section',
-                'args'    => [ $fallback_settings, $fallback_blocks ],
-            ],
-            [
-                'id'      => 'visibloc-section-backup',
-                'label'   => __( 'Export & sauvegarde', 'visi-bloc-jlg' ),
-                'render'  => 'visibloc_jlg_render_settings_backup_section',
-                'args'    => [],
-            ],
-        ]
-    );
-
-    $onboarding_items    = visibloc_jlg_build_onboarding_checklist_items(
+    $onboarding_items = visibloc_jlg_build_onboarding_checklist_items(
         [
             'supported_blocks'  => $configured_blocks,
             'preview_roles'     => $allowed_roles,
@@ -947,12 +1024,134 @@ function visibloc_jlg_render_help_page_content() {
         ]
     );
     $onboarding_progress = visibloc_jlg_calculate_onboarding_progress( $onboarding_items );
-    $onboarding_title_id = 'visibloc-onboarding-title';
-    $onboarding_list_id  = 'visibloc-onboarding-list';
 
-    $nav_select_id      = 'visibloc-help-nav-picker';
-    $nav_description_id = $nav_select_id . '-description';
-    $nav_list_id        = 'visibloc-help-nav-list';
+    $section_map = [];
+
+    if ( ! empty( $onboarding_items ) ) {
+        $section_map['visibloc-section-onboarding'] = [
+            'id'      => 'visibloc-section-onboarding',
+            'label'   => __( 'Checklist de mise en route', 'visi-bloc-jlg' ),
+            'render'  => 'visibloc_jlg_render_onboarding_section',
+            'args'    => [ $onboarding_items, $onboarding_progress ],
+        ];
+    }
+
+    if ( ! empty( $guided_recipes ) ) {
+        $section_map['visibloc-section-guided-recipes'] = [
+            'id'      => 'visibloc-section-guided-recipes',
+            'label'   => __( 'Recettes guidées', 'visi-bloc-jlg' ),
+            'render'  => 'visibloc_jlg_render_guided_recipes_section',
+            'args'    => [ $guided_recipes ],
+        ];
+    }
+
+    $section_map['visibloc-section-blocks'] = [
+        'id'     => 'visibloc-section-blocks',
+        'label'  => __( 'Blocs compatibles', 'visi-bloc-jlg' ),
+        'render' => 'visibloc_jlg_render_supported_blocks_section',
+        'args'   => [ $registered_block_types, $configured_blocks ],
+    ];
+    $section_map['visibloc-section-permissions'] = [
+        'id'     => 'visibloc-section-permissions',
+        'label'  => __( "Permissions d'Aperçu", 'visi-bloc-jlg' ),
+        'render' => 'visibloc_jlg_render_permissions_section',
+        'args'   => [ $allowed_roles ],
+    ];
+    $section_map['visibloc-section-hidden'] = [
+        'id'     => 'visibloc-section-hidden',
+        'label'  => __( 'Tableau de bord des blocs masqués (via Œil)', 'visi-bloc-jlg' ),
+        'render' => 'visibloc_jlg_render_hidden_blocks_section',
+        'args'   => [ $hidden_posts ],
+    ];
+    $section_map['visibloc-section-device'] = [
+        'id'     => 'visibloc-section-device',
+        'label'  => __( 'Tableau de bord des blocs avec visibilité par appareil', 'visi-bloc-jlg' ),
+        'render' => 'visibloc_jlg_render_device_visibility_section',
+        'args'   => [ $device_posts ],
+    ];
+    $section_map['visibloc-section-scheduled'] = [
+        'id'     => 'visibloc-section-scheduled',
+        'label'  => __( 'Tableau de bord des blocs programmés', 'visi-bloc-jlg' ),
+        'render' => 'visibloc_jlg_render_scheduled_blocks_section',
+        'args'   => [ $scheduled_posts ],
+    ];
+    $section_map['visibloc-section-breakpoints'] = [
+        'id'     => 'visibloc-section-breakpoints',
+        'label'  => __( 'Réglage des points de rupture', 'visi-bloc-jlg' ),
+        'render' => 'visibloc_jlg_render_breakpoints_section',
+        'args'   => [ $mobile_bp, $tablet_bp ],
+    ];
+    $section_map['visibloc-section-fallback'] = [
+        'id'     => 'visibloc-section-fallback',
+        'label'  => __( 'Contenu de repli global', 'visi-bloc-jlg' ),
+        'render' => 'visibloc_jlg_render_fallback_section',
+        'args'   => [ $fallback_settings, $fallback_blocks ],
+    ];
+    $section_map['visibloc-section-debug'] = [
+        'id'     => 'visibloc-section-debug',
+        'label'  => __( 'Mode de débogage', 'visi-bloc-jlg' ),
+        'render' => 'visibloc_jlg_render_debug_mode_section',
+        'args'   => [ $debug_status ],
+    ];
+    $section_map['visibloc-section-backup'] = [
+        'id'     => 'visibloc-section-backup',
+        'label'  => __( 'Export & sauvegarde', 'visi-bloc-jlg' ),
+        'render' => 'visibloc_jlg_render_settings_backup_section',
+        'args'   => [],
+    ];
+
+    $group_definitions = [
+        [
+            'id'          => 'visibloc-group-discover',
+            'label'       => __( 'Découverte', 'visi-bloc-jlg' ),
+            'description' => __( 'Lancez un parcours guidé et vérifiez en un coup d’œil les étapes fondamentales de configuration.', 'visi-bloc-jlg' ),
+            'section_ids' => [ 'visibloc-section-onboarding', 'visibloc-section-guided-recipes' ],
+        ],
+        [
+            'id'          => 'visibloc-group-dashboards',
+            'label'       => __( 'Tableaux de bord', 'visi-bloc-jlg' ),
+            'description' => __( 'Surveillez les blocs masqués, programmés ou ciblés par appareil pour détecter les anomalies en production.', 'visi-bloc-jlg' ),
+            'section_ids' => [ 'visibloc-section-hidden', 'visibloc-section-device', 'visibloc-section-scheduled' ],
+        ],
+        [
+            'id'          => 'visibloc-group-configuration',
+            'label'       => __( 'Configuration avancée', 'visi-bloc-jlg' ),
+            'description' => __( 'Affinez les blocs compatibles, les permissions et les points de rupture afin d’harmoniser l’expérience éditeur.', 'visi-bloc-jlg' ),
+            'section_ids' => [ 'visibloc-section-blocks', 'visibloc-section-permissions', 'visibloc-section-breakpoints', 'visibloc-section-fallback', 'visibloc-section-debug' ],
+        ],
+        [
+            'id'          => 'visibloc-group-continuity',
+            'label'       => __( 'Sauvegarde & continuité', 'visi-bloc-jlg' ),
+            'description' => __( 'Exportez vos réglages et automatisez la reprise en cas d’incident grâce aux outils intégrés.', 'visi-bloc-jlg' ),
+            'section_ids' => [ 'visibloc-section-backup' ],
+        ],
+    ];
+
+    $groups = [];
+
+    foreach ( $group_definitions as $group ) {
+        $sections = [];
+
+        foreach ( (array) $group['section_ids'] as $section_id ) {
+            if ( isset( $section_map[ $section_id ] ) ) {
+                $sections[] = $section_map[ $section_id ];
+            }
+        }
+
+        if ( empty( $sections ) ) {
+            continue;
+        }
+
+        $groups[] = [
+            'id'          => $group['id'],
+            'label'       => $group['label'],
+            'description' => $group['description'],
+            'sections'    => $sections,
+        ];
+    }
+
+    $group_select_id      = 'visibloc-help-group-picker';
+    $group_description_id = $group_select_id . '-description';
 
     ?>
     <div class="wrap">
@@ -971,136 +1170,176 @@ function visibloc_jlg_render_help_page_content() {
             ?>
             <div id="message" class="notice notice-error is-dismissible"><p><?php echo esc_html( $error_message ?: $fallback_error ); ?></p></div>
         <?php endif; ?>
-        <?php if ( ! empty( $onboarding_items ) ) : ?>
-            <section class="visibloc-onboarding" aria-labelledby="<?php echo esc_attr( $onboarding_title_id ); ?>">
-                <div class="visibloc-onboarding__header">
-                    <div class="visibloc-onboarding__intro">
-                        <h2 id="<?php echo esc_attr( $onboarding_title_id ); ?>" class="visibloc-onboarding__title">
-                            <?php esc_html_e( 'Assistant de prise en main', 'visi-bloc-jlg' ); ?>
-                        </h2>
-                        <p class="visibloc-onboarding__subtitle">
-                            <?php esc_html_e( 'Suivez les étapes clés pour déployer Visi-Bloc avec des réglages fiables.', 'visi-bloc-jlg' ); ?>
-                        </p>
-                    </div>
-                    <div class="visibloc-onboarding__progress" role="group" aria-label="<?php esc_attr_e( 'Progression de la checklist', 'visi-bloc-jlg' ); ?>">
-                        <div class="visibloc-onboarding__progress-count">
-                            <span class="visibloc-onboarding__progress-value"><?php echo esc_html( $onboarding_progress['completed'] ); ?> / <?php echo esc_html( $onboarding_progress['total'] ); ?></span>
-                            <span class="visibloc-onboarding__progress-label"><?php esc_html_e( 'étapes terminées', 'visi-bloc-jlg' ); ?></span>
-                        </div>
-                        <div class="visibloc-onboarding__progress-bar" role="presentation">
-                            <span class="visibloc-onboarding__progress-bar-fill" style="width: <?php echo esc_attr( max( 0, min( 100, $onboarding_progress['percent'] ) ) ); ?>%;"></span>
-                        </div>
-                    </div>
-                </div>
-                <ul class="visibloc-onboarding__checklist" id="<?php echo esc_attr( $onboarding_list_id ); ?>" role="list">
-                    <?php foreach ( $onboarding_items as $item ) :
-                        $is_complete  = ! empty( $item['complete'] );
-                        $status_class = $is_complete ? 'is-complete' : 'is-pending';
-                        $action       = isset( $item['action'] ) && is_array( $item['action'] ) ? $item['action'] : [];
-                        $action_label = isset( $action['label'] ) ? (string) $action['label'] : '';
-                        $action_url   = isset( $action['url'] ) ? (string) $action['url'] : '';
-                    ?>
-                        <li class="visibloc-onboarding__item <?php echo esc_attr( $status_class ); ?>">
-                            <div class="visibloc-onboarding__status">
-                                <?php if ( $is_complete ) : ?>
-                                    <span aria-hidden="true" class="visibloc-onboarding__status-icon visibloc-onboarding__status-icon--complete">
-                                        <svg viewBox="0 0 24 24" focusable="false" role="img" aria-hidden="true"><path d="M9.6 16.2a1 1 0 0 1-.74-.33l-3.1-3.4a1 1 0 1 1 1.48-1.34l2.28 2.5 6-6.6a1 1 0 0 1 1.48 1.34l-6.74 7.4a1 1 0 0 1-.74.33z" /></svg>
-                                    </span>
-                                    <span class="screen-reader-text"><?php esc_html_e( 'Étape terminée', 'visi-bloc-jlg' ); ?></span>
-                                <?php else : ?>
-                                    <span aria-hidden="true" class="visibloc-onboarding__status-icon visibloc-onboarding__status-icon--pending">
-                                        <svg viewBox="0 0 24 24" focusable="false" role="img" aria-hidden="true"><path d="M12 4a1 1 0 0 1 1 1v6.08l3.36 2.16a1 1 0 1 1-1.07 1.7l-3.85-2.48A1 1 0 0 1 11 11V5a1 1 0 0 1 1-1z" /></svg>
-                                    </span>
-                                    <span class="screen-reader-text"><?php esc_html_e( 'Étape à compléter', 'visi-bloc-jlg' ); ?></span>
-                                <?php endif; ?>
-                            </div>
-                            <div class="visibloc-onboarding__details">
-                                <h3 class="visibloc-onboarding__item-title"><?php echo esc_html( $item['title'] ); ?></h3>
-                                <p class="visibloc-onboarding__item-description"><?php echo esc_html( $item['description'] ); ?></p>
-                                <?php if ( '' !== $action_label && '' !== $action_url ) : ?>
-                                    <a class="visibloc-onboarding__action button button-secondary" href="<?php echo esc_url( $action_url ); ?>">
-                                        <?php echo esc_html( $action_label ); ?>
-                                    </a>
-                                <?php endif; ?>
-                            </div>
-                        </li>
-                    <?php endforeach; ?>
-                </ul>
-            </section>
-        <?php endif; ?>
-        <div class="visibloc-help-layout">
-            <div class="visibloc-help-layout__sidebar">
-                <div class="visibloc-help-nav__mobile" data-visibloc-nav-picker-container>
-                    <label class="visibloc-help-nav__mobile-label" for="<?php echo esc_attr( $nav_select_id ); ?>">
-                        <?php esc_html_e( 'Aller directement à une section', 'visi-bloc-jlg' ); ?>
+        <div class="visibloc-help-groups" data-visibloc-groups>
+            <div class="visibloc-help-groups__nav">
+                <div class="visibloc-help-nav__mobile" data-visibloc-group-picker-container>
+                    <label class="visibloc-help-nav__mobile-label" for="<?php echo esc_attr( $group_select_id ); ?>">
+                        <?php esc_html_e( 'Choisir une vue', 'visi-bloc-jlg' ); ?>
                     </label>
-                    <p id="<?php echo esc_attr( $nav_description_id ); ?>" class="description visibloc-help-nav__mobile-description">
-                        <?php esc_html_e( 'Choisissez une section pour y accéder rapidement depuis la navigation mobile.', 'visi-bloc-jlg' ); ?>
+                    <p id="<?php echo esc_attr( $group_description_id ); ?>" class="description visibloc-help-nav__mobile-description">
+                        <?php esc_html_e( 'Sélectionnez la thématique qui correspond à votre besoin : découverte, tableaux de bord, configuration ou sauvegarde.', 'visi-bloc-jlg' ); ?>
                     </p>
                     <select
-                        id="<?php echo esc_attr( $nav_select_id ); ?>"
+                        id="<?php echo esc_attr( $group_select_id ); ?>"
                         class="visibloc-help-nav__mobile-select regular-text"
-                        aria-describedby="<?php echo esc_attr( $nav_description_id ); ?>"
-                        data-visibloc-nav-picker
+                        aria-describedby="<?php echo esc_attr( $group_description_id ); ?>"
+                        data-visibloc-group-picker
                     >
-                        <?php foreach ( $sections as $section ) :
-                            if ( empty( $section['id'] ) || empty( $section['label'] ) ) {
-                                continue;
-                            }
-
-                            $section_id    = sanitize_html_class( $section['id'] );
-                            $section_label = $section['label'];
-                            ?>
-                            <option value="<?php echo esc_attr( $section_id ); ?>">
-                                <?php echo esc_html( $section_label ); ?>
+                        <?php foreach ( $groups as $group_index => $group ) : ?>
+                            <option value="<?php echo esc_attr( $group['id'] ); ?>" <?php selected( 0, $group_index ); ?>>
+                                <?php echo esc_html( $group['label'] ); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <nav
-                    class="visibloc-help-nav"
-                    aria-label="<?php echo esc_attr__( 'Navigation des réglages Visi-Bloc', 'visi-bloc-jlg' ); ?>"
-                    data-visibloc-nav-container
-                >
-                    <ul id="<?php echo esc_attr( $nav_list_id ); ?>" class="visibloc-help-nav__list">
-                        <?php foreach ( $sections as $section ) :
-                            if ( empty( $section['id'] ) || empty( $section['label'] ) ) {
-                                continue;
-                            }
-
-                            $section_id    = sanitize_html_class( $section['id'] );
-                            $section_label = $section['label'];
-                            ?>
-                            <li class="visibloc-help-nav__item">
-                                <a
-                                    class="visibloc-help-nav__link"
-                                    href="#<?php echo esc_attr( $section_id ); ?>"
-                                    data-visibloc-nav-link
-                                >
-                                    <?php echo esc_html( $section_label ); ?>
-                                </a>
-                            </li>
-                        <?php endforeach; ?>
-                    </ul>
-                </nav>
+                <div class="visibloc-help-groups__tabs" role="tablist" aria-label="<?php esc_attr_e( 'Vues thématiques Visi-Bloc', 'visi-bloc-jlg' ); ?>">
+                    <?php foreach ( $groups as $index => $group ) :
+                        $is_active = ( 0 === $index );
+                        $tab_id    = $group['id'] . '-tab';
+                        ?>
+                        <button
+                            type="button"
+                            class="visibloc-help-groups__tab<?php echo $is_active ? ' is-active' : ''; ?>"
+                            id="<?php echo esc_attr( $tab_id ); ?>"
+                            role="tab"
+                            aria-selected="<?php echo $is_active ? 'true' : 'false'; ?>"
+                            aria-controls="<?php echo esc_attr( $group['id'] ); ?>"
+                            data-visibloc-group-tab="<?php echo esc_attr( $group['id'] ); ?>"
+                            <?php echo $is_active ? '' : 'tabindex="-1"'; ?>
+                        >
+                            <span class="visibloc-help-groups__tab-label"><?php echo esc_html( $group['label'] ); ?></span>
+                        </button>
+                    <?php endforeach; ?>
+                </div>
             </div>
-            <div id="poststuff" class="visibloc-help-layout__content">
-                <?php foreach ( $sections as $section ) :
-                    $callback = $section['render'] ?? null;
+            <div class="visibloc-help-groups__panels">
+                <?php foreach ( $groups as $index => $group ) :
+                    $is_active = ( 0 === $index );
+                    $tab_id    = $group['id'] . '-tab';
+                    ?>
+                    <section
+                        id="<?php echo esc_attr( $group['id'] ); ?>"
+                        class="visibloc-help-groups__panel<?php echo $is_active ? ' is-active' : ''; ?>"
+                        role="tabpanel"
+                        aria-labelledby="<?php echo esc_attr( $tab_id ); ?>"
+                        data-visibloc-group-panel="<?php echo esc_attr( $group['id'] ); ?>"
+                        <?php echo $is_active ? '' : 'hidden'; ?>
+                    >
+                        <header class="visibloc-help-groups__panel-header">
+                            <h2 class="visibloc-help-groups__panel-title"><?php echo esc_html( $group['label'] ); ?></h2>
+                            <?php if ( ! empty( $group['description'] ) ) : ?>
+                                <p class="visibloc-help-groups__panel-description"><?php echo esc_html( $group['description'] ); ?></p>
+                            <?php endif; ?>
+                        </header>
+                        <div class="visibloc-help-groups__panel-content">
+                            <?php foreach ( $group['sections'] as $section ) :
+                                $callback = $section['render'] ?? null;
 
-                    if ( empty( $callback ) || ! is_callable( $callback ) ) {
-                        continue;
-                    }
+                                if ( empty( $callback ) || ! is_callable( $callback ) ) {
+                                    continue;
+                                }
 
-                    $args = isset( $section['args'] ) && is_array( $section['args'] )
-                        ? $section['args']
-                        : [];
+                                $args = isset( $section['args'] ) && is_array( $section['args'] )
+                                    ? $section['args']
+                                    : [];
 
-                    call_user_func_array( $callback, $args );
-                endforeach; ?>
+                                call_user_func_array( $callback, $args );
+                            endforeach; ?>
+                        </div>
+                    </section>
+                <?php endforeach; ?>
             </div>
         </div>
     </div>
+    <?php
+}
+
+function visibloc_jlg_render_onboarding_section( $items, $progress ) {
+    $items    = is_array( $items ) ? array_values( array_filter( $items ) ) : [];
+    $progress = is_array( $progress ) ? $progress : [ 'completed' => 0, 'total' => 0, 'percent' => 0 ];
+
+    if ( empty( $items ) ) {
+        return;
+    }
+
+    $title_id      = 'visibloc-onboarding-title';
+    $list_id       = 'visibloc-onboarding-list';
+    $completed     = isset( $progress['completed'] ) ? (int) $progress['completed'] : 0;
+    $total         = isset( $progress['total'] ) ? (int) $progress['total'] : count( $items );
+    $percent       = isset( $progress['percent'] ) ? (int) $progress['percent'] : 0;
+    $percent_value = max( 0, min( 100, $percent ) );
+
+    ?>
+    <section
+        id="visibloc-section-onboarding"
+        class="visibloc-onboarding"
+        aria-labelledby="<?php echo esc_attr( $title_id ); ?>"
+        data-visibloc-section="visibloc-section-onboarding"
+    >
+        <div class="visibloc-onboarding__header">
+            <div class="visibloc-onboarding__intro">
+                <h3 id="<?php echo esc_attr( $title_id ); ?>" class="visibloc-onboarding__title">
+                    <?php esc_html_e( 'Assistant de prise en main', 'visi-bloc-jlg' ); ?>
+                </h3>
+                <p class="visibloc-onboarding__subtitle">
+                    <?php esc_html_e( 'Suivez les étapes clés pour sécuriser l’activation des règles de visibilité.', 'visi-bloc-jlg' ); ?>
+                </p>
+            </div>
+            <div class="visibloc-onboarding__progress" role="group" aria-label="<?php esc_attr_e( 'Progression de la checklist', 'visi-bloc-jlg' ); ?>">
+                <div class="visibloc-onboarding__progress-count">
+                    <span class="visibloc-onboarding__progress-value"><?php echo esc_html( $completed ); ?> / <?php echo esc_html( $total ); ?></span>
+                    <span class="visibloc-onboarding__progress-label"><?php esc_html_e( 'étapes terminées', 'visi-bloc-jlg' ); ?></span>
+                </div>
+                <div class="visibloc-onboarding__progress-bar" role="presentation">
+                    <span class="visibloc-onboarding__progress-bar-fill" style="width: <?php echo esc_attr( $percent_value ); ?>%;"></span>
+                </div>
+            </div>
+        </div>
+        <details class="visibloc-contextual-guide" data-visibloc-guide>
+            <summary class="visibloc-contextual-guide__summary">
+                <?php esc_html_e( 'Guide express : comment valider chaque étape ?', 'visi-bloc-jlg' ); ?>
+            </summary>
+            <div class="visibloc-contextual-guide__content">
+                <p><?php esc_html_e( 'Chaque carte renvoie vers la section correspondante de la page. Pensez à valider l’accessibilité (labels, contrastes) avant de marquer l’étape comme terminée.', 'visi-bloc-jlg' ); ?></p>
+            </div>
+        </details>
+        <ul class="visibloc-onboarding__checklist" id="<?php echo esc_attr( $list_id ); ?>" role="list">
+            <?php foreach ( $items as $item ) :
+                $is_complete  = ! empty( $item['complete'] );
+                $status_class = $is_complete ? 'is-complete' : 'is-pending';
+                $title        = isset( $item['title'] ) ? (string) $item['title'] : '';
+                $description  = isset( $item['description'] ) ? (string) $item['description'] : '';
+                $action       = isset( $item['action'] ) && is_array( $item['action'] ) ? $item['action'] : [];
+                $action_label = isset( $action['label'] ) ? (string) $action['label'] : '';
+                $action_url   = isset( $action['url'] ) ? (string) $action['url'] : '';
+                ?>
+                <li class="visibloc-onboarding__item <?php echo esc_attr( $status_class ); ?>">
+                    <div class="visibloc-onboarding__status">
+                        <?php if ( $is_complete ) : ?>
+                            <span aria-hidden="true" class="visibloc-onboarding__status-icon visibloc-onboarding__status-icon--complete">
+                                <svg viewBox="0 0 24 24" focusable="false" role="img" aria-hidden="true"><path d="M9.6 16.2a1 1 0 0 1-.74-.33l-3.1-3.4a1 1 0 1 1 1.48-1.34l2.28 2.5 6-6.6a1 1 0 0 1 1.48 1.34l-6.74 7.4a1 1 0 0 1-.74.33z" /></svg>
+                            </span>
+                            <span class="screen-reader-text"><?php esc_html_e( 'Étape terminée', 'visi-bloc-jlg' ); ?></span>
+                        <?php else : ?>
+                            <span aria-hidden="true" class="visibloc-onboarding__status-icon visibloc-onboarding__status-icon--pending">
+                                <svg viewBox="0 0 24 24" focusable="false" role="img" aria-hidden="true"><path d="M12 4a1 1 0 0 1 1 1v6.08l3.36 2.16a1 1 0 1 1-1.07 1.7l-3.85-2.48A1 1 0 0 1 11 11V5a1 1 0 0 1 1-1z" /></svg>
+                            </span>
+                            <span class="screen-reader-text"><?php esc_html_e( 'Étape à compléter', 'visi-bloc-jlg' ); ?></span>
+                        <?php endif; ?>
+                    </div>
+                    <div class="visibloc-onboarding__details">
+                        <h4 class="visibloc-onboarding__item-title"><?php echo esc_html( $title ); ?></h4>
+                        <p class="visibloc-onboarding__item-description"><?php echo esc_html( $description ); ?></p>
+                        <?php if ( '' !== $action_label && '' !== $action_url ) : ?>
+                            <a class="visibloc-onboarding__action button button-secondary" href="<?php echo esc_url( $action_url ); ?>">
+                                <?php echo esc_html( $action_label ); ?>
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                </li>
+            <?php endforeach; ?>
+        </ul>
+    </section>
     <?php
 }
 
@@ -1212,6 +1451,12 @@ function visibloc_jlg_render_guided_recipes_section( $recipes ) {
                             $steps = isset( $recipe['steps'] ) && is_array( $recipe['steps'] )
                                 ? array_values( array_filter( $recipe['steps'] ) )
                                 : [];
+                            $block_template      = isset( $recipe['block_template'] ) ? (string) $recipe['block_template'] : '';
+                            $block_template_json = '' !== $block_template ? wp_json_encode( $block_template ) : '';
+
+                            if ( false === $block_template_json ) {
+                                $block_template_json = '';
+                            }
 
                             $step_count      = count( $steps );
                             $step_count_text = sprintf( _n( '%d étape', '%d étapes', $step_count, 'visi-bloc-jlg' ), $step_count );
@@ -1235,6 +1480,7 @@ function visibloc_jlg_render_guided_recipes_section( $recipes ) {
                                 data-recipe-theme-label="<?php echo esc_attr( $theme_label ); ?>"
                                 data-recipe-step-count="<?php echo esc_attr( $step_count ); ?>"
                                 data-recipe-blocks="<?php echo esc_attr( $blocks_json ); ?>"
+                                data-recipe-has-template="<?php echo esc_attr( '' !== $block_template_json ? 'true' : 'false' ); ?>"
                             >
                                 <article class="visibloc-recipe-card" aria-labelledby="<?php echo esc_attr( $card_id ); ?>-title">
                                     <header class="visibloc-recipe-card__header">
@@ -1277,6 +1523,11 @@ function visibloc_jlg_render_guided_recipes_section( $recipes ) {
                                         <p class="visibloc-recipe-card__steps" aria-label="<?php esc_attr_e( 'Nombre d’étapes de l’assistant', 'visi-bloc-jlg' ); ?>">
                                             <?php echo esc_html( $step_count_text ); ?>
                                         </p>
+                                        <?php if ( '' !== $block_template_json ) : ?>
+                                            <p class="visibloc-recipe-card__template">
+                                                <?php esc_html_e( 'Modèle de blocs prêt à l’emploi inclus.', 'visi-bloc-jlg' ); ?>
+                                            </p>
+                                        <?php endif; ?>
                                     </div>
                                     <div class="visibloc-recipe-card__actions">
                                         <button
@@ -1353,6 +1604,9 @@ function visibloc_jlg_render_guided_recipes_section( $recipes ) {
                                             <?php endif; ?>
                                         </div>
                                     <?php endforeach; ?>
+                                    <?php if ( '' !== $block_template_json ) : ?>
+                                        <script type="application/json" data-visibloc-recipe-template-blocks><?php echo $block_template_json; ?></script>
+                                    <?php endif; ?>
                                 </template>
                             </li>
                         <?php endforeach; ?>
@@ -1423,18 +1677,26 @@ function visibloc_jlg_render_guided_recipes_section( $recipes ) {
                             </div>
                             <div class="screen-reader-text" aria-live="polite" data-visibloc-recipe-step-live></div>
                             <footer class="visibloc-guided-recipes__dialog-footer">
-                                <button type="button" class="button button-secondary" data-visibloc-recipe-prev>
-                                    <?php esc_html_e( 'Étape précédente', 'visi-bloc-jlg' ); ?>
-                                </button>
-                                <button
-                                    type="button"
-                                    class="button button-primary visibloc-guided-recipes__dialog-next"
-                                    data-visibloc-recipe-next
-                                    data-visibloc-label-next="<?php echo esc_attr__( 'Étape suivante', 'visi-bloc-jlg' ); ?>"
-                                    data-visibloc-label-finish="<?php echo esc_attr__( 'Terminer', 'visi-bloc-jlg' ); ?>"
-                                >
-                                    <?php esc_html_e( 'Étape suivante', 'visi-bloc-jlg' ); ?>
-                                </button>
+                                <div class="visibloc-guided-recipes__dialog-tools">
+                                    <button type="button" class="button button-secondary" data-visibloc-recipe-copy>
+                                        <?php esc_html_e( 'Copier le modèle de blocs', 'visi-bloc-jlg' ); ?>
+                                    </button>
+                                    <span class="visibloc-guided-recipes__dialog-feedback" data-visibloc-recipe-feedback role="status" aria-live="polite" hidden></span>
+                                </div>
+                                <div class="visibloc-guided-recipes__dialog-navigation">
+                                    <button type="button" class="button button-secondary" data-visibloc-recipe-prev>
+                                        <?php esc_html_e( 'Étape précédente', 'visi-bloc-jlg' ); ?>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="button button-primary visibloc-guided-recipes__dialog-next"
+                                        data-visibloc-recipe-next
+                                        data-visibloc-label-next="<?php echo esc_attr__( 'Étape suivante', 'visi-bloc-jlg' ); ?>"
+                                        data-visibloc-label-finish="<?php echo esc_attr__( 'Terminer', 'visi-bloc-jlg' ); ?>"
+                                    >
+                                        <?php esc_html_e( 'Étape suivante', 'visi-bloc-jlg' ); ?>
+                                    </button>
+                                </div>
                             </footer>
                         </div>
                     </div>
@@ -1454,6 +1716,55 @@ function visibloc_jlg_render_supported_blocks_section( $registered_block_types, 
 
     $section_id = 'visibloc-section-blocks';
 
+    $groups = [];
+
+    foreach ( $registered_block_types as $block ) {
+        $block_name  = isset( $block['name'] ) && is_string( $block['name'] ) ? $block['name'] : '';
+        $block_label = isset( $block['label'] ) && is_string( $block['label'] ) ? $block['label'] : $block_name;
+
+        if ( '' === $block_name ) {
+            continue;
+        }
+
+        $group_key = strpos( $block_name, '/' ) ? substr( $block_name, 0, strpos( $block_name, '/' ) ) : 'core';
+        $group_key = $group_key ? sanitize_key( $group_key ) : 'core';
+
+        if ( ! isset( $groups[ $group_key ] ) ) {
+            $groups[ $group_key ] = [];
+        }
+
+        $groups[ $group_key ][] = [
+            'name'  => $block_name,
+            'label' => $block_label,
+        ];
+    }
+
+    ksort( $groups );
+
+    $group_labels = [
+        'core'        => __( 'Blocs WordPress natifs', 'visi-bloc-jlg' ),
+        'woocommerce' => __( 'WooCommerce', 'visi-bloc-jlg' ),
+        'jetpack'     => __( 'Jetpack & partenaires', 'visi-bloc-jlg' ),
+    ];
+
+    $presets = [
+        'blog' => [
+            'label'       => __( 'Pack blog éditorial', 'visi-bloc-jlg' ),
+            'description' => __( 'Active les blocs essentiels pour des articles riches (titres, médias, citations, boutons).', 'visi-bloc-jlg' ),
+            'blocks'      => [ 'core/heading', 'core/paragraph', 'core/image', 'core/gallery', 'core/quote', 'core/list', 'core/buttons' ],
+        ],
+        'commerce' => [
+            'label'       => __( 'Pack e-commerce', 'visi-bloc-jlg' ),
+            'description' => __( 'Cible les blocs produits, paniers et mises en avant pour piloter les parcours d’achat.', 'visi-bloc-jlg' ),
+            'blocks'      => [ 'woocommerce/product-image', 'woocommerce/featured-category', 'woocommerce/product-button', 'woocommerce/product-price', 'core/cover', 'core/columns' ],
+        ],
+        'landing' => [
+            'label'       => __( 'Pack landing page', 'visi-bloc-jlg' ),
+            'description' => __( 'Préconfigure les blocs de mise en avant (colonnes, témoignages, boutons) pour des pages ciblées.', 'visi-bloc-jlg' ),
+            'blocks'      => [ 'core/cover', 'core/columns', 'core/heading', 'core/buttons', 'core/testimonial', 'core/group' ],
+        ],
+    ];
+
     ?>
     <div
         id="<?php echo esc_attr( $section_id ); ?>"
@@ -1464,6 +1775,15 @@ function visibloc_jlg_render_supported_blocks_section( $registered_block_types, 
         <div class="inside">
             <form method="POST" action="">
                 <p><?php esc_html_e( 'Sélectionnez les blocs Gutenberg pouvant utiliser les contrôles de visibilité Visi-Bloc.', 'visi-bloc-jlg' ); ?></p>
+                <details class="visibloc-contextual-guide" data-visibloc-guide>
+                    <summary class="visibloc-contextual-guide__summary">
+                        <?php esc_html_e( 'Conseils de configuration', 'visi-bloc-jlg' ); ?>
+                    </summary>
+                    <div class="visibloc-contextual-guide__content">
+                        <p><?php esc_html_e( 'Regroupez les blocs par usage (éditorial, conversion, tunnel) et activez uniquement ceux qui nécessitent des règles de visibilité dynamiques.', 'visi-bloc-jlg' ); ?></p>
+                        <p><?php esc_html_e( 'Les packs ci-dessous appliquent une sélection instantanée et restent modifiables bloc par bloc.', 'visi-bloc-jlg' ); ?></p>
+                    </div>
+                </details>
                 <?php if ( empty( $registered_block_types ) ) : ?>
                     <p><em><?php esc_html_e( 'Aucun bloc enregistré n’a été détecté.', 'visi-bloc-jlg' ); ?></em></p>
                 <?php else : ?>
@@ -1508,6 +1828,50 @@ function visibloc_jlg_render_supported_blocks_section( $registered_block_types, 
                                     <?php esc_html_e( 'Tout désélectionner', 'visi-bloc-jlg' ); ?>
                                 </button>
                             </div>
+                            <?php if ( ! empty( $presets ) ) : ?>
+                                <div class="visibloc-supported-blocks-presets" role="group" aria-label="<?php esc_attr_e( 'Packs de sélection rapide', 'visi-bloc-jlg' ); ?>">
+                                    <?php foreach ( $presets as $preset_key => $preset ) :
+                                        $blocks_for_preset = array_filter(
+                                            array_map( 'strval', $preset['blocks'] ),
+                                            static function ( $block_name ) use ( $registered_block_types ) {
+                                                foreach ( $registered_block_types as $registered ) {
+                                                    if ( isset( $registered['name'] ) && $registered['name'] === $block_name ) {
+                                                        return true;
+                                                    }
+                                                }
+
+                                                return false;
+                                            }
+                                        );
+
+                                        if ( empty( $blocks_for_preset ) ) {
+                                            continue;
+                                        }
+
+                                        $preset_json = wp_json_encode( array_values( $blocks_for_preset ) );
+
+                                        if ( false === $preset_json ) {
+                                            continue;
+                                        }
+                                        ?>
+                                        <div class="visibloc-supported-blocks-preset">
+                                            <button
+                                                type="button"
+                                                class="button button-secondary"
+                                                data-visibloc-block-preset="<?php echo esc_attr( $preset_json ); ?>"
+                                                data-visibloc-blocks-target="visibloc-supported-blocks-list"
+                                            >
+                                                <?php echo esc_html( $preset['label'] ); ?>
+                                            </button>
+                                            <?php if ( ! empty( $preset['description'] ) ) : ?>
+                                                <p class="description visibloc-supported-blocks-preset__description">
+                                                    <?php echo esc_html( $preset['description'] ); ?>
+                                                </p>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
                             <p id="<?php echo esc_attr( $search_description_id ); ?>" class="description" style="margin-top: 4px;">
                                 <?php esc_html_e( 'Saisissez un terme pour filtrer la liste des blocs disponibles.', 'visi-bloc-jlg' ); ?>
                             </p>
@@ -1520,45 +1884,57 @@ function visibloc_jlg_render_supported_blocks_section( $registered_block_types, 
                             <?php
                             $selected_blocks = 0;
 
-                            foreach ( $registered_block_types as $block ) :
-                                $block_name  = isset( $block['name'] ) && is_string( $block['name'] ) ? $block['name'] : '';
-                                $block_label = isset( $block['label'] ) && is_string( $block['label'] ) ? $block['label'] : $block_name;
-
-                                if ( '' === $block_name ) {
+                            foreach ( $groups as $group_key => $group_blocks ) :
+                                if ( empty( $group_blocks ) ) {
                                     continue;
                                 }
 
-                                $is_default  = in_array( $block_name, $default_blocks, true );
-                                $is_checked  = $is_default || in_array( $block_name, $configured_blocks, true );
-                                $is_disabled = $is_default;
-                                $search_text = wp_strip_all_tags( $block_label . ' ' . $block_name );
-                                $search_value = function_exists( 'remove_accents' )
-                                    ? remove_accents( $search_text )
-                                    : $search_text;
-
-                                if ( $is_checked ) {
-                                    $selected_blocks++;
-                                }
-
-                                $search_value = function_exists( 'mb_strtolower' )
-                                    ? mb_strtolower( $search_value, 'UTF-8' )
-                                    : strtolower( $search_value );
+                                $group_label = isset( $group_labels[ $group_key ] )
+                                    ? $group_labels[ $group_key ]
+                                    : ucwords( str_replace( '-', ' ', $group_key ) );
                                 ?>
-                                <label
-                                    class="visibloc-supported-blocks-item"
-                                    data-visibloc-block
-                                    data-visibloc-search-value="<?php echo esc_attr( $search_value ); ?>"
-                                    style="display: block; margin-bottom: 6px;"
-                                >
-                                    <input type="checkbox" name="visibloc_supported_blocks[]" value="<?php echo esc_attr( $block_name ); ?>" <?php checked( $is_checked ); ?> <?php disabled( $is_disabled ); ?> />
-                                    <?php echo esc_html( $block_label ); ?>
-                                    <span class="description" style="margin-left: 4px;">
-                                        (<?php echo esc_html( $block_name ); ?>)
-                                        <?php if ( $is_default ) : ?>
-                                            — <?php esc_html_e( 'Toujours actif', 'visi-bloc-jlg' ); ?>
-                                        <?php endif; ?>
-                                    </span>
-                                </label>
+                                <section class="visibloc-supported-blocks-group" data-visibloc-block-group>
+                                    <h3 class="visibloc-supported-blocks-group__title"><?php echo esc_html( $group_label ); ?></h3>
+                                    <div class="visibloc-supported-blocks-group__list">
+                                        <?php foreach ( $group_blocks as $block ) :
+                                            $block_name  = isset( $block['name'] ) ? (string) $block['name'] : '';
+                                            $block_label = isset( $block['label'] ) ? (string) $block['label'] : $block_name;
+
+                                            if ( '' === $block_name ) {
+                                                continue;
+                                            }
+
+                                            $is_default  = in_array( $block_name, $default_blocks, true );
+                                            $is_checked  = $is_default || in_array( $block_name, $configured_blocks, true );
+                                            $is_disabled = $is_default;
+                                            $search_text = wp_strip_all_tags( $block_label . ' ' . $block_name );
+                                            $search_value = function_exists( 'remove_accents' )
+                                                ? remove_accents( $search_text )
+                                                : $search_text;
+
+                                            if ( $is_checked ) {
+                                                $selected_blocks++;
+                                            }
+
+                                            $search_value = function_exists( 'mb_strtolower' )
+                                                ? mb_strtolower( $search_value, 'UTF-8' )
+                                                : strtolower( $search_value );
+                                            ?>
+                                            <label
+                                                class="visibloc-supported-blocks-item"
+                                                data-visibloc-block
+                                                data-visibloc-search-value="<?php echo esc_attr( $search_value ); ?>"
+                                            >
+                                                <input type="checkbox" name="visibloc_supported_blocks[]" value="<?php echo esc_attr( $block_name ); ?>" <?php checked( $is_checked ); ?> <?php disabled( $is_disabled ); ?> />
+                                                <span class="visibloc-supported-blocks-item__label"><?php echo esc_html( $block_label ); ?></span>
+                                                <span class="visibloc-supported-blocks-item__slug">(<?php echo esc_html( $block_name ); ?>)</span>
+                                                <?php if ( $is_default ) : ?>
+                                                    <span class="visibloc-supported-blocks-item__badge"><?php esc_html_e( 'Toujours actif', 'visi-bloc-jlg' ); ?></span>
+                                                <?php endif; ?>
+                                            </label>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </section>
                             <?php endforeach; ?>
                             <?php
                             $count_template        = __( 'Blocs visibles : %1$d — Sélectionnés : %2$d', 'visi-bloc-jlg' );
