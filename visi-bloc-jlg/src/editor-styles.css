@@ -69,6 +69,135 @@
     gap: 16px;
 }
 
+.visibloc-diagnostic-card {
+    border-radius: var(--visibloc-radius-base);
+    border: 1px solid var(--visibloc-border-subtle);
+    background: var(--visibloc-surface);
+    box-shadow: var(--visibloc-shadow-subtle);
+    overflow: hidden;
+}
+
+.visibloc-diagnostic-card--good {
+    border-color: rgba(34, 197, 94, 0.28);
+    box-shadow: 0 14px 34px -20px rgba(34, 197, 94, 0.45);
+}
+
+.visibloc-diagnostic-card--warning {
+    border-color: rgba(251, 191, 36, 0.45);
+    box-shadow: 0 16px 36px -20px rgba(251, 146, 60, 0.4);
+}
+
+.visibloc-diagnostic-card--critical {
+    border-color: rgba(248, 113, 113, 0.55);
+    box-shadow: 0 18px 40px -22px rgba(239, 68, 68, 0.5);
+}
+
+.visibloc-diagnostic-card .components-card__header,
+.visibloc-diagnostic-card .components-card__body {
+    padding: 18px 20px;
+}
+
+.visibloc-diagnostic-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.visibloc-diagnostic-card__texts {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.visibloc-diagnostic-card__eyebrow {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--wp-components-color-foreground-muted, #50575e);
+}
+
+.visibloc-diagnostic-card__title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--wp-components-color-foreground, #1d2327);
+}
+
+.visibloc-diagnostic-card__summary {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--wp-components-color-foreground-muted, #50575e);
+    white-space: pre-line;
+}
+
+.visibloc-diagnostic-card__score {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    min-width: 88px;
+}
+
+.visibloc-diagnostic-card__score-value {
+    margin: 0;
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--wp-components-color-foreground, #1d2327);
+}
+
+.visibloc-diagnostic-card__score-suffix {
+    font-size: 12px;
+    color: var(--wp-components-color-foreground-muted, #50575e);
+}
+
+.visibloc-diagnostic-card__score-meter {
+    display: inline-flex;
+    width: 72px;
+    height: 6px;
+    border-radius: var(--visibloc-radius-pill);
+    background: var(--visibloc-border-subtle);
+    overflow: hidden;
+}
+
+.visibloc-diagnostic-card__score-meter-fill {
+    display: inline-block;
+    height: 100%;
+    background: linear-gradient(90deg, #22c55e, #16a34a);
+    transition: width 0.25s ease;
+}
+
+.visibloc-diagnostic-card--warning .visibloc-diagnostic-card__score-meter-fill {
+    background: linear-gradient(90deg, #f97316, #f59e0b);
+}
+
+.visibloc-diagnostic-card--critical .visibloc-diagnostic-card__score-meter-fill {
+    background: linear-gradient(90deg, #ef4444, #dc2626);
+}
+
+.visibloc-diagnostic-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.visibloc-diagnostic-list__item {
+    display: flex;
+}
+
+.visibloc-diagnostic-empty {
+    margin: 0;
+    font-size: 13px;
+    color: var(--wp-components-color-foreground-muted, #50575e);
+}
+
 .visibloc-scenario-presets {
     display: flex;
     flex-direction: column;
@@ -479,6 +608,15 @@
     transition: box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
 }
 
+.visibloc-status-badge__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    color: inherit;
+}
+
 .visibloc-status-badge__label {
     font-size: 12px;
     font-weight: 600;
@@ -509,6 +647,47 @@
     --visibloc-badge-border: rgba(59, 130, 246, 0.45);
     --visibloc-badge-foreground: #1d4ed8;
     --visibloc-badge-shadow: 0 14px 34px -18px rgba(37, 99, 235, 0.75);
+}
+
+.visibloc-status-badge--success {
+    --visibloc-badge-bg: rgba(34, 197, 94, 0.16);
+    --visibloc-badge-border: rgba(34, 197, 94, 0.45);
+    --visibloc-badge-foreground: #166534;
+    --visibloc-badge-shadow: 0 14px 34px -18px rgba(22, 101, 52, 0.7);
+}
+
+.visibloc-status-badge--warning {
+    --visibloc-badge-bg: rgba(251, 191, 36, 0.2);
+    --visibloc-badge-border: rgba(251, 146, 60, 0.45);
+    --visibloc-badge-foreground: #92400e;
+    --visibloc-badge-shadow: 0 14px 34px -18px rgba(249, 115, 22, 0.65);
+}
+
+.visibloc-status-badge--critical {
+    --visibloc-badge-bg: rgba(239, 68, 68, 0.2);
+    --visibloc-badge-border: rgba(248, 113, 113, 0.55);
+    --visibloc-badge-foreground: #7f1d1d;
+    --visibloc-badge-shadow: 0 18px 42px -18px rgba(239, 68, 68, 0.7);
+}
+
+.visibloc-status-badge--schedule {
+    --visibloc-badge-bg: rgba(59, 130, 246, 0.18);
+    --visibloc-badge-border: rgba(59, 130, 246, 0.45);
+    --visibloc-badge-foreground: #1d4ed8;
+    --visibloc-badge-shadow: 0 14px 34px -18px rgba(37, 99, 235, 0.7);
+}
+
+.visibloc-status-badge--advanced {
+    --visibloc-badge-bg: rgba(14, 165, 233, 0.18);
+    --visibloc-badge-border: rgba(14, 165, 233, 0.45);
+    --visibloc-badge-foreground: #0f172a;
+    --visibloc-badge-shadow: 0 14px 34px -18px rgba(14, 165, 233, 0.6);
+}
+
+.visibloc-status-badge--default {
+    --visibloc-badge-bg: rgba(148, 163, 184, 0.18);
+    --visibloc-badge-border: rgba(148, 163, 184, 0.35);
+    --visibloc-badge-foreground: #1f2937;
 }
 
 .visibloc-status-badge--conditional {

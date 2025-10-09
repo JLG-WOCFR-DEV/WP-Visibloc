@@ -334,6 +334,33 @@ const WarningBadgeIcon = () => (
     </svg>
 );
 
+const CriticalBadgeIcon = () => (
+    <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        role="presentation"
+        focusable="false"
+        aria-hidden="true"
+    >
+        <circle
+            cx="12"
+            cy="12"
+            r="7.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+        />
+        <path
+            d="M9.6 9.6 14.4 14.4m0-4.8L9.6 14.4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+        />
+    </svg>
+);
+
 const SuccessBadgeIcon = () => (
     <svg
         width="16"
@@ -370,8 +397,16 @@ const STATUS_BADGE_ICONS = {
     advanced: SlidersBadgeIcon,
     conditional: WarningBadgeIcon,
     warning: WarningBadgeIcon,
+    critical: CriticalBadgeIcon,
     success: SuccessBadgeIcon,
     default: InfoBadgeIcon,
+};
+
+const SCREEN_READER_SEVERITY_LABELS = {
+    success: __('Gravité : réussite', 'visi-bloc-jlg'),
+    info: __('Gravité : information', 'visi-bloc-jlg'),
+    warning: __('Gravité : avertissement', 'visi-bloc-jlg'),
+    critical: __('Gravité : critique', 'visi-bloc-jlg'),
 };
 
 const StatusBadge = ({ label, variant = '', screenReaderText = '', description = '' }) => {
@@ -412,6 +447,10 @@ const StatusBadge = ({ label, variant = '', screenReaderText = '', description =
         </Tooltip>
     );
 };
+
+const HOUR_IN_MS = 60 * 60 * 1000;
+const RELIABILITY_WARNING_THRESHOLD_HOURS = 48;
+const RELIABILITY_CRITICAL_THRESHOLD_HOURS = 12;
 
 const normalizeSupportedBlocks = (blocks) => {
     if (!Array.isArray(blocks)) {
@@ -1798,6 +1837,322 @@ const getVisibilitySummariesForAttributes = (attrs, advancedVisibility = null) =
     };
 };
 
+const formatRelativeHours = (date, now = Date.now()) => {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+        return '';
+    }
+
+    const diffMs = date.getTime() - now;
+    const absMs = Math.abs(diffMs);
+
+    if (absMs < HOUR_IN_MS) {
+        return diffMs >= 0
+            ? __('dans moins d’une heure', 'visi-bloc-jlg')
+            : __('depuis moins d’une heure', 'visi-bloc-jlg');
+    }
+
+    const hours = Math.round(absMs / HOUR_IN_MS);
+
+    if (hours >= 48) {
+        const days = Math.max(1, Math.round(hours / 24));
+
+        return diffMs >= 0
+            ? sprintf(_n('dans %d jour', 'dans %d jours', days, 'visi-bloc-jlg'), days)
+            : sprintf(_n('depuis %d jour', 'depuis %d jours', days, 'visi-bloc-jlg'), days);
+    }
+
+    return diffMs >= 0
+        ? sprintf(_n('dans %d heure', 'dans %d heures', hours, 'visi-bloc-jlg'), hours)
+        : sprintf(_n('depuis %d heure', 'depuis %d heures', hours, 'visi-bloc-jlg'), hours);
+};
+
+const getVisibilityDiagnostics = (context) => {
+    const defaultResult = {
+        level: 'good',
+        score: 100,
+        headline: __('Parcours de visibilité prêt', 'visi-bloc-jlg'),
+        summary: __('Les réglages respectent les standards UI/UX des solutions professionnelles.', 'visi-bloc-jlg'),
+        subline: sprintf(__('Score de fiabilité : %d/100.', 'visi-bloc-jlg'), 100),
+        notices: [],
+    };
+
+    if (!context || typeof context !== 'object') {
+        return defaultResult;
+    }
+
+    const severityPenalties = {
+        info: 6,
+        warning: 18,
+        critical: 35,
+    };
+    const severityWeights = {
+        success: 0,
+        info: 1,
+        warning: 2,
+        critical: 3,
+    };
+
+    let computedScore = 100;
+    let highestSeverityWeight = 0;
+    const notices = [];
+
+    const pushNotice = ({ id, label, description = '', variant = 'default', severity = 'info' }) => {
+        if (!label) {
+            return;
+        }
+
+        const normalizedSeverity = severityWeights.hasOwnProperty(severity) ? severity : 'info';
+        const weight = severityWeights[normalizedSeverity] || 0;
+        const penalty = severityPenalties[normalizedSeverity] || 0;
+
+        computedScore -= penalty;
+        highestSeverityWeight = Math.max(highestSeverityWeight, weight);
+
+        notices.push({
+            id: id || `notice-${notices.length + 1}`,
+            label,
+            description,
+            variant,
+            severity: normalizedSeverity,
+            screenReaderText: SCREEN_READER_SEVERITY_LABELS[normalizedSeverity] || '',
+        });
+    };
+
+    if (context.isHidden) {
+        pushNotice({
+            id: 'manual-hidden',
+            label: __('Masquage manuel actif', 'visi-bloc-jlg'),
+            description: __('Ce bloc restera invisible sur le front tant que le masquage manuel sera activé.', 'visi-bloc-jlg'),
+            variant: 'hidden',
+            severity: 'info',
+        });
+    } else if (context.hasConditionalVisibility) {
+        pushNotice({
+            id: 'conditional-filtering',
+            label: __('Règles conditionnelles actives', 'visi-bloc-jlg'),
+            description:
+                context.conditionalDescription ||
+                __('Plusieurs conditions filtrent l’affichage. Vérifiez les chevauchements éventuels.', 'visi-bloc-jlg'),
+            variant: 'conditional',
+            severity: 'info',
+        });
+    }
+
+    const scheduling = context.scheduling || {};
+    let hasScheduleAlert = false;
+
+    const pushScheduleNotice = (notice) => {
+        if (!notice) {
+            return;
+        }
+
+        if (notice.severity !== 'success') {
+            hasScheduleAlert = true;
+        }
+
+        pushNotice(notice);
+    };
+
+    if (scheduling.isSchedulingEnabled) {
+        if (scheduling.hasScheduleRangeError) {
+            pushScheduleNotice({
+                id: 'schedule-invalid',
+                label: __('Programmation incohérente', 'visi-bloc-jlg'),
+                description: __('La date de fin doit être postérieure à la date de début pour éviter une coupure prématurée.', 'visi-bloc-jlg'),
+                variant: 'critical',
+                severity: 'critical',
+            });
+        }
+
+        const now = Date.now();
+        const startDate = parseDateValue(scheduling.publishStartDate);
+        const endDate = parseDateValue(scheduling.publishEndDate);
+
+        if (endDate && endDate.getTime() < now) {
+            pushScheduleNotice({
+                id: 'schedule-expired',
+                label: __('Programmation expirée', 'visi-bloc-jlg'),
+                description: sprintf(__('Le bloc est masqué depuis %s.', 'visi-bloc-jlg'), formatRelativeHours(endDate, now)),
+                variant: 'critical',
+                severity: 'critical',
+            });
+        } else if (endDate) {
+            const diffMs = endDate.getTime() - now;
+
+            if (diffMs <= RELIABILITY_CRITICAL_THRESHOLD_HOURS * HOUR_IN_MS) {
+                pushScheduleNotice({
+                    id: 'schedule-end-critical',
+                    label: __('Expiration imminente', 'visi-bloc-jlg'),
+                    description: sprintf(__('Le bloc sera masqué %s.', 'visi-bloc-jlg'), formatRelativeHours(endDate, now)),
+                    variant: 'schedule',
+                    severity: 'critical',
+                });
+            } else if (diffMs <= RELIABILITY_WARNING_THRESHOLD_HOURS * HOUR_IN_MS) {
+                pushScheduleNotice({
+                    id: 'schedule-end-warning',
+                    label: __('Expiration prochaine', 'visi-bloc-jlg'),
+                    description: sprintf(__('Préparez une alternative : expiration %s.', 'visi-bloc-jlg'), formatRelativeHours(endDate, now)),
+                    variant: 'schedule',
+                    severity: 'warning',
+                });
+            }
+        }
+
+        if (startDate && startDate.getTime() > now) {
+            const diffMs = startDate.getTime() - now;
+
+            if (diffMs <= RELIABILITY_CRITICAL_THRESHOLD_HOURS * HOUR_IN_MS) {
+                pushScheduleNotice({
+                    id: 'schedule-start-critical',
+                    label: __('Activation imminente', 'visi-bloc-jlg'),
+                    description: sprintf(__('Le bloc deviendra visible %s.', 'visi-bloc-jlg'), formatRelativeHours(startDate, now)),
+                    variant: 'schedule',
+                    severity: 'warning',
+                });
+            } else if (diffMs <= RELIABILITY_WARNING_THRESHOLD_HOURS * HOUR_IN_MS) {
+                pushScheduleNotice({
+                    id: 'schedule-start-warning',
+                    label: __('Activation programmée', 'visi-bloc-jlg'),
+                    description: sprintf(__('Le bloc sera publié %s.', 'visi-bloc-jlg'), formatRelativeHours(startDate, now)),
+                    variant: 'schedule',
+                    severity: 'info',
+                });
+            }
+        }
+
+        if (!startDate && !endDate) {
+            pushScheduleNotice({
+                id: 'schedule-open',
+                label: __('Programmation sans date', 'visi-bloc-jlg'),
+                description: __('Aucune date n’est définie malgré la programmation activée. Les solutions pro recommandent une fenêtre claire.', 'visi-bloc-jlg'),
+                variant: 'schedule',
+                severity: 'info',
+            });
+        }
+
+        if (!hasScheduleAlert) {
+            pushScheduleNotice({
+                id: 'schedule-ready',
+                label: __('Programmation opérationnelle', 'visi-bloc-jlg'),
+                description:
+                    scheduling.scheduleSummary ||
+                    __('La fenêtre de publication est cohérente et conforme aux pratiques professionnelles.', 'visi-bloc-jlg'),
+                variant: 'schedule',
+                severity: 'success',
+            });
+        }
+    }
+
+    const fallbackBehavior = context.fallbackBehavior || 'inherit';
+    const fallbackCustomText = typeof context.fallbackCustomText === 'string' ? context.fallbackCustomText.trim() : '';
+
+    if (!context.fallbackEnabled) {
+        pushNotice({
+            id: 'fallback-disabled',
+            label: __('Pas de repli prévu', 'visi-bloc-jlg'),
+            description: __('Désactiver le contenu de substitution peut générer une expérience vide. Les extensions pro affichent toujours un repli.', 'visi-bloc-jlg'),
+            variant: 'warning',
+            severity: 'warning',
+        });
+    } else if (fallbackBehavior === 'text' && !fallbackCustomText) {
+        pushNotice({
+            id: 'fallback-text-missing',
+            label: __('Texte de repli manquant', 'visi-bloc-jlg'),
+            description: __('Ajoutez un message de substitution pour éviter une rupture de parcours.', 'visi-bloc-jlg'),
+            variant: 'critical',
+            severity: 'critical',
+        });
+    } else if (fallbackBehavior === 'block' && !context.fallbackBlockId) {
+        pushNotice({
+            id: 'fallback-block-missing',
+            label: __('Bloc de repli à sélectionner', 'visi-bloc-jlg'),
+            description: __('Choisissez un bloc réutilisable afin de sécuriser le parcours utilisateur.', 'visi-bloc-jlg'),
+            variant: 'critical',
+            severity: 'critical',
+        });
+    } else if (fallbackBehavior === 'inherit' && !context.hasGlobalFallback) {
+        pushNotice({
+            id: 'fallback-global-missing',
+            label: __('Repli global manquant', 'visi-bloc-jlg'),
+            description: __('Définissez un repli global dans les options pour éviter une impasse de contenu.', 'visi-bloc-jlg'),
+            variant: 'warning',
+            severity: 'warning',
+        });
+    } else {
+        pushNotice({
+            id: 'fallback-ready',
+            label: __('Repli opérationnel', 'visi-bloc-jlg'),
+            description:
+                context.fallbackSummary ||
+                __('Un contenu alternatif sera affiché en cas d’exclusion, comme dans les extensions professionnelles.', 'visi-bloc-jlg'),
+            variant: 'fallback',
+            severity: 'success',
+        });
+    }
+
+    if (context.hasAdvancedRules) {
+        if (context.hasAdvancedWarnings) {
+            pushNotice({
+                id: 'advanced-incomplete',
+                label: __('Règles avancées à compléter', 'visi-bloc-jlg'),
+                description: __('Certaines règles sont incomplètes (taxonomie sans termes, segment non sélectionné).', 'visi-bloc-jlg'),
+                variant: 'warning',
+                severity: 'warning',
+            });
+        } else {
+            pushNotice({
+                id: 'advanced-ready',
+                label: __('Filtrage avancé prêt', 'visi-bloc-jlg'),
+                description:
+                    context.advancedRulesSummary ||
+                    __('Les conditions avancées sont structurées comme dans les offres professionnelles.', 'visi-bloc-jlg'),
+                variant: 'advanced',
+                severity: 'success',
+            });
+        }
+    }
+
+    if (context.rolesCount > 0) {
+        pushNotice({
+            id: 'roles-targeted',
+            label: __('Audience ciblée', 'visi-bloc-jlg'),
+            description:
+                context.rolesSummary ||
+                __('Des rôles précis reçoivent ce contenu, ce qui s’aligne sur les bonnes pratiques UX.', 'visi-bloc-jlg'),
+            variant: 'success',
+            severity: 'success',
+        });
+    }
+
+    const finalScore = Math.min(100, Math.max(0, computedScore));
+    const level =
+        highestSeverityWeight >= severityWeights.critical
+            ? 'critical'
+            : highestSeverityWeight >= severityWeights.warning
+            ? 'warning'
+            : 'good';
+
+    const headlineMap = {
+        good: __('Parcours de visibilité prêt', 'visi-bloc-jlg'),
+        warning: __('Contrôles à optimiser', 'visi-bloc-jlg'),
+        critical: __('Plan d’affichage à sécuriser', 'visi-bloc-jlg'),
+    };
+    const summaryMap = {
+        good: __('Les réglages respectent les standards UI/UX des solutions professionnelles.', 'visi-bloc-jlg'),
+        warning: __('Ajustez les éléments signalés pour atteindre la robustesse des offres professionnelles.', 'visi-bloc-jlg'),
+        critical: __('Des anomalies critiques peuvent dégrader l’expérience par rapport aux extensions pro.', 'visi-bloc-jlg'),
+    };
+
+    return {
+        level,
+        score: finalScore,
+        headline: headlineMap[level] || headlineMap.good,
+        summary: summaryMap[level] || summaryMap.good,
+        subline: sprintf(__('Score de fiabilité : %d/100.', 'visi-bloc-jlg'), Math.round(finalScore)),
+        notices,
+    };
+};
+
 const getVisibilityAttributeSignature = (attrs) => {
     if (!attrs || typeof attrs !== 'object') {
         return '';
@@ -2644,12 +2999,22 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
         const [isFallbackPreviewVisible, setFallbackPreviewVisible] = useState(false);
         const [activeInspectorStep, setActiveInspectorStep] = useState('device');
         const [isRecipeModalOpen, setRecipeModalOpen] = useState(false);
+        const [reliabilityAnnouncement, setReliabilityAnnouncement] = useState('');
+        const reliabilityAnnouncementRef = useRef({ level: '', score: 0 });
         const scenarioSeverityLabels = useMemo(
             () => ({
                 critical: __('Critique', 'visi-bloc-jlg'),
                 high: __('Prioritaire', 'visi-bloc-jlg'),
                 medium: __('Standard', 'visi-bloc-jlg'),
                 low: __('Suggestion', 'visi-bloc-jlg'),
+            }),
+            [],
+        );
+        const reliabilityLevelLabels = useMemo(
+            () => ({
+                good: __('niveau optimal', 'visi-bloc-jlg'),
+                warning: __('niveau à surveiller', 'visi-bloc-jlg'),
+                critical: __('niveau critique', 'visi-bloc-jlg'),
             }),
             [],
         );
@@ -3728,19 +4093,27 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             return summaryLabel;
         })();
 
-        const rolesSummary = (() => {
+        const rolesSummaryData = (() => {
             const uniqueRoles = Array.from(new Set((visibilityRoles || []).filter(Boolean)));
             const count = uniqueRoles.length;
 
             if (!count) {
-                return '';
+                return {
+                    summary: '',
+                    count,
+                };
             }
 
-            return sprintf(
-                _n('%d rôle', '%d rôles', count, 'visi-bloc-jlg'),
+            return {
+                summary: sprintf(
+                    _n('%d rôle', '%d rôles', count, 'visi-bloc-jlg'),
+                    count,
+                ),
                 count,
-            );
+            };
         })();
+        const rolesSummary = rolesSummaryData.summary;
+        const rolesCount = rolesSummaryData.count;
 
         const advancedRulesSummary = (() => {
             const rulesCount = Array.isArray(advancedVisibility.rules)
@@ -3904,6 +4277,91 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
               (fallbackBehavior === 'block' && !fallbackBlockId) ||
               (fallbackBehavior === 'inherit' && !hasGlobalFallback)
             : false;
+        const visibilityDiagnostics = useMemo(
+            () =>
+                getVisibilityDiagnostics({
+                    isHidden,
+                    hasConditionalVisibility,
+                    conditionalDescription,
+                    deviceVisibilitySummary,
+                    scheduling: {
+                        isSchedulingEnabled,
+                        publishStartDate,
+                        publishEndDate,
+                        hasScheduleRangeError,
+                        scheduleSummary,
+                    },
+                    fallbackEnabled,
+                    fallbackBehavior,
+                    fallbackBlockId,
+                    fallbackCustomText,
+                    hasGlobalFallback,
+                    fallbackSummary,
+                    advancedRulesSummary,
+                    hasAdvancedRules,
+                    hasAdvancedWarnings,
+                    rolesSummary,
+                    rolesCount,
+                }),
+            [
+                isHidden,
+                hasConditionalVisibility,
+                conditionalDescription,
+                deviceVisibilitySummary,
+                isSchedulingEnabled,
+                publishStartDate,
+                publishEndDate,
+                hasScheduleRangeError,
+                scheduleSummary,
+                fallbackEnabled,
+                fallbackBehavior,
+                fallbackBlockId,
+                fallbackCustomText,
+                hasGlobalFallback,
+                fallbackSummary,
+                advancedRulesSummary,
+                hasAdvancedRules,
+                hasAdvancedWarnings,
+                rolesSummary,
+                rolesCount,
+            ],
+        );
+        useEffect(() => {
+            if (!visibilityDiagnostics) {
+                return;
+            }
+
+            const { level, score, headline } = visibilityDiagnostics;
+            const previous = reliabilityAnnouncementRef.current || {};
+            const roundedScore = Math.round(score);
+
+            if (previous.level === level && Math.round(previous.score || 0) === roundedScore) {
+                return;
+            }
+
+            const levelLabel = reliabilityLevelLabels[level] || reliabilityLevelLabels.good;
+            const message = sprintf(
+                __('Synthèse visibilité mise à jour : %1$s (%2$s). Score %3$d sur 100.', 'visi-bloc-jlg'),
+                headline,
+                levelLabel,
+                roundedScore,
+            );
+
+            setReliabilityAnnouncement(message);
+            reliabilityAnnouncementRef.current = {
+                level,
+                score,
+            };
+        }, [visibilityDiagnostics, reliabilityLevelLabels]);
+        const diagnosticScore = visibilityDiagnostics
+            ? Math.round(Math.max(0, Math.min(100, visibilityDiagnostics.score || 0)))
+            : 0;
+        const diagnosticScoreStyle = {
+            width: `${diagnosticScore}%`,
+        };
+        const diagnosticSummaryText = visibilityDiagnostics
+            ? `${visibilityDiagnostics.summary}\n${visibilityDiagnostics.subline}`
+            : '';
         const stepBadges = {};
 
         if (isHidden) {
@@ -3928,7 +4386,7 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                   };
         }
 
-        if (Array.isArray(visibilityRoles) && visibilityRoles.length > 0) {
+        if (rolesCount > 0) {
             stepBadges.roles = {
                 variant: 'success',
                 label: __('Audience ciblée', 'visi-bloc-jlg'),
@@ -4414,6 +4872,67 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                 initialOpen={true}
                                 className="visibloc-panel--guided"
                             >
+                                {visibilityDiagnostics ? (
+                                    <Fragment>
+                                        <Card
+                                            className={`visibloc-diagnostic-card visibloc-diagnostic-card--${visibilityDiagnostics.level}`}
+                                        >
+                                            <CardHeader>
+                                                <div className="visibloc-diagnostic-card__header">
+                                                    <div className="visibloc-diagnostic-card__texts">
+                                                        <p className="visibloc-diagnostic-card__eyebrow">
+                                                            {__('Synthèse qualité', 'visi-bloc-jlg')}
+                                                        </p>
+                                                        <h3 className="visibloc-diagnostic-card__title">
+                                                            {visibilityDiagnostics.headline}
+                                                        </h3>
+                                                        <p className="visibloc-diagnostic-card__summary">
+                                                            {diagnosticSummaryText}
+                                                        </p>
+                                                    </div>
+                                                    <div className="visibloc-diagnostic-card__score" aria-hidden="true">
+                                                        <span className="visibloc-diagnostic-card__score-value">
+                                                            {diagnosticScore}
+                                                        </span>
+                                                        <span className="visibloc-diagnostic-card__score-suffix">/100</span>
+                                                        <span className="visibloc-diagnostic-card__score-meter">
+                                                            <span
+                                                                className="visibloc-diagnostic-card__score-meter-fill"
+                                                                style={diagnosticScoreStyle}
+                                                            />
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </CardHeader>
+                                            <CardBody>
+                                                {visibilityDiagnostics.notices.length > 0 ? (
+                                                    <ul className="visibloc-diagnostic-list">
+                                                        {visibilityDiagnostics.notices.map((notice) => (
+                                                            <li
+                                                                key={notice.id}
+                                                                className="visibloc-diagnostic-list__item"
+                                                            >
+                                                                <StatusBadge
+                                                                    label={notice.label}
+                                                                    variant={notice.variant}
+                                                                    description={notice.description}
+                                                                    screenReaderText={notice.screenReaderText}
+                                                                />
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                ) : (
+                                                    <p className="visibloc-diagnostic-empty">
+                                                        {__('Aucun diagnostic particulier pour ce bloc.', 'visi-bloc-jlg')}
+                                                    </p>
+                                                )}
+                                            </CardBody>
+                                        </Card>
+                                        <div className="screen-reader-text" role="status" aria-live="polite">
+                                            {reliabilityAnnouncement}
+                                        </div>
+                                    </Fragment>
+                                ) : null}
                                 {scenarioPresets.length > 0 && (
                                     <div className="visibloc-scenario-presets">
                                         <div className="visibloc-scenario-presets__header">
