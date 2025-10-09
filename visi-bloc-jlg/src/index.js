@@ -35,12 +35,13 @@ import {
     TextareaControl,
     TextControl,
     Tooltip,
-    ButtonGroup,
+    TabPanel,
 } from '@wordpress/components';
 import { __, sprintf, _n } from '@wordpress/i18n';
 import { __experimentalGetSettings, dateI18n, format as formatDate } from '@wordpress/date';
 import { subscribe, select, useSelect } from '@wordpress/data';
 import autop from '@wordpress/autop';
+import debounce from 'lodash/debounce';
 
 import './editor-styles.css';
 
@@ -757,10 +758,27 @@ const getBlockHasFallback = (attrs) => {
     return Boolean(fallbackSettings && fallbackSettings.hasContent);
 };
 
+const getVisibilityAttributeSignature = (attrs) => {
+    if (!attrs || typeof attrs !== 'object') {
+        return '';
+    }
+
+    const isHidden = attrs.isHidden ? '1' : '0';
+    const fallbackEnabled = typeof attrs.fallbackEnabled === 'undefined' ? true : Boolean(attrs.fallbackEnabled);
+    const fallbackBehavior = typeof attrs.fallbackBehavior === 'string' ? attrs.fallbackBehavior : 'inherit';
+    const fallbackBlockId = attrs.fallbackBlockId ? String(attrs.fallbackBlockId) : '';
+    const fallbackCustomText = typeof attrs.fallbackCustomText === 'string' ? attrs.fallbackCustomText.trim() : '';
+
+    return [isHidden, fallbackEnabled ? '1' : '0', fallbackBehavior, fallbackBlockId, fallbackCustomText].join('|');
+};
+
 const blockVisibilityState = new Map();
 const pendingListViewUpdates = new Map();
 const listViewRowCache = new Map();
 const registeredSupportedClientIds = new Set();
+const blockAttributeHashes = new Map();
+const dirtyClientIds = new Set();
+let lastClientIdsSignature = '';
 let listViewRafHandle = null;
 let listViewDensityObserver = null;
 let observedListViewElement = null;
@@ -1227,6 +1245,10 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             () => (fallbackBehavior === 'text' ? getTextFallbackPreviewHtml(fallbackCustomText) : ''),
             [fallbackBehavior, fallbackCustomText],
         );
+
+        useEffect(() => {
+            markClientIdAsDirty(clientId);
+        }, [clientId, isHidden, fallbackBehavior, fallbackCustomText, fallbackBlockId, fallbackEnabled]);
 
         const { blockPreviewHtml, isBlockPreviewResolving } = useSelect(
             (selectFn) => {
@@ -2792,11 +2814,11 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
         ];
 
         const defaultInspectorStep = inspectorSteps[0] || null;
-        const activeStep =
-            inspectorSteps.find((step) => step.id === activeInspectorStep) || defaultInspectorStep;
-        const activeStepId = activeStep ? activeStep.id : '';
-        const activeStepSummary = summaryOrInactive(activeStep ? activeStep.summary : '');
-        const activeStepContent = activeStep ? activeStep.content : null;
+        const inspectorTabs = inspectorSteps.map((step, index) => ({
+            name: step.id,
+            title: sprintf(__('Étape %1$d · %2$s', 'visi-bloc-jlg'), index + 1, step.label),
+            className: 'visibloc-stepper__tab',
+        }));
 
         return (
             <Fragment>
@@ -2825,28 +2847,32 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                 initialOpen={true}
                                 className="visibloc-panel--guided"
                             >
-                                <ButtonGroup
-                                    className="visibloc-stepper"
-                                    aria-label={__('Choisir une étape de visibilité', 'visi-bloc-jlg')}
-                                >
-                                    {inspectorSteps.map((step, index) => (
-                                        <Button
-                                            key={step.id}
-                                            isPressed={activeStepId === step.id}
-                                            variant={activeStepId === step.id ? 'primary' : 'tertiary'}
-                                            onClick={() => setActiveInspectorStep(step.id)}
-                                            aria-current={activeStepId === step.id ? 'step' : undefined}
-                                        >
-                                            {sprintf(
-                                                __('Étape %1$d · %2$s', 'visi-bloc-jlg'),
-                                                index + 1,
-                                                step.label,
-                                            )}
-                                        </Button>
-                                    ))}
-                                </ButtonGroup>
-                                {renderHelpText(activeStepSummary, 'is-summary')}
-                                <div className="visibloc-step-content">{activeStepContent}</div>
+                                {inspectorTabs.length > 0 && (
+                                    <TabPanel
+                                        className="visibloc-stepper"
+                                        activeClass="is-active"
+                                        initialTabName={activeInspectorStep}
+                                        onSelect={(tabName) => setActiveInspectorStep(tabName)}
+                                        tabs={inspectorTabs}
+                                    >
+                                        {(tab) => {
+                                            const currentStep =
+                                                inspectorSteps.find((step) => step.id === tab.name) ||
+                                                defaultInspectorStep;
+                                            const stepSummary = summaryOrInactive(
+                                                currentStep ? currentStep.summary : '',
+                                            );
+                                            const stepContent = currentStep ? currentStep.content : null;
+
+                                            return (
+                                                <Fragment>
+                                                    {renderHelpText(stepSummary, 'is-summary')}
+                                                    <div className="visibloc-step-content">{stepContent}</div>
+                                                </Fragment>
+                                            );
+                                        }}
+                                    </TabPanel>
+                                )}
                             </PanelBody>
                         </InspectorControls>
                     </Fragment>
@@ -3134,7 +3160,7 @@ function queueListViewUpdate(clientId, state) {
     });
 }
 
-function syncListView() {
+function syncListViewInternal() {
     const blockEditor = select('core/block-editor');
 
     if (!blockEditor) {
@@ -3142,47 +3168,88 @@ function syncListView() {
     }
 
     const allClientIds = getAllClientIds(blockEditor);
+    const signature = allClientIds.join('|');
 
     if (!allClientIds.length) {
-        if (registeredSupportedClientIds.size) {
+        if (registeredSupportedClientIds.size || blockVisibilityState.size) {
             registeredSupportedClientIds.clear();
             blockVisibilityState.clear();
             pendingListViewUpdates.clear();
             listViewRowCache.clear();
+            blockAttributeHashes.clear();
+            dirtyClientIds.clear();
+            lastClientIdsSignature = '';
         }
 
         return;
     }
 
     const currentClientIds = new Set(allClientIds);
-    const newSupportedIds = [];
 
-    allClientIds.forEach((clientId) => {
-        if (registeredSupportedClientIds.has(clientId)) {
-            return;
-        }
+    if (signature !== lastClientIdsSignature) {
+        allClientIds.forEach((clientId) => {
+            if (registeredSupportedClientIds.has(clientId)) {
+                return;
+            }
 
-        let blockName = typeof blockEditor.getBlockName === 'function'
-            ? blockEditor.getBlockName(clientId)
-            : undefined;
+            let blockName = typeof blockEditor.getBlockName === 'function'
+                ? blockEditor.getBlockName(clientId)
+                : undefined;
 
-        if (!blockName) {
-            const block = blockEditor.getBlock(clientId);
-            blockName = block ? block.name : undefined;
-        }
+            if (!blockName) {
+                const block = blockEditor.getBlock(clientId);
+                blockName = block ? block.name : undefined;
+            }
 
-        if (blockName && isSupportedBlockName(blockName)) {
-            registeredSupportedClientIds.add(clientId);
-            newSupportedIds.push(clientId);
-        }
-    });
+            if (blockName && isSupportedBlockName(blockName)) {
+                registeredSupportedClientIds.add(clientId);
+                dirtyClientIds.add(clientId);
+                blockAttributeHashes.delete(clientId);
+            }
+        });
 
-    newSupportedIds.forEach((clientId) => {
+        const staleClientIds = Array.from(registeredSupportedClientIds).filter(
+            (clientId) => !currentClientIds.has(clientId),
+        );
+
+        staleClientIds.forEach((clientId) => {
+            registeredSupportedClientIds.delete(clientId);
+            blockVisibilityState.delete(clientId);
+            pendingListViewUpdates.delete(clientId);
+            listViewRowCache.delete(clientId);
+            blockAttributeHashes.delete(clientId);
+            dirtyClientIds.delete(clientId);
+        });
+
+        lastClientIdsSignature = signature;
+    }
+
+    if (!dirtyClientIds.size) {
+        return;
+    }
+
+    const idsToProcess = Array.from(dirtyClientIds);
+    dirtyClientIds.clear();
+
+    idsToProcess.forEach((clientId) => {
         const block = blockEditor.getBlock(clientId);
 
-        if (!block) {
+        if (!block || !isSupportedBlockName(block.name)) {
+            blockAttributeHashes.delete(clientId);
+            blockVisibilityState.delete(clientId);
+            pendingListViewUpdates.delete(clientId);
+            listViewRowCache.delete(clientId);
+            registeredSupportedClientIds.delete(clientId);
             return;
         }
+
+        const signatureValue = getVisibilityAttributeSignature(block.attributes);
+
+        if (blockAttributeHashes.get(clientId) === signatureValue) {
+            return;
+        }
+
+        blockAttributeHashes.set(clientId, signatureValue);
 
         const previousState = blockVisibilityState.get(clientId) || {};
         const nextState = {
@@ -3194,17 +3261,29 @@ function syncListView() {
         blockVisibilityState.set(clientId, nextState);
         queueListViewUpdate(clientId, nextState);
     });
+}
 
-    const staleClientIds = Array.from(registeredSupportedClientIds).filter(
-        (clientId) => !currentClientIds.has(clientId),
-    );
+const debouncedSyncListView = debounce(syncListViewInternal, 120);
 
-    staleClientIds.forEach((clientId) => {
-        registeredSupportedClientIds.delete(clientId);
-        blockVisibilityState.delete(clientId);
-        pendingListViewUpdates.delete(clientId);
-        listViewRowCache.delete(clientId);
-    });
+function scheduleListViewSync() {
+    debouncedSyncListView();
+}
+
+function flushScheduledListViewSync() {
+    if (typeof debouncedSyncListView.flush === 'function') {
+        debouncedSyncListView.flush();
+    } else {
+        syncListViewInternal();
+    }
+}
+
+function markClientIdAsDirty(clientId) {
+    if (!clientId) {
+        return;
+    }
+
+    dirtyClientIds.add(clientId);
+    scheduleListViewSync();
 }
 
 addFilter(
@@ -3296,9 +3375,10 @@ let wasListViewOpened = getIsListViewOpened();
 function handleEditorSubscription() {
     const isCurrentlyOpened = getIsListViewOpened();
 
-    syncListView();
+    scheduleListViewSync();
 
     if (isCurrentlyOpened && !wasListViewOpened) {
+        flushScheduledListViewSync();
         replayPendingListViewUpdates();
     }
 

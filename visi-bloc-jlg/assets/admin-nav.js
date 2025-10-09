@@ -1,4 +1,4 @@
-( function () {
+(function () {
     var ready = function (callback) {
         if (window.wp && typeof window.wp.domReady === 'function') {
             window.wp.domReady(callback);
@@ -12,238 +12,156 @@
         }
     };
 
+    var activateGroup = function (groupId, context, options) {
+        if (!groupId || !context.tabs[groupId] || !context.panels[groupId]) {
+            return;
+        }
+
+        var settings = options || {};
+        var focusTab = Boolean(settings.focusTab);
+
+        if (context.activeGroup === groupId) {
+            if (focusTab && typeof context.tabs[groupId].focus === 'function') {
+                context.tabs[groupId].focus();
+            }
+
+            return;
+        }
+
+        Object.keys(context.panels).forEach(function (id) {
+            var panel = context.panels[id];
+            var tab = context.tabs[id];
+            var isActive = id === groupId;
+
+            panel.classList.toggle('is-active', isActive);
+
+            if (isActive) {
+                panel.removeAttribute('hidden');
+            } else {
+                panel.setAttribute('hidden', 'hidden');
+            }
+
+            if (tab) {
+                tab.classList.toggle('is-active', isActive);
+                tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+                tab.setAttribute('tabindex', isActive ? '0' : '-1');
+            }
+        });
+
+        context.activeGroup = groupId;
+
+        if (context.select && context.select.value !== groupId) {
+            context.select.value = groupId;
+        }
+
+        if (focusTab && typeof context.tabs[groupId].focus === 'function') {
+            try {
+                context.tabs[groupId].focus({ preventScroll: true });
+            } catch (error) {
+                context.tabs[groupId].focus();
+            }
+        }
+    };
+
     ready(function () {
-        var sectionElements = Array.prototype.slice.call(
-            document.querySelectorAll('[data-visibloc-section]')
+        var tabElements = Array.prototype.slice.call(
+            document.querySelectorAll('[data-visibloc-group-tab]')
         );
-        var navLinks = Array.prototype.slice.call(
-            document.querySelectorAll('.visibloc-help-nav__link')
+        var panelElements = Array.prototype.slice.call(
+            document.querySelectorAll('[data-visibloc-group-panel]')
         );
-        var navPicker = document.querySelector('[data-visibloc-nav-picker]');
+        var selectElement = document.querySelector('[data-visibloc-group-picker]');
 
-        if (!sectionElements.length || !navLinks.length) {
+        if (!tabElements.length || !panelElements.length) {
             return;
         }
 
-        var sectionByKey = {};
-        var sectionOrder = [];
-
-        sectionElements.forEach(function (section) {
-            var key = section.getAttribute('data-visibloc-section') || section.id;
-
-            if (!key || Object.prototype.hasOwnProperty.call(sectionByKey, key)) {
-                return;
-            }
-
-            sectionByKey[key] = section;
-            sectionOrder.push(key);
-        });
-
-        if (!sectionOrder.length) {
-            return;
-        }
-
-        var linkBySection = {};
-
-        navLinks.forEach(function (link) {
-            var hash = link.hash ? decodeURIComponent(link.hash.substring(1)) : '';
-
-            if (
-                !hash ||
-                !Object.prototype.hasOwnProperty.call(sectionByKey, hash) ||
-                Object.prototype.hasOwnProperty.call(linkBySection, hash)
-            ) {
-                return;
-            }
-
-            linkBySection[hash] = link;
-        });
-
-        var observedSectionKeys = sectionOrder.filter(function (key) {
-            return Object.prototype.hasOwnProperty.call(linkBySection, key);
-        });
-
-        if (!observedSectionKeys.length) {
-            return;
-        }
-
-        var ratioBySection = {};
-        observedSectionKeys.forEach(function (key) {
-            ratioBySection[key] = 0;
-        });
-
-        var activeClass = 'visibloc-help-nav__link--active';
-        var currentActiveKey = null;
-        var currentActiveLink = null;
-
-        var setActiveLink = function (sectionKey) {
-            if (currentActiveKey === sectionKey) {
-                return;
-            }
-
-            if (currentActiveLink) {
-                currentActiveLink.classList.remove(activeClass);
-                currentActiveLink.removeAttribute('aria-current');
-            }
-
-            var nextLink = linkBySection[sectionKey];
-
-            if (!nextLink) {
-                currentActiveKey = null;
-                currentActiveLink = null;
-                return;
-            }
-
-            nextLink.classList.add(activeClass);
-            nextLink.setAttribute('aria-current', 'page');
-            currentActiveKey = sectionKey;
-            currentActiveLink = nextLink;
-
-            if (navPicker && navPicker.value !== sectionKey) {
-                navPicker.value = sectionKey;
-            }
+        var context = {
+            tabs: {},
+            panels: {},
+            select: selectElement,
+            activeGroup: null,
         };
 
-        var fallbackKey = observedSectionKeys[0];
-        if (fallbackKey) {
-            setActiveLink(fallbackKey);
-        }
+        var orderedIds = tabElements
+            .map(function (element) {
+                return element.getAttribute('data-visibloc-group-tab');
+            })
+            .filter(Boolean);
 
-        navLinks.forEach(function (link) {
-            link.addEventListener('click', function () {
-                var hash = link.hash ? decodeURIComponent(link.hash.substring(1)) : '';
+        tabElements.forEach(function (tab) {
+            var groupId = tab.getAttribute('data-visibloc-group-tab');
 
-                if (hash && Object.prototype.hasOwnProperty.call(linkBySection, hash)) {
-                    setActiveLink(hash);
-                }
+            if (!groupId) {
+                return;
+            }
+
+            context.tabs[groupId] = tab;
+            tab.setAttribute('role', 'tab');
+
+            tab.addEventListener('click', function (event) {
+                event.preventDefault();
+                activateGroup(groupId, context, { focusTab: true });
             });
-        });
 
-        if (navPicker) {
-            navPicker.addEventListener('change', function (event) {
-                var targetKey = event.target && event.target.value ? event.target.value : '';
+            tab.addEventListener('keydown', function (event) {
+                var key = event.key;
 
-                if (!targetKey || !Object.prototype.hasOwnProperty.call(sectionByKey, targetKey)) {
+                if (!key) {
                     return;
                 }
 
-                var section = sectionByKey[targetKey];
+                var currentIndex = orderedIds.indexOf(groupId);
 
-                if (section && typeof section.scrollIntoView === 'function') {
-                    try {
-                        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    } catch (error) {
-                        section.scrollIntoView();
-                    }
-                } else if (section && typeof section.focus === 'function') {
-                    section.focus({ preventScroll: true });
+                if (currentIndex === -1) {
+                    return;
                 }
 
-                setActiveLink(targetKey);
-            });
-        }
-
-        if (typeof window.IntersectionObserver === 'function') {
-            var updateActiveFromRatios = function () {
-                var bestKey = null;
-                var bestRatio = -1;
-
-                observedSectionKeys.forEach(function (key) {
-                    var ratio = ratioBySection[key] || 0;
-
-                    if (ratio > bestRatio + 0.0001) {
-                        bestRatio = ratio;
-                        bestKey = key;
-                    }
-                });
-
-                if (bestKey && bestRatio > 0) {
-                    setActiveLink(bestKey);
-                }
-            };
-
-            var observer = new IntersectionObserver(
-                function (entries) {
-                    entries.forEach(function (entry) {
-                        var target = entry.target;
-                        var key = target.getAttribute('data-visibloc-section') || target.id;
-
-                        if (!key || !Object.prototype.hasOwnProperty.call(ratioBySection, key)) {
-                            return;
-                        }
-
-                        var ratio = entry.isIntersecting ? entry.intersectionRatio : 0;
-                        ratioBySection[key] = ratio;
-                    });
-
-                    updateActiveFromRatios();
-                },
-                {
-                    threshold: [0, 0.1, 0.25, 0.5, 0.75, 1],
-                    rootMargin: '0px 0px -40% 0px',
-                }
-            );
-
-            observedSectionKeys.forEach(function (key) {
-                var section = sectionByKey[key];
-
-                if (section) {
-                    observer.observe(section);
+                if (key === 'ArrowRight' || key === 'ArrowDown') {
+                    event.preventDefault();
+                    var nextIndex = (currentIndex + 1) % orderedIds.length;
+                    activateGroup(orderedIds[nextIndex], context, { focusTab: true });
+                } else if (key === 'ArrowLeft' || key === 'ArrowUp') {
+                    event.preventDefault();
+                    var prevIndex = (currentIndex - 1 + orderedIds.length) % orderedIds.length;
+                    activateGroup(orderedIds[prevIndex], context, { focusTab: true });
+                } else if (key === 'Home') {
+                    event.preventDefault();
+                    activateGroup(orderedIds[0], context, { focusTab: true });
+                } else if (key === 'End') {
+                    event.preventDefault();
+                    activateGroup(orderedIds[orderedIds.length - 1], context, { focusTab: true });
                 }
             });
+        });
 
-            return;
-        }
+        panelElements.forEach(function (panel) {
+            var groupId = panel.getAttribute('data-visibloc-group-panel');
 
-        var fallbackAnimationId = null;
-        var requestFallbackUpdate = function () {
-            if (fallbackAnimationId) {
+            if (!groupId) {
                 return;
             }
 
-            var raf = window.requestAnimationFrame || function (callback) {
-                return window.setTimeout(callback, 16);
-            };
+            context.panels[groupId] = panel;
+            panel.setAttribute('role', 'tabpanel');
+        });
 
-            fallbackAnimationId = raf(function () {
-                fallbackAnimationId = null;
+        if (selectElement) {
+            selectElement.addEventListener('change', function (event) {
+                var value = event.target && event.target.value ? event.target.value : '';
 
-                var viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
-                var bestKey = null;
-                var bestVisible = -1;
-
-                observedSectionKeys.forEach(function (key) {
-                    var section = sectionByKey[key];
-
-                    if (!section) {
-                        return;
-                    }
-
-                    var rect = section.getBoundingClientRect();
-                    var top = rect.top;
-                    var bottom = rect.bottom;
-
-                    if (viewportHeight <= 0) {
-                        return;
-                    }
-
-                    var visible = Math.min(bottom, viewportHeight) - Math.max(top, 0);
-                    visible = visible > 0 ? visible : 0;
-
-                    if (visible > bestVisible + 0.5) {
-                        bestVisible = visible;
-                        bestKey = key;
-                    }
-                });
-
-                if (bestKey && bestVisible > 0) {
-                    setActiveLink(bestKey);
+                if (!value) {
+                    return;
                 }
-            });
-        };
 
-        requestFallbackUpdate();
-        window.addEventListener('scroll', requestFallbackUpdate, { passive: true });
-        window.addEventListener('resize', requestFallbackUpdate);
+                activateGroup(value, context);
+            });
+        }
+
+        var initialGroup = orderedIds[0] || null;
+
+        if (initialGroup) {
+            activateGroup(initialGroup, context);
+        }
     });
 })();

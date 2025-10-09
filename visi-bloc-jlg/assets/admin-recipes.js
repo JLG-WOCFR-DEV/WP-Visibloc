@@ -84,6 +84,31 @@
         return Array.prototype.slice.call(fragment.querySelectorAll('[data-visibloc-recipe-step]'));
     }
 
+    function getTemplateMarkup(template) {
+        if (!template) {
+            return '';
+        }
+
+        var script = template.querySelector('[data-visibloc-recipe-template-blocks]');
+
+        if (!script) {
+            return '';
+        }
+
+        var raw = script.textContent || script.innerText || '';
+
+        if (!raw) {
+            return '';
+        }
+
+        try {
+            var decoded = JSON.parse(raw);
+            return typeof decoded === 'string' ? decoded : '';
+        } catch (error) {
+            return '';
+        }
+    }
+
     function createPanelStructure(stepNode, panelId, tabId) {
         var panel = document.createElement('div');
         panel.className = 'visibloc-guided-recipes__stepper-panel';
@@ -150,6 +175,8 @@
         var stepLiveRegion = dialog ? dialog.querySelector('[data-visibloc-recipe-step-live]') : null;
         var prevButton = dialog ? dialog.querySelector('[data-visibloc-recipe-prev]') : null;
         var nextButton = dialog ? dialog.querySelector('[data-visibloc-recipe-next]') : null;
+        var copyButton = dialog ? dialog.querySelector('[data-visibloc-recipe-copy]') : null;
+        var feedbackElement = dialog ? dialog.querySelector('[data-visibloc-recipe-feedback]') : null;
         var titleElement = dialog ? dialog.querySelector('[data-visibloc-recipe-dialog-title]') : null;
         var descriptionElement = dialog ? dialog.querySelector('[data-visibloc-recipe-dialog-description]') : null;
         var metaContainer = dialog ? dialog.querySelector('[data-visibloc-recipe-dialog-meta]') : null;
@@ -161,6 +188,7 @@
         var activeIndex = 0;
         var previousFocus = null;
         var dialogOpen = false;
+        var activeTemplateMarkup = '';
 
         function announceToLiveRegion(element, message) {
             if (!element) {
@@ -210,6 +238,7 @@
             activeTabs = [];
             activePanels = [];
             activeIndex = 0;
+            activeTemplateMarkup = '';
             document.removeEventListener('keydown', handleKeydown, true);
 
             if (previousFocus && typeof previousFocus.focus === 'function') {
@@ -389,6 +418,7 @@
             }
 
             var steps = parseTemplateSteps(template);
+            var templateMarkup = getTemplateMarkup(template);
 
             if (!steps.length) {
                 return;
@@ -398,6 +428,7 @@
             panelsContainer.innerHTML = '';
             activeTabs = [];
             activePanels = [];
+            activeTemplateMarkup = templateMarkup;
 
             var recipeId = card.getAttribute('data-recipe-id') || 'recipe';
 
@@ -448,6 +479,17 @@
             setMetaValue('time', card.getAttribute('data-recipe-time') || __('Quelques minutes', 'visi-bloc-jlg'));
 
             updateBlocksList(parseBlocks(card));
+
+            if (copyButton) {
+                copyButton.disabled = !templateMarkup;
+                copyButton.setAttribute('aria-disabled', templateMarkup ? 'false' : 'true');
+                copyButton.hidden = !templateMarkup;
+            }
+
+            if (feedbackElement) {
+                feedbackElement.textContent = '';
+                feedbackElement.hidden = true;
+            }
 
             previousFocus = document.activeElement;
             dialog.removeAttribute('hidden');
@@ -503,8 +545,67 @@
                     return;
                 }
 
-                var newIndex = Math.min(activeIndex + 1, activeTabs.length - 1);
-                setActiveStep(newIndex, true);
+            var newIndex = Math.min(activeIndex + 1, activeTabs.length - 1);
+            setActiveStep(newIndex, true);
+        });
+    }
+
+        if (copyButton) {
+            copyButton.addEventListener('click', function () {
+                if (!activeTemplateMarkup) {
+                    return;
+                }
+
+                var resolve;
+                var reject;
+
+                var clipboardPromise = new Promise(function (res, rej) {
+                    resolve = res;
+                    reject = rej;
+                });
+
+                var performCopy = function (value) {
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(value).then(resolve, reject);
+                        return;
+                    }
+
+                    try {
+                        var textarea = document.createElement('textarea');
+                        textarea.value = value;
+                        textarea.setAttribute('readonly', 'readonly');
+                        textarea.style.position = 'absolute';
+                        textarea.style.left = '-9999px';
+                        document.body.appendChild(textarea);
+                        textarea.select();
+                        var success = document.execCommand('copy');
+                        document.body.removeChild(textarea);
+
+                        if (success) {
+                            resolve();
+                        } else {
+                            reject(new Error('copy-failed'));
+                        }
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+
+                clipboardPromise
+                    .then(function () {
+                        if (feedbackElement) {
+                            feedbackElement.hidden = false;
+                            feedbackElement.textContent = __('Modèle copié dans le presse-papiers.', 'visi-bloc-jlg');
+                        }
+                    })
+                    .catch(function () {
+                        if (feedbackElement) {
+                            feedbackElement.hidden = false;
+                            feedbackElement.textContent = __('Impossible de copier le modèle. Sélectionnez le contenu manuellement.', 'visi-bloc-jlg');
+                        }
+                    });
+
+                performCopy(activeTemplateMarkup);
             });
         }
 

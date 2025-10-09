@@ -209,6 +209,81 @@
         });
     };
 
+    var initPreset = function (button) {
+        var targetId = button.getAttribute('data-visibloc-blocks-target');
+        var presetRaw = button.getAttribute('data-visibloc-block-preset');
+
+        if (!targetId || !presetRaw) {
+            return;
+        }
+
+        var container = document.getElementById(targetId);
+
+        if (!container) {
+            return;
+        }
+
+        var context = getContainerContext(container);
+
+        if (!context.items.length) {
+            return;
+        }
+
+        var presetBlocks;
+
+        try {
+            presetBlocks = JSON.parse(presetRaw);
+        } catch (error) {
+            presetBlocks = [];
+        }
+
+        if (!Array.isArray(presetBlocks) || !presetBlocks.length) {
+            return;
+        }
+
+        var normalizedMap = presetBlocks.reduce(function (accumulator, blockName) {
+            if (typeof blockName === 'string' && blockName.trim()) {
+                accumulator[blockName] = true;
+            }
+
+            return accumulator;
+        }, {});
+
+        button.addEventListener('click', function (event) {
+            event.preventDefault();
+
+            context.items.forEach(function (item) {
+                var inputElement = item.querySelector('input[type="checkbox"]');
+
+                if (!inputElement || inputElement.disabled) {
+                    return;
+                }
+
+                var value = inputElement.value || '';
+
+                if (!Object.prototype.hasOwnProperty.call(normalizedMap, value)) {
+                    return;
+                }
+
+                if (!inputElement.checked) {
+                    inputElement.checked = true;
+                    var changeEvent = new window.Event('change', { bubbles: true });
+                    inputElement.dispatchEvent(changeEvent);
+                }
+            });
+
+            updateCountMessage(context);
+
+            if (typeof button.focus === 'function') {
+                try {
+                    button.focus({ preventScroll: true });
+                } catch (error) {
+                    button.focus();
+                }
+            }
+        });
+    };
+
     var onReady = function () {
         var searchInputs = document.querySelectorAll('[data-visibloc-blocks-search]');
         Array.prototype.forEach.call(searchInputs, initSearch);
@@ -222,6 +297,9 @@
         Array.prototype.forEach.call(selectNoneButtons, function (button) {
             initMassAction(button, false);
         });
+
+        var presetButtons = document.querySelectorAll('[data-visibloc-block-preset]');
+        Array.prototype.forEach.call(presetButtons, initPreset);
     };
 
     if (document.readyState === 'loading') {
