@@ -65,6 +65,93 @@
     gap: 16px;
 }
 
+.visibloc-scenario-presets {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid var(--visibloc-border-subtle);
+    border-radius: var(--visibloc-radius-base);
+    background: var(--visibloc-surface-subtle);
+}
+
+.visibloc-scenario-presets__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.visibloc-scenario-presets__title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--wp-components-color-foreground, #1d2327);
+}
+
+.visibloc-scenario-presets__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+.visibloc-scenario-presets__button {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    width: 100%;
+    text-align: left;
+    border-radius: var(--visibloc-radius-base);
+    border: 1px solid var(--visibloc-border-subtle);
+    box-shadow: var(--visibloc-shadow-subtle);
+}
+
+.visibloc-scenario-presets__button--critical {
+    border-color: rgba(239, 68, 68, 0.4);
+    background: linear-gradient(180deg, rgba(254, 226, 226, 0.6), rgba(254, 215, 215, 0.3));
+}
+
+.visibloc-scenario-presets__button--high {
+    border-color: rgba(249, 115, 22, 0.4);
+    background: linear-gradient(180deg, rgba(255, 237, 213, 0.6), rgba(255, 224, 179, 0.3));
+}
+
+.visibloc-scenario-presets__button--medium {
+    border-color: rgba(14, 165, 233, 0.25);
+    background: linear-gradient(180deg, rgba(219, 234, 254, 0.6), rgba(191, 219, 254, 0.3));
+}
+
+.visibloc-scenario-presets__button--low {
+    border-color: rgba(134, 239, 172, 0.35);
+    background: linear-gradient(180deg, rgba(220, 252, 231, 0.6), rgba(187, 247, 208, 0.3));
+}
+
+.visibloc-scenario-presets__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: var(--visibloc-radius-pill);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    background: rgba(15, 23, 42, 0.08);
+    color: var(--wp-components-color-foreground, #1d2327);
+}
+
+.visibloc-scenario-presets__label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--wp-components-color-foreground, #1d2327);
+}
+
+.visibloc-scenario-presets__description {
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--wp-components-color-foreground-muted, #50575e);
+}
+
 .visibloc-stepper .components-tab-panel__tabs {
     display: flex;
     flex-wrap: wrap;
@@ -88,6 +175,60 @@
     border-color: var(--wp-components-color-accent, #3c50e0);
     color: #ffffff;
     box-shadow: var(--visibloc-shadow-subtle);
+}
+
+.visibloc-stepper__tab-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+}
+
+.visibloc-stepper__tab-text {
+    flex: 1 1 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.visibloc-stepper__status {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: var(--visibloc-radius-pill);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    background: rgba(148, 163, 184, 0.2);
+    color: var(--wp-components-color-foreground, #1d2327);
+}
+
+.visibloc-stepper__status--hidden,
+.visibloc-stepper__status--warning {
+    background: rgba(239, 68, 68, 0.18);
+    color: #7f1d1d;
+}
+
+.visibloc-stepper__status--schedule {
+    background: rgba(59, 130, 246, 0.2);
+    color: #1d4ed8;
+}
+
+.visibloc-stepper__status--advanced {
+    background: rgba(14, 165, 233, 0.2);
+    color: #0f172a;
+}
+
+.visibloc-stepper__status--fallback {
+    background: rgba(59, 130, 246, 0.18);
+    color: #1e3a8a;
+}
+
+.visibloc-stepper__status--success {
+    background: rgba(34, 197, 94, 0.18);
+    color: #14532d;
 }
 
 .visibloc-stepper .components-tab-panel__tab:focus {
@@ -140,6 +281,130 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+}
+
+.visibloc-term-search-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--wp-components-color-foreground-muted, #50575e);
+}
+
+.visibloc-term-selection {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.visibloc-term-selection__count {
+    margin: 0;
+    font-size: 13px;
+    color: var(--wp-components-color-foreground-muted, #50575e);
+}
+
+.visibloc-term-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.visibloc-term-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: var(--visibloc-radius-pill);
+    background: rgba(15, 23, 42, 0.08);
+    font-size: 12px;
+    color: var(--wp-components-color-foreground, #1d2327);
+}
+
+.visibloc-term-chip__label {
+    font-weight: 500;
+}
+
+.visibloc-term-chip--placeholder {
+    opacity: 0.6;
+}
+
+.visibloc-term-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.visibloc-term-groups__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.visibloc-term-groups__list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.visibloc-term-groups__title {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--wp-components-color-foreground, #1d2327);
+}
+
+.visibloc-term-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.visibloc-term-group__apply {
+    flex: 1 1 auto;
+    justify-content: space-between;
+}
+
+.visibloc-term-group__label {
+    font-weight: 600;
+}
+
+.visibloc-term-group__count {
+    font-size: 11px;
+    opacity: 0.75;
+}
+
+.visibloc-recipes-modal__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.visibloc-recipes-modal__card {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.visibloc-recipes-modal__heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.visibloc-recipes-modal__title {
+    margin: 0;
+    font-size: 16px;
+}
+
+.visibloc-recipes-modal__empty {
+    margin: 0;
+    font-size: 14px;
+    color: var(--wp-components-color-foreground-muted, #50575e);
 }
 
 .visi-bloc-datepicker-wrapper {

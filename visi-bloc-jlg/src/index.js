@@ -7,6 +7,7 @@ import {
     useState,
     useEffect,
     useRef,
+    useCallback,
     RawHTML,
 } from '@wordpress/element';
 import { addFilter, applyFilters } from '@wordpress/hooks';
@@ -36,9 +37,16 @@ import {
     TextControl,
     Tooltip,
     TabPanel,
+    Modal,
+    Card,
+    CardHeader,
+    CardBody,
+    CardFooter,
+    Spinner,
 } from '@wordpress/components';
 import { __, sprintf, _n } from '@wordpress/i18n';
 import { __experimentalGetSettings, dateI18n, format as formatDate } from '@wordpress/date';
+import apiFetch from '@wordpress/api-fetch';
 import { subscribe, select, useSelect } from '@wordpress/data';
 import autop from '@wordpress/autop';
 import debounce from 'lodash/debounce';
@@ -297,12 +305,69 @@ const InfoBadgeIcon = () => (
     </svg>
 );
 
+const WarningBadgeIcon = () => (
+    <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        role="presentation"
+        focusable="false"
+        aria-hidden="true"
+    >
+        <path
+            d="m12 4 8 14H4z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinejoin="round"
+        />
+        <path
+            d="M12 10v4"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        />
+        <circle cx="12" cy="17" r="1" fill="currentColor" />
+    </svg>
+);
+
+const SuccessBadgeIcon = () => (
+    <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        role="presentation"
+        focusable="false"
+        aria-hidden="true"
+    >
+        <circle
+            cx="12"
+            cy="12"
+            r="7.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+        />
+        <path
+            d="m8.8 12.4 2.3 2.3 4-4.7"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        />
+    </svg>
+);
+
 const STATUS_BADGE_ICONS = {
     hidden: HiddenBadgeIcon,
     schedule: ClockBadgeIcon,
     'schedule-error': ClockAlertBadgeIcon,
     fallback: LayersBadgeIcon,
     advanced: SlidersBadgeIcon,
+    warning: WarningBadgeIcon,
+    success: SuccessBadgeIcon,
     default: InfoBadgeIcon,
 };
 
@@ -628,6 +693,7 @@ const ADVANCED_RULE_TYPE_OPTIONS = [
 const DEFAULT_ADVANCED_VISIBILITY = Object.freeze({
     logic: 'AND',
     rules: [],
+    savedGroups: [],
 });
 
 const DEFAULT_RECURRING_SCHEDULE = Object.freeze({
@@ -801,6 +867,7 @@ const DAY_OF_WEEK_LOOKUP = (() => {
 const getDefaultAdvancedVisibility = () => ({
     logic: DEFAULT_ADVANCED_VISIBILITY.logic,
     rules: [...DEFAULT_ADVANCED_VISIBILITY.rules],
+    savedGroups: [...DEFAULT_ADVANCED_VISIBILITY.savedGroups],
 });
 
 const createRuleId = () => `rule-${Math.random().toString(36).slice(2)}-${Date.now()}`;
@@ -842,6 +909,7 @@ const getDefaultTaxonomyRule = () => {
         operator: 'in',
         taxonomy: firstTaxonomy ? firstTaxonomy.slug : '',
         terms: [],
+        savedGroups: [],
     };
 };
 
@@ -999,6 +1067,37 @@ const normalizeRule = (rule) => {
                   .map((term) => (typeof term === 'string' || typeof term === 'number' ? String(term) : ''))
                   .filter(Boolean)
             : [];
+        normalized.savedGroups = Array.isArray(rule.savedGroups)
+            ? rule.savedGroups
+                  .map((group) => {
+                      if (!group || typeof group !== 'object') {
+                          return null;
+                      }
+
+                      const terms = Array.isArray(group.terms)
+                          ? group.terms
+                                .map((term) =>
+                                    typeof term === 'string' || typeof term === 'number' ? String(term) : '',
+                                )
+                                .filter(Boolean)
+                          : [];
+
+                      if (!terms.length) {
+                          return null;
+                      }
+
+                      const rawId = typeof group.id === 'string' ? group.id.trim() : '';
+                      const id = rawId || `group-${terms.join('-')}`;
+                      const label = typeof group.label === 'string' ? group.label.trim() : '';
+
+                      return {
+                          id,
+                          label: label || __('Sélection enregistrée', 'visi-bloc-jlg'),
+                          terms,
+                      };
+                  })
+                  .filter(Boolean)
+            : [];
 
         return normalized;
     }
@@ -1118,10 +1217,607 @@ const normalizeAdvancedVisibility = (value) => {
               .filter(Boolean)
         : [];
 
+    const savedGroups = Array.isArray(value.savedGroups)
+        ? value.savedGroups.filter((group) => group && typeof group === 'object')
+        : [];
+
     return {
         logic,
         rules,
+        savedGroups,
     };
+};
+
+const getSiteIsoDateWithOffset = (days = 0) => {
+    const offset = Number.isFinite(days) ? Number(days) : 0;
+    const base = new Date();
+    base.setDate(base.getDate() + offset);
+
+    return formatDate('Y-m-d\\TH:i:s', base);
+};
+
+const pickPreferredValues = (preferred, available) => {
+    const availableSet = Array.isArray(available) ? available.filter(Boolean) : [];
+
+    if (!availableSet.length) {
+        return [];
+    }
+
+    const preferredArray = Array.isArray(preferred) ? preferred : [];
+    const selected = preferredArray
+        .map((value) => (typeof value === 'string' ? value : ''))
+        .filter((value) => value && availableSet.includes(value));
+
+    if (selected.length) {
+        return Array.from(new Set(selected));
+    }
+
+    return [availableSet[0]];
+};
+
+const ensureNumericId = (value) => {
+    if (typeof value === 'number') {
+        return value;
+    }
+
+    if (typeof value === 'string' && value) {
+        const parsed = parseInt(value, 10);
+
+        if (!Number.isNaN(parsed)) {
+            return parsed;
+        }
+    }
+
+    return undefined;
+};
+
+const buildRestPath = (namespace, base) => {
+    const normalizedNamespace = (typeof namespace === 'string' ? namespace : 'wp/v2')
+        .replace(/^\/+/, '')
+        .replace(/\/+$/, '');
+    const normalizedBase = (typeof base === 'string' ? base : '')
+        .replace(/^\/+/, '')
+        .replace(/\/+$/, '');
+
+    if (!normalizedBase) {
+        return `/${normalizedNamespace}`;
+    }
+
+    return `/${normalizedNamespace}/${normalizedBase}`;
+};
+
+const resolveRecipeRule = (rule, context) => {
+    if (!rule || typeof rule !== 'object') {
+        return null;
+    }
+
+    const baseRule = { ...rule };
+
+    if (baseRule.type === 'taxonomy') {
+        const availableTaxonomies = Array.isArray(context.taxonomies)
+            ? context.taxonomies
+                  .map((item) => (item && typeof item.slug === 'string' ? item.slug : ''))
+                  .filter(Boolean)
+            : [];
+
+        baseRule.taxonomy = typeof baseRule.taxonomy === 'string' && baseRule.taxonomy
+            ? baseRule.taxonomy
+            : availableTaxonomies[0] || '';
+    }
+
+    if (baseRule.type === 'user_segment') {
+        const availableSegments = Array.isArray(context.userSegments)
+            ? context.userSegments
+                  .map((segment) => (segment && typeof segment.value === 'string' ? segment.value : ''))
+                  .filter(Boolean)
+            : [];
+        const preferred = baseRule.segment ? [baseRule.segment] : [];
+        const [selectedSegment] = pickPreferredValues(preferred, availableSegments);
+        baseRule.segment = selectedSegment || '';
+    }
+
+    if (baseRule.type === 'woocommerce_cart') {
+        const sources = Array.isArray(context.woocommerceTaxonomies)
+            ? context.woocommerceTaxonomies
+                  .map((taxonomy) => (taxonomy && typeof taxonomy.slug === 'string' ? taxonomy.slug : ''))
+                  .filter(Boolean)
+            : [];
+        baseRule.taxonomy = typeof baseRule.taxonomy === 'string' && baseRule.taxonomy
+            ? baseRule.taxonomy
+            : sources[0] || '';
+    }
+
+    if (!baseRule.id) {
+        baseRule.id = createRuleId();
+    }
+
+    return normalizeRule(baseRule);
+};
+
+const buildRecipeAttributes = (recipe, context = {}) => {
+    if (!recipe || typeof recipe !== 'object') {
+        return null;
+    }
+
+    const { attributes = {}, id } = recipe;
+    const updates = {};
+
+    if (typeof id === 'string') {
+        updates.scenarioPreset = id;
+    }
+
+    if (typeof attributes.deviceVisibility === 'string') {
+        updates.deviceVisibility = attributes.deviceVisibility;
+    }
+
+    if (typeof attributes.isSchedulingEnabled === 'boolean') {
+        updates.isSchedulingEnabled = attributes.isSchedulingEnabled;
+
+        if (attributes.isSchedulingEnabled) {
+            updates.publishStartDate = getCurrentSiteIsoDate();
+            const duration = Number.isFinite(attributes.scheduleWindowDays)
+                ? Number(attributes.scheduleWindowDays)
+                : null;
+            updates.publishEndDate = Number.isFinite(duration)
+                ? getSiteIsoDateWithOffset(duration)
+                : '';
+        } else {
+            updates.publishStartDate = '';
+            updates.publishEndDate = '';
+        }
+    }
+
+    if (attributes.roles) {
+        const availableRoles = Array.isArray(context.availableRoles)
+            ? context.availableRoles
+            : [];
+        updates.visibilityRoles = pickPreferredValues(attributes.roles, availableRoles);
+    }
+
+    if (attributes.fallback) {
+        updates.fallbackEnabled = true;
+        const behavior = attributes.fallback.behavior;
+
+        if (behavior === 'text') {
+            updates.fallbackBehavior = 'text';
+            updates.fallbackCustomText = attributes.fallback.message || '';
+        } else if (behavior === 'block') {
+            updates.fallbackBehavior = 'block';
+            const blocks = Array.isArray(context.fallbackBlocks) ? context.fallbackBlocks : [];
+            const preferredBlockId = ensureNumericId(attributes.fallback.blockId);
+            const fallbackBlock = preferredBlockId
+                ? preferredBlockId
+                : (() => {
+                      const first = blocks.find((block) => typeof block.value !== 'undefined');
+                      if (!first) {
+                          return undefined;
+                      }
+
+                      return ensureNumericId(first.value);
+                  })();
+
+            if (typeof fallbackBlock === 'number') {
+                updates.fallbackBlockId = fallbackBlock;
+            }
+        } else {
+            updates.fallbackBehavior = 'inherit';
+        }
+    }
+
+    if (Array.isArray(attributes.advancedRules) && attributes.advancedRules.length > 0) {
+        const rules = attributes.advancedRules
+            .map((rule) => resolveRecipeRule(rule, context))
+            .filter(Boolean);
+
+        if (rules.length > 0) {
+            updates.advancedVisibility = normalizeAdvancedVisibility({
+                logic: attributes.advancedLogic === 'OR' ? 'OR' : 'AND',
+                rules,
+            });
+        }
+    }
+
+    return updates;
+};
+
+const buildScenarioPresets = (recipes, context) => {
+    if (!Array.isArray(recipes)) {
+        return [];
+    }
+
+    return recipes
+        .map((recipe) => {
+            if (!recipe || typeof recipe !== 'object') {
+                return null;
+            }
+
+            const attributes = buildRecipeAttributes(recipe, context);
+
+            if (!attributes) {
+                return null;
+            }
+
+            return {
+                id: recipe.id,
+                label: recipe.title || recipe.id,
+                description: recipe.description || '',
+                severity: recipe.severity || 'medium',
+                attributes,
+            };
+        })
+        .filter(Boolean);
+};
+
+const TaxonomyRuleEditor = ({
+    rule,
+    taxonomies,
+    onUpdateRule,
+    commonHeader,
+}) => {
+    const taxonomyItems = useMemo(() => Array.isArray(taxonomies) ? taxonomies : [], [taxonomies]);
+    const currentTaxonomy = useMemo(
+        () => taxonomyItems.find((item) => item && item.slug === rule.taxonomy) || null,
+        [taxonomyItems, rule.taxonomy],
+    );
+    const initialTerms = useMemo(() => {
+        if (!currentTaxonomy || !Array.isArray(currentTaxonomy.terms)) {
+            return [];
+        }
+
+        return currentTaxonomy.terms
+            .map((term) =>
+                term && typeof term === 'object'
+                    ? {
+                          value: typeof term.value === 'string' ? term.value : String(term.value || ''),
+                          label: typeof term.label === 'string' ? term.label : String(term.value || ''),
+                      }
+                    : null,
+            )
+            .filter((term) => term && term.value);
+    }, [currentTaxonomy]);
+
+    const [searchTerm, setSearchTerm] = useState('');
+    const [termOptions, setTermOptions] = useState(initialTerms);
+    const [isSearching, setSearching] = useState(false);
+    const [searchError, setSearchError] = useState('');
+    const activeRequestRef = useRef(null);
+    const termLabelMapRef = useRef(new Map());
+
+    useEffect(() => {
+        setTermOptions(initialTerms);
+        setSearchTerm('');
+        setSearchError('');
+    }, [initialTerms, rule.taxonomy]);
+
+    useEffect(() => {
+        const map = termLabelMapRef.current;
+        initialTerms.forEach((term) => {
+            map.set(term.value, term.label);
+        });
+    }, [initialTerms]);
+
+    useEffect(() => {
+        const map = termLabelMapRef.current;
+        termOptions.forEach((term) => {
+            map.set(term.value, term.label);
+        });
+    }, [termOptions]);
+
+    useEffect(() => {
+        if (!searchTerm) {
+            if (activeRequestRef.current) {
+                activeRequestRef.current.abort();
+                activeRequestRef.current = null;
+            }
+
+            setSearching(false);
+            setSearchError('');
+            setTermOptions(initialTerms);
+
+            return;
+        }
+
+        const namespace = currentTaxonomy ? currentTaxonomy.rest_namespace : 'wp/v2';
+        const base = currentTaxonomy ? currentTaxonomy.rest_base : rule.taxonomy;
+        const path = buildRestPath(namespace, base);
+        const controller = new AbortController();
+        activeRequestRef.current = controller;
+        setSearching(true);
+        setSearchError('');
+
+        apiFetch({
+            path: `${path}?per_page=20&search=${encodeURIComponent(searchTerm)}`,
+            signal: controller.signal,
+        })
+            .then((results) => {
+                if (controller.signal.aborted) {
+                    return;
+                }
+
+                const nextOptions = Array.isArray(results)
+                    ? results
+                          .map((item) => {
+                              if (!item || typeof item !== 'object') {
+                                  return null;
+                              }
+
+                              const value = typeof item.slug === 'string' && item.slug
+                                  ? item.slug
+                                  : typeof item.id !== 'undefined'
+                                      ? String(item.id)
+                                      : '';
+
+                              const label = typeof item.name === 'string' && item.name
+                                  ? item.name
+                                  : value;
+
+                              if (!value) {
+                                  return null;
+                              }
+
+                              return { value, label };
+                          })
+                          .filter(Boolean)
+                    : [];
+
+                setTermOptions(nextOptions.length ? nextOptions : initialTerms);
+            })
+            .catch((error) => {
+                if (controller.signal.aborted) {
+                    return;
+                }
+
+                if (error && error.name === 'AbortError') {
+                    return;
+                }
+
+                setSearchError(__('Impossible de charger les termes. Réessayez plus tard.', 'visi-bloc-jlg'));
+            })
+            .finally(() => {
+                if (!controller.signal.aborted) {
+                    setSearching(false);
+                }
+            });
+
+        return () => {
+            controller.abort();
+        };
+    }, [searchTerm, currentTaxonomy, initialTerms, rule.taxonomy]);
+
+    const taxonomyOptions = useMemo(
+        () =>
+            taxonomyItems.map((item) => ({
+                value: item.slug,
+                label: item.label,
+            })),
+        [taxonomyItems],
+    );
+
+    const getTermLabel = useCallback((value) => {
+        const map = termLabelMapRef.current;
+
+        if (map.has(value)) {
+            return map.get(value);
+        }
+
+        return value;
+    }, []);
+
+    const onSelectTerm = useCallback(
+        (value) => {
+            if (!value) {
+                return;
+            }
+
+            const stringValue = String(value);
+
+            if (rule.terms.includes(stringValue)) {
+                return;
+            }
+
+            onUpdateRule({ terms: [...rule.terms, stringValue] });
+        },
+        [onUpdateRule, rule.terms],
+    );
+
+    const onRemoveTerm = useCallback(
+        (value) => {
+            onUpdateRule({ terms: rule.terms.filter((term) => term !== value) });
+        },
+        [onUpdateRule, rule.terms],
+    );
+
+    const onSaveGroup = useCallback(
+        (name) => {
+            const sanitizedName = typeof name === 'string' ? name.trim() : '';
+
+            if (!rule.terms.length) {
+                return;
+            }
+
+            const nextGroup = {
+                id: `group-${createRuleId()}`,
+                label: sanitizedName || sprintf(__('Groupe %d', 'visi-bloc-jlg'), (rule.savedGroups || []).length + 1),
+                terms: [...rule.terms],
+            };
+
+            const groups = Array.isArray(rule.savedGroups) ? rule.savedGroups : [];
+
+            onUpdateRule({ savedGroups: [...groups, nextGroup] });
+        },
+        [onUpdateRule, rule.savedGroups, rule.terms],
+    );
+
+    const onApplyGroup = useCallback(
+        (group) => {
+            if (!group || !Array.isArray(group.terms)) {
+                return;
+            }
+
+            onUpdateRule({ terms: group.terms.filter(Boolean) });
+        },
+        [onUpdateRule],
+    );
+
+    const onDeleteGroup = useCallback(
+        (groupId) => {
+            const groups = Array.isArray(rule.savedGroups) ? rule.savedGroups : [];
+            onUpdateRule({ savedGroups: groups.filter((group) => group && group.id !== groupId) });
+        },
+        [onUpdateRule, rule.savedGroups],
+    );
+
+    const [isSavingGroup, setSavingGroup] = useState(false);
+    const [groupName, setGroupName] = useState('');
+
+    useEffect(() => {
+        if (!isSavingGroup) {
+            setGroupName('');
+        }
+    }, [isSavingGroup]);
+
+    const selectedCountLabel = useMemo(() => {
+        const count = rule.terms.length;
+
+        if (count === 0) {
+            return __('Aucun terme sélectionné.', 'visi-bloc-jlg');
+        }
+
+        return _n('%d terme sélectionné.', '%d termes sélectionnés.', count, 'visi-bloc-jlg');
+    }, [rule.terms.length]);
+
+    return (
+        <div className="visibloc-advanced-rule">
+            {commonHeader}
+            <SelectControl
+                label={__('Taxonomie', 'visi-bloc-jlg')}
+                value={rule.taxonomy}
+                options={taxonomyOptions}
+                onChange={(newTaxonomy) =>
+                    onUpdateRule({ taxonomy: newTaxonomy, terms: [], savedGroups: [] })
+                }
+            />
+            <SelectControl
+                label={__('Condition', 'visi-bloc-jlg')}
+                value={rule.operator}
+                options={[
+                    { value: 'in', label: __('Inclut au moins un terme', 'visi-bloc-jlg') },
+                    { value: 'not_in', label: __('Exclut tous les termes', 'visi-bloc-jlg') },
+                ]}
+                onChange={(newOperator) => onUpdateRule({ operator: newOperator })}
+            />
+            <ComboboxControl
+                __nextHasNoMarginBottom
+                label={__('Ajouter un terme', 'visi-bloc-jlg')}
+                value=""
+                options={termOptions}
+                onChange={(optionValue) => {
+                    onSelectTerm(optionValue);
+                }}
+                onFilterValueChange={(value) => setSearchTerm(value)}
+                allowReset={false}
+                placeholder={__('Rechercher…', 'visi-bloc-jlg')}
+            />
+            {isSearching ? (
+                <div className="visibloc-term-search-status">
+                    <Spinner />
+                    <span>{__('Recherche des termes…', 'visi-bloc-jlg')}</span>
+                </div>
+            ) : null}
+            {searchError ? (
+                <Notice status="error" isDismissible={false}>
+                    {searchError}
+                </Notice>
+            ) : null}
+            <div className="visibloc-term-selection">
+                <p className="visibloc-term-selection__count">
+                    {sprintf(selectedCountLabel, rule.terms.length)}
+                </p>
+                <div className="visibloc-term-chips" role="list">
+                    {rule.terms.map((term) => (
+                        <span key={term} role="listitem" className="visibloc-term-chip">
+                            <span className="visibloc-term-chip__label">{getTermLabel(term)}</span>
+                            <Button
+                                onClick={() => onRemoveTerm(term)}
+                                icon="no-alt"
+                                label={__('Retirer ce terme', 'visi-bloc-jlg')}
+                                variant="tertiary"
+                                size="small"
+                            />
+                        </span>
+                    ))}
+                    {rule.terms.length === 0 && (
+                        <span className="visibloc-term-chip visibloc-term-chip--placeholder">
+                            {__('Aucun terme encore ajouté.', 'visi-bloc-jlg')}
+                        </span>
+                    )}
+                </div>
+            </div>
+            <div className="visibloc-term-groups">
+                {rule.terms.length > 0 ? (
+                    <div className="visibloc-term-groups__actions">
+                        {isSavingGroup ? (
+                            <Flex align="center" gap={8} justify="flex-start">
+                                <FlexBlock>
+                                    <TextControl
+                                        label={__('Nom du groupe', 'visi-bloc-jlg')}
+                                        value={groupName}
+                                        onChange={setGroupName}
+                                        placeholder={__('Audience prioritaire', 'visi-bloc-jlg')}
+                                    />
+                                </FlexBlock>
+                                <FlexItem>
+                                    <Button
+                                        variant="primary"
+                                        onClick={() => {
+                                            onSaveGroup(groupName);
+                                            setSavingGroup(false);
+                                        }}
+                                    >
+                                        {__('Enregistrer', 'visi-bloc-jlg')}
+                                    </Button>
+                                </FlexItem>
+                                <FlexItem>
+                                    <Button variant="tertiary" onClick={() => setSavingGroup(false)}>
+                                        {__('Annuler', 'visi-bloc-jlg')}
+                                    </Button>
+                                </FlexItem>
+                            </Flex>
+                        ) : (
+                            <Button variant="tertiary" onClick={() => setSavingGroup(true)}>
+                                {__('Enregistrer cette sélection', 'visi-bloc-jlg')}
+                            </Button>
+                        )}
+                    </div>
+                ) : null}
+                {Array.isArray(rule.savedGroups) && rule.savedGroups.length > 0 ? (
+                    <div className="visibloc-term-groups__list">
+                        <p className="visibloc-term-groups__title">
+                            {__('Groupes enregistrés', 'visi-bloc-jlg')}
+                        </p>
+                        {rule.savedGroups.map((group) => (
+                            <div key={group.id} className="visibloc-term-group">
+                                <Button
+                                    variant="secondary"
+                                    onClick={() => onApplyGroup(group)}
+                                    className="visibloc-term-group__apply"
+                                >
+                                    <span className="visibloc-term-group__label">{group.label}</span>
+                                    <span className="visibloc-term-group__count">{group.terms.length}</span>
+                                </Button>
+                                <Button
+                                    icon="trash"
+                                    label={__('Supprimer ce groupe', 'visi-bloc-jlg')}
+                                    onClick={() => onDeleteGroup(group.id)}
+                                    variant="tertiary"
+                                />
+                            </div>
+                        ))}
+                    </div>
+                ) : null}
+            </div>
+        </div>
+    );
 };
 
 function addVisibilityAttributesToGroup(settings, name) {
@@ -1176,6 +1872,10 @@ function addVisibilityAttributesToGroup(settings, name) {
         fallbackBlockId: {
             type: 'number',
         },
+        scenarioPreset: {
+            type: 'string',
+            default: '',
+        },
     };
 
     return settings;
@@ -1201,12 +1901,137 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             fallbackBehavior = 'inherit',
             fallbackCustomText = '',
             fallbackBlockId,
+            scenarioPreset = '',
         } = attributes;
 
         const advancedVisibility = normalizeAdvancedVisibility(rawAdvancedVisibility);
-        const fallbackSettings = getVisiBlocObject('fallbackSettings') || {};
+        const fallbackSettings = useMemo(
+            () => getVisiBlocObject('fallbackSettings') || {},
+            [],
+        );
+        const fallbackBlocks = useMemo(() => getVisiBlocArray('fallbackBlocks'), []);
+        const rolesMap = useMemo(() => getVisiBlocObject('roles') || {}, []);
+        const availableRoleKeys = useMemo(() => Object.keys(rolesMap), [rolesMap]);
+        const guidedRecipes = useMemo(() => getVisiBlocArray('guidedRecipes'), []);
+        const userSegments = useMemo(() => getVisiBlocArray('userSegments'), []);
+        const woocommerceTaxonomies = useMemo(
+            () => getVisiBlocArray('woocommerceTaxonomies'),
+            [],
+        );
+        const editorTaxonomies = useMemo(() => getVisiBlocArray('taxonomies'), []);
+        const scenarioContext = useMemo(
+            () => ({
+                availableRoles: availableRoleKeys,
+                fallbackBlocks,
+                fallbackSettings,
+                userSegments,
+                woocommerceTaxonomies,
+                taxonomies: editorTaxonomies,
+            }),
+            [
+                availableRoleKeys,
+                fallbackBlocks,
+                fallbackSettings,
+                userSegments,
+                woocommerceTaxonomies,
+                editorTaxonomies,
+            ],
+        );
+        const scenarioPresets = useMemo(
+            () => buildScenarioPresets(guidedRecipes, scenarioContext),
+            [guidedRecipes, scenarioContext],
+        );
         const [isFallbackPreviewVisible, setFallbackPreviewVisible] = useState(false);
         const [activeInspectorStep, setActiveInspectorStep] = useState('device');
+        const [isRecipeModalOpen, setRecipeModalOpen] = useState(false);
+        const scenarioSeverityLabels = useMemo(
+            () => ({
+                critical: __('Critique', 'visi-bloc-jlg'),
+                high: __('Prioritaire', 'visi-bloc-jlg'),
+                medium: __('Standard', 'visi-bloc-jlg'),
+                low: __('Suggestion', 'visi-bloc-jlg'),
+            }),
+            [],
+        );
+        const normalizeSeverity = useCallback((value) => {
+            const allowed = ['critical', 'high', 'medium', 'low'];
+
+            if (allowed.includes(value)) {
+                return value;
+            }
+
+            return 'medium';
+        }, []);
+        const handleApplyScenario = useCallback(
+            (preset) => {
+                if (!preset || !preset.attributes) {
+                    return;
+                }
+
+                setAttributes(preset.attributes);
+
+                if (preset.attributes.isSchedulingEnabled) {
+                    setActiveInspectorStep('schedule');
+                } else if (
+                    preset.attributes.fallbackEnabled &&
+                    preset.attributes.fallbackBehavior &&
+                    preset.attributes.fallbackBehavior !== 'inherit'
+                ) {
+                    setActiveInspectorStep('fallback');
+                } else if (
+                    preset.attributes.advancedVisibility &&
+                    Array.isArray(preset.attributes.advancedVisibility.rules) &&
+                    preset.attributes.advancedVisibility.rules.length > 0
+                ) {
+                    setActiveInspectorStep('advanced');
+                } else if (
+                    Array.isArray(preset.attributes.visibilityRoles) &&
+                    preset.attributes.visibilityRoles.length > 0
+                ) {
+                    setActiveInspectorStep('roles');
+                } else {
+                    setActiveInspectorStep('device');
+                }
+            },
+            [setAttributes, setActiveInspectorStep],
+        );
+        const handleApplyRecipe = useCallback(
+            (recipe) => {
+                const attributesPatch = buildRecipeAttributes(recipe, scenarioContext);
+
+                if (!attributesPatch) {
+                    return;
+                }
+
+                setAttributes(attributesPatch);
+
+                if (attributesPatch.isSchedulingEnabled) {
+                    setActiveInspectorStep('schedule');
+                } else if (
+                    attributesPatch.advancedVisibility &&
+                    Array.isArray(attributesPatch.advancedVisibility.rules) &&
+                    attributesPatch.advancedVisibility.rules.length > 0
+                ) {
+                    setActiveInspectorStep('advanced');
+                } else if (
+                    Array.isArray(attributesPatch.visibilityRoles) &&
+                    attributesPatch.visibilityRoles.length > 0
+                ) {
+                    setActiveInspectorStep('roles');
+                } else if (
+                    attributesPatch.fallbackEnabled &&
+                    attributesPatch.fallbackBehavior &&
+                    attributesPatch.fallbackBehavior !== 'inherit'
+                ) {
+                    setActiveInspectorStep('fallback');
+                } else {
+                    setActiveInspectorStep('device');
+                }
+
+                setRecipeModalOpen(false);
+            },
+            [scenarioContext, setAttributes, setActiveInspectorStep],
+        );
         const hasFallback = getBlockHasFallback(attributes);
         const hasGlobalFallback = Boolean(fallbackSettings && fallbackSettings.hasContent);
         const globalFallbackSummary = fallbackSettings && typeof fallbackSettings.summary === 'string'
@@ -1216,7 +2041,6 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             fallbackSettings && typeof fallbackSettings.previewHtml === 'string'
                 ? fallbackSettings.previewHtml
                 : '';
-        const fallbackBlocks = getVisiBlocArray('fallbackBlocks');
         const fallbackBlockOptions = fallbackBlocks
             .filter((item) => item && typeof item === 'object')
             .map((item) => {
@@ -1636,70 +2460,14 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             }
 
             if (rule.type === 'taxonomy') {
-                const taxonomies = getVisiBlocArray('taxonomies');
-
-                const currentTaxonomy = taxonomies.find((item) => item.slug === rule.taxonomy);
-                const taxonomyOptions = taxonomies.map((item) => ({
-                    value: item.slug,
-                    label: item.label,
-                }));
-                const taxonomyTerms = currentTaxonomy && Array.isArray(currentTaxonomy.terms)
-                    ? currentTaxonomy.terms
-                    : [];
-                const termOptions = taxonomyTerms.map((term) => ({
-                    value: term.value,
-                    label: term.label,
-                }));
-
-                const onToggleTerm = (isChecked, termValue) => {
-                    const valueAsString = String(termValue);
-                    const newTerms = isChecked
-                        ? [...rule.terms, valueAsString]
-                        : rule.terms.filter((currentTerm) => currentTerm !== valueAsString);
-
-                    onUpdateRule({ terms: newTerms });
-                };
-
                 return (
-                    <div key={rule.id} className="visibloc-advanced-rule">
-                        {commonHeader}
-                        <SelectControl
-                            label={__('Taxonomie', 'visi-bloc-jlg')}
-                            value={rule.taxonomy}
-                            options={taxonomyOptions}
-                            onChange={(newTaxonomy) =>
-                                onUpdateRule({ taxonomy: newTaxonomy, terms: [] })
-                            }
-                        />
-                        <SelectControl
-                            label={__('Condition', 'visi-bloc-jlg')}
-                            value={rule.operator}
-                            options={[
-                                { value: 'in', label: __('Inclut au moins un terme', 'visi-bloc-jlg') },
-                                { value: 'not_in', label: __('Exclut tous les termes', 'visi-bloc-jlg') },
-                            ]}
-                            onChange={(newOperator) => onUpdateRule({ operator: newOperator })}
-                        />
-                        {termOptions.length > 0 ? (
-                            <div className="visibloc-advanced-rule__terms">
-                                {termOptions.map((term) => (
-                                    <CheckboxControl
-                                        key={term.value}
-                                        label={term.label}
-                                        checked={rule.terms.includes(term.value)}
-                                        onChange={(isChecked) => onToggleTerm(isChecked, term.value)}
-                                    />
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="components-help-text">
-                                {__(
-                                    'Aucun terme disponible pour cette taxonomie.',
-                                    'visi-bloc-jlg',
-                                )}
-                            </p>
-                        )}
-                    </div>
+                    <TaxonomyRuleEditor
+                        key={rule.id}
+                        rule={rule}
+                        taxonomies={editorTaxonomies}
+                        onUpdateRule={onUpdateRule}
+                        commonHeader={commonHeader}
+                    />
                 );
             }
 
@@ -2409,6 +3177,98 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             }
         }
 
+        const advancedRulesList = Array.isArray(advancedVisibility.rules)
+            ? advancedVisibility.rules
+            : [];
+        const hasAdvancedRules = advancedRulesList.length > 0;
+        const hasAdvancedWarnings = hasAdvancedRules
+            ? advancedRulesList.some((rule) => {
+                  if (!rule || typeof rule !== 'object') {
+                      return false;
+                  }
+
+                  if (rule.type === 'taxonomy' || rule.type === 'woocommerce_cart') {
+                      return !Array.isArray(rule.terms) || rule.terms.length === 0;
+                  }
+
+                  if (rule.type === 'user_segment') {
+                      return !rule.segment;
+                  }
+
+                  return false;
+              })
+            : false;
+        const fallbackIssues = fallbackEnabled
+            ? (fallbackBehavior === 'text' && !fallbackCustomText.trim()) ||
+              (fallbackBehavior === 'block' && !fallbackBlockId) ||
+              (fallbackBehavior === 'inherit' && !hasGlobalFallback)
+            : false;
+        const stepBadges = {};
+
+        if (isHidden) {
+            stepBadges.device = {
+                variant: 'hidden',
+                label: __('Masqué', 'visi-bloc-jlg'),
+                description: __('Ce bloc est masqué manuellement.', 'visi-bloc-jlg'),
+            };
+        }
+
+        if (isSchedulingEnabled) {
+            stepBadges.schedule = hasScheduleRangeError
+                ? {
+                      variant: 'warning',
+                      label: __('Dates invalides', 'visi-bloc-jlg'),
+                      description: __('Vérifiez la cohérence des dates de début et de fin.', 'visi-bloc-jlg'),
+                  }
+                : {
+                      variant: 'schedule',
+                      label: __('Programmation active', 'visi-bloc-jlg'),
+                      description: scheduleSummary,
+                  };
+        }
+
+        if (Array.isArray(visibilityRoles) && visibilityRoles.length > 0) {
+            stepBadges.roles = {
+                variant: 'success',
+                label: __('Audience ciblée', 'visi-bloc-jlg'),
+                description: rolesSummary || __('Des rôles spécifiques sont sélectionnés.', 'visi-bloc-jlg'),
+            };
+        }
+
+        if (hasAdvancedRules) {
+            stepBadges.advanced = hasAdvancedWarnings
+                ? {
+                      variant: 'warning',
+                      label: __('Règles incomplètes', 'visi-bloc-jlg'),
+                      description: __(
+                          'Complétez les taxonomies, segments ou conditions manquantes.',
+                          'visi-bloc-jlg',
+                      ),
+                  }
+                : {
+                      variant: 'advanced',
+                      label: __('Règles actives', 'visi-bloc-jlg'),
+                      description: advancedRulesSummary || __('Des règles avancées filtrent ce bloc.', 'visi-bloc-jlg'),
+                  };
+        }
+
+        if (fallbackEnabled) {
+            stepBadges.fallback = fallbackIssues
+                ? {
+                      variant: 'warning',
+                      label: __('Repli à compléter', 'visi-bloc-jlg'),
+                      description: __(
+                          'Ajoutez un texte, un bloc ou définissez un repli global pour éviter une impasse.',
+                          'visi-bloc-jlg',
+                      ),
+                  }
+                : {
+                      variant: 'fallback',
+                      label: __('Repli prêt', 'visi-bloc-jlg'),
+                      description: fallbackSummary || __('Un repli est prêt pour ce bloc.', 'visi-bloc-jlg'),
+                  };
+        }
+
         const inspectorSteps = [
             {
                 id: 'device',
@@ -2814,11 +3674,30 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
         ];
 
         const defaultInspectorStep = inspectorSteps[0] || null;
-        const inspectorTabs = inspectorSteps.map((step, index) => ({
-            name: step.id,
-            title: sprintf(__('Étape %1$d · %2$s', 'visi-bloc-jlg'), index + 1, step.label),
-            className: 'visibloc-stepper__tab',
-        }));
+        const inspectorTabs = inspectorSteps.map((step, index) => {
+            const badge = stepBadges[step.id];
+            const stepTitle = sprintf(__('Étape %1$d · %2$s', 'visi-bloc-jlg'), index + 1, step.label);
+
+            return {
+                name: step.id,
+                title: (
+                    <span className="visibloc-stepper__tab-label">
+                        <span className="visibloc-stepper__tab-text">{stepTitle}</span>
+                        {badge ? (
+                            <Tooltip text={badge.description}>
+                                <span
+                                    className={`visibloc-stepper__status visibloc-stepper__status--${badge.variant}`}
+                                    aria-label={badge.description}
+                                >
+                                    {badge.label}
+                                </span>
+                            </Tooltip>
+                        ) : null}
+                    </span>
+                ),
+                className: 'visibloc-stepper__tab',
+            };
+        });
 
         return (
             <Fragment>
@@ -2847,6 +3726,50 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                 initialOpen={true}
                                 className="visibloc-panel--guided"
                             >
+                                {scenarioPresets.length > 0 && (
+                                    <div className="visibloc-scenario-presets">
+                                        <div className="visibloc-scenario-presets__header">
+                                            <p className="visibloc-scenario-presets__title">
+                                                {__('Scénarios recommandés', 'visi-bloc-jlg')}
+                                            </p>
+                                            <Button
+                                                variant="link"
+                                                onClick={() => setRecipeModalOpen(true)}
+                                            >
+                                                {__('Explorer toutes les recettes', 'visi-bloc-jlg')}
+                                            </Button>
+                                        </div>
+                                        <div className="visibloc-scenario-presets__grid">
+                                            {scenarioPresets.map((preset) => {
+                                                const severity = normalizeSeverity(preset.severity);
+                                                const label =
+                                                    scenarioSeverityLabels[severity] ||
+                                                    scenarioSeverityLabels.medium;
+                                                const isActivePreset = scenarioPreset === preset.id;
+
+                                                return (
+                                                    <Button
+                                                        key={preset.id}
+                                                        className={`visibloc-scenario-presets__button visibloc-scenario-presets__button--${severity}`}
+                                                        variant={isActivePreset ? 'primary' : 'secondary'}
+                                                        aria-pressed={isActivePreset}
+                                                        onClick={() => handleApplyScenario(preset)}
+                                                    >
+                                                        <span className="visibloc-scenario-presets__badge">{label}</span>
+                                                        <span className="visibloc-scenario-presets__label">
+                                                            {preset.label}
+                                                        </span>
+                                                        {preset.description ? (
+                                                            <span className="visibloc-scenario-presets__description">
+                                                                {preset.description}
+                                                            </span>
+                                                        ) : null}
+                                                    </Button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
                                 {inspectorTabs.length > 0 && (
                                     <TabPanel
                                         className="visibloc-stepper"
@@ -2875,6 +3798,56 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                 )}
                             </PanelBody>
                         </InspectorControls>
+                        {isRecipeModalOpen && (
+                            <Modal
+                                title={__('Bibliothèque de recettes', 'visi-bloc-jlg')}
+                                onRequestClose={() => setRecipeModalOpen(false)}
+                                className="visibloc-recipes-modal"
+                            >
+                                <div className="visibloc-recipes-modal__grid">
+                                    {guidedRecipes.length > 0 ? (
+                                        guidedRecipes.map((recipe) => {
+                                            const severity = normalizeSeverity(recipe.severity);
+                                            const label =
+                                                scenarioSeverityLabels[severity] ||
+                                                scenarioSeverityLabels.medium;
+
+                                            return (
+                                                <Card key={recipe.id} className="visibloc-recipes-modal__card">
+                                                    <CardHeader>
+                                                        <div className="visibloc-recipes-modal__heading">
+                                                            <h3 className="visibloc-recipes-modal__title">
+                                                                {recipe.title}
+                                                            </h3>
+                                                            <span
+                                                                className={`visibloc-scenario-presets__badge visibloc-scenario-presets__badge--${severity}`}
+                                                            >
+                                                                {label}
+                                                            </span>
+                                                        </div>
+                                                    </CardHeader>
+                                                    <CardBody>
+                                                        <p>{recipe.description}</p>
+                                                    </CardBody>
+                                                    <CardFooter>
+                                                        <Button
+                                                            variant="primary"
+                                                            onClick={() => handleApplyRecipe(recipe)}
+                                                        >
+                                                            {__('Appliquer cette recette', 'visi-bloc-jlg')}
+                                                        </Button>
+                                                    </CardFooter>
+                                                </Card>
+                                            );
+                                        })
+                                    ) : (
+                                        <p className="visibloc-recipes-modal__empty">
+                                            {__('Aucune recette n’est disponible pour le moment.', 'visi-bloc-jlg')}
+                                        </p>
+                                    )}
+                                </div>
+                            </Modal>
+                        )}
                     </Fragment>
                 )}
             </Fragment>
