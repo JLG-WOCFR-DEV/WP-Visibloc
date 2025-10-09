@@ -139,6 +139,12 @@ async function exerciseVisibilityControls( { admin, editor, page }, blockName ) 
     expect( attributes.publishEndDate ).toContain( '2030-06-20T17:45' );
     expect( attributes.visibilityRoles ).toEqual( expect.arrayContaining( [ 'logged-in', 'administrator' ] ) );
 
+    await expect( blockLocator ).toHaveClass( /bloc-editeur-conditionnel/ );
+
+    await page.getByRole( 'button', { name: 'List view' } ).click();
+    await expect( listViewRow ).toHaveClass( /bloc-editeur-conditionnel/ );
+    await page.getByRole( 'button', { name: 'List view' } ).click();
+
     const postContent = await editor.getEditedPostContent();
     expect( postContent ).toContain( `<!-- wp:${ blockName }` );
     expect( postContent ).toContain( 'vb-desktop-only' );
