@@ -322,23 +322,18 @@ function visibloc_jlg_get_fallback_blocks_requested_page() {
     return 0;
 }
 
-/**
- * Sanitize the search term requested for fallback block listings.
- *
- * @return string
- */
-function visibloc_jlg_get_fallback_blocks_search_term() {
-    if ( ! isset( $_GET['s'] ) ) {
-        return '';
-    }
-
-    $raw_value = $_GET['s'];
-
+function visibloc_jlg_normalize_fallback_blocks_search_term( $raw_value ) {
     if ( ! is_string( $raw_value ) && ! is_numeric( $raw_value ) ) {
         return '';
     }
 
-    $search_term = trim( wp_unslash( (string) $raw_value ) );
+    $search_term = (string) $raw_value;
+
+    if ( function_exists( 'wp_unslash' ) ) {
+        $search_term = wp_unslash( $search_term );
+    }
+
+    $search_term = trim( $search_term );
 
     if ( '' === $search_term ) {
         return '';
@@ -353,6 +348,19 @@ function visibloc_jlg_get_fallback_blocks_search_term() {
     }
 
     return $search_term;
+}
+
+/**
+ * Sanitize the search term requested for fallback block listings.
+ *
+ * @return string
+ */
+function visibloc_jlg_get_fallback_blocks_search_term() {
+    if ( ! isset( $_GET['s'] ) ) {
+        return '';
+    }
+
+    return visibloc_jlg_normalize_fallback_blocks_search_term( $_GET['s'] );
 }
 
 /**
@@ -463,17 +471,28 @@ function visibloc_jlg_get_block_fallback_markup( $attrs ) {
  *
  * @return array<int, array{value:int,label:string}>
  */
-function visibloc_jlg_get_available_fallback_blocks() {
+function visibloc_jlg_get_available_fallback_blocks( $overrides = [], $include_meta = false ) {
     $default_args = [
-        'post_type'        => 'wp_block',
-        'post_status'      => 'publish',
-        'numberposts'      => -1,
-        'posts_per_page'   => -1,
-        'nopaging'         => true,
-        'orderby'          => 'title',
-        'order'            => 'ASC',
-        'suppress_filters' => false,
+        'post_type'              => 'wp_block',
+        'post_status'            => 'publish',
+        'numberposts'            => -1,
+        'posts_per_page'         => -1,
+        'nopaging'               => true,
+        'orderby'                => 'title',
+        'order'                  => 'ASC',
+        'suppress_filters'       => false,
+        'fields'                 => 'ids',
+        'update_post_meta_cache' => false,
+        'update_post_term_cache' => false,
     ];
+
+    if ( $include_meta ) {
+        $default_args['no_found_rows'] = false;
+    } else {
+        $default_args['no_found_rows'] = true;
+    }
+
+    $overrides = is_array( $overrides ) ? $overrides : [];
 
     /**
      * Filters the arguments used when looking up reusable blocks available as fallbacks.
@@ -486,30 +505,47 @@ function visibloc_jlg_get_available_fallback_blocks() {
      *
      * @since 1.1.1
      *
-     * @param array $query_args Arguments forwarded to {@see get_posts()}.
+     * @param array $query_args Arguments forwarded to {@see WP_Query}.
      */
-    $query_args = apply_filters( 'visibloc_jlg_available_fallback_blocks_query_args', $default_args );
+    $query_args = apply_filters(
+        'visibloc_jlg_available_fallback_blocks_query_args',
+        array_merge( $default_args, $overrides )
+    );
 
     if ( ! is_array( $query_args ) ) {
         $query_args = $default_args;
-    } else {
-        $query_args = array_merge( $default_args, $query_args );
     }
 
-    $requested_page = visibloc_jlg_get_fallback_blocks_requested_page();
-    $search_term    = visibloc_jlg_get_fallback_blocks_search_term();
+    $explicit_search = array_key_exists( 's', $overrides );
+    $search_term     = $explicit_search
+        ? visibloc_jlg_normalize_fallback_blocks_search_term( $overrides['s'] ?? '' )
+        : visibloc_jlg_get_fallback_blocks_search_term();
 
     if ( '' !== $search_term ) {
         $query_args['s'] = $search_term;
+    } else {
+        unset( $query_args['s'] );
+    }
+
+    $requested_page = array_key_exists( 'paged', $overrides )
+        ? max( 0, absint( $overrides['paged'] ) )
+        : visibloc_jlg_get_fallback_blocks_requested_page();
+
+    $per_page = 0;
+
+    if ( array_key_exists( 'posts_per_page', $overrides ) ) {
+        $per_page = (int) $overrides['posts_per_page'];
+    } elseif ( isset( $query_args['posts_per_page'] ) ) {
+        $per_page = (int) $query_args['posts_per_page'];
+    }
+
+    if ( $per_page <= 0 && array_key_exists( 'numberposts', $overrides ) ) {
+        $per_page = (int) $overrides['numberposts'];
+    } elseif ( $per_page <= 0 && isset( $query_args['numberposts'] ) ) {
+        $per_page = (int) $query_args['numberposts'];
     }
 
     if ( $requested_page > 0 ) {
-        $per_page = isset( $query_args['posts_per_page'] ) ? (int) $query_args['posts_per_page'] : 0;
-
-        if ( $per_page <= 0 && isset( $query_args['numberposts'] ) ) {
-            $per_page = (int) $query_args['numberposts'];
-        }
-
         if ( $per_page <= 0 ) {
             $per_page = (int) apply_filters( 'visibloc_jlg_fallback_blocks_per_page', 50, $query_args, $requested_page );
         }
@@ -523,16 +559,20 @@ function visibloc_jlg_get_available_fallback_blocks() {
         $query_args['nopaging']       = false;
         $query_args['paged']          = $requested_page;
         $query_args['offset']         = max( 0, ( $requested_page - 1 ) * $per_page );
-    } elseif ( isset( $query_args['paged'] ) && (int) $query_args['paged'] > 0 ) {
-        $per_page = isset( $query_args['posts_per_page'] ) ? (int) $query_args['posts_per_page'] : 0;
-
-        if ( $per_page > 0 ) {
-            $query_args['numberposts'] = $per_page;
-            $query_args['nopaging']    = false;
-            $query_args['offset']      = max( 0, ( (int) $query_args['paged'] - 1 ) * $per_page );
-        }
     } else {
-        unset( $query_args['paged'] );
+        if ( isset( $query_args['paged'] ) ) {
+            unset( $query_args['paged'] );
+        }
+
+        if ( isset( $query_args['offset'] ) && (int) $query_args['offset'] > 0 ) {
+            $query_args['offset'] = (int) $query_args['offset'];
+        } else {
+            unset( $query_args['offset'] );
+        }
+
+        if ( ! array_key_exists( 'nopaging', $overrides ) ) {
+            $query_args['nopaging'] = $query_args['posts_per_page'] <= 0 && $query_args['numberposts'] <= 0;
+        }
     }
 
     $site_id = 0;
@@ -561,9 +601,10 @@ function visibloc_jlg_get_available_fallback_blocks() {
     $cache_ttl     = defined( 'HOUR_IN_SECONDS' ) ? HOUR_IN_SECONDS : 3600;
     $normalized_query_args = visibloc_jlg_normalize_value_for_cache( $query_args );
     $cache_payload = [
-        'site'       => $site_id,
-        'locale'     => $locale,
-        'query_args' => $normalized_query_args,
+        'site'         => $site_id,
+        'locale'       => $locale,
+        'query_args'   => $normalized_query_args,
+        'include_meta' => $include_meta ? 1 : 0,
     ];
 
     $payload_json = function_exists( 'wp_json_encode' ) ? wp_json_encode( $cache_payload ) : json_encode( $cache_payload );
@@ -576,6 +617,18 @@ function visibloc_jlg_get_available_fallback_blocks() {
         $cached_blocks = wp_cache_get( $cache_key, $cache_group );
 
         if ( false !== $cached_blocks && is_array( $cached_blocks ) ) {
+            if ( isset( $cached_blocks['items'] ) && array_key_exists( 'total', $cached_blocks ) ) {
+                return $include_meta ? $cached_blocks : ( $cached_blocks['items'] ?? [] );
+            }
+
+            if ( $include_meta ) {
+                return [
+                    'items'       => $cached_blocks,
+                    'total'       => is_array( $cached_blocks ) ? count( $cached_blocks ) : 0,
+                    'total_pages' => 1,
+                ];
+            }
+
             return $cached_blocks;
         }
     }
@@ -590,56 +643,84 @@ function visibloc_jlg_get_available_fallback_blocks() {
                 wp_cache_set( $cache_key, $transient_value, $cache_group, $cache_ttl );
             }
 
+            if ( isset( $transient_value['items'] ) && array_key_exists( 'total', $transient_value ) ) {
+                return $include_meta ? $transient_value : ( $transient_value['items'] ?? [] );
+            }
+
+            if ( $include_meta ) {
+                return [
+                    'items'       => $transient_value,
+                    'total'       => is_array( $transient_value ) ? count( $transient_value ) : 0,
+                    'total_pages' => 1,
+                ];
+            }
+
             return $transient_value;
         }
     }
 
-    $posts = get_posts( $query_args );
+    $query = new WP_Query( $query_args );
+    $posts = $query->posts;
+
+    $total_posts = isset( $query->found_posts ) ? (int) $query->found_posts : count( $posts );
+    $total_pages = isset( $query->max_num_pages ) ? (int) $query->max_num_pages : 1;
 
     if ( empty( $posts ) ) {
-        $blocks = [];
+        $result = [
+            'items'       => [],
+            'total'       => $total_posts,
+            'total_pages' => $total_pages > 0 ? $total_pages : 1,
+        ];
 
         if ( function_exists( 'wp_cache_set' ) ) {
-            wp_cache_set( $cache_key, $blocks, $cache_group, $cache_ttl );
+            wp_cache_set( $cache_key, $result, $cache_group, $cache_ttl );
         }
 
         if ( function_exists( 'set_transient' ) ) {
-            set_transient( $transient_key, $blocks, $cache_ttl );
+            set_transient( $transient_key, $result, $cache_ttl );
             visibloc_jlg_register_fallback_blocks_transient( $transient_key );
         }
 
-        return $blocks;
+        return $include_meta ? $result : [];
     }
 
     $blocks = [];
 
     foreach ( $posts as $post ) {
-        if ( ! ( $post instanceof WP_Post ) ) {
+        $post_id = $post instanceof WP_Post ? $post->ID : (int) $post;
+
+        if ( $post_id <= 0 ) {
             continue;
         }
 
-        $label = get_the_title( $post );
+        $label = get_post_field( 'post_title', $post_id );
 
         if ( '' === $label ) {
-            $label = sprintf( __( 'Bloc réutilisable #%d', 'visi-bloc-jlg' ), $post->ID );
+            $label = sprintf( __( 'Bloc réutilisable #%d', 'visi-bloc-jlg' ), $post_id );
         }
 
         $blocks[] = [
-            'value' => (int) $post->ID,
+            'value' => $post_id,
             'label' => $label,
         ];
     }
 
+    $result = [
+        'items'       => $blocks,
+        'total'       => $total_posts,
+        'total_pages' => $total_pages > 0 ? $total_pages : ( $per_page > 0 ? (int) ceil( $total_posts / $per_page ) : 1 ),
+    ];
+
     if ( function_exists( 'wp_cache_set' ) ) {
-        wp_cache_set( $cache_key, $blocks, $cache_group, $cache_ttl );
+        wp_cache_set( $cache_key, $result, $cache_group, $cache_ttl );
     }
 
     if ( function_exists( 'set_transient' ) ) {
-        set_transient( $transient_key, $blocks, $cache_ttl );
+        set_transient( $transient_key, $result, $cache_ttl );
         visibloc_jlg_register_fallback_blocks_transient( $transient_key );
     }
 
-    return $blocks;
+    return $include_meta ? $result : $blocks;
 }
 
 /**
@@ -716,8 +797,113 @@ function visibloc_jlg_get_editor_fallback_blocks() {
     return visibloc_jlg_get_available_fallback_blocks();
 }
 
+function visibloc_jlg_get_fallback_blocks_rest_url() {
+    if ( function_exists( 'rest_url' ) ) {
+        return rest_url( 'visibloc-jlg/v1/fallback-blocks' );
+    }
+
+    return '';
+}
+
+function visibloc_jlg_can_manage_fallback_blocks_rest() {
+    return function_exists( 'current_user_can' ) ? current_user_can( 'edit_posts' ) : false;
+}
+
+function visibloc_jlg_rest_get_fallback_blocks( WP_REST_Request $request ) {
+    if ( ! visibloc_jlg_can_manage_fallback_blocks_rest() ) {
+        return new WP_Error( 'visibloc_rest_forbidden', __( 'Vous n’avez pas la permission de consulter ces blocs de repli.', 'visi-bloc-jlg' ), [
+            'status' => rest_authorization_required_code(),
+        ] );
+    }
+
+    $page     = max( 1, (int) $request->get_param( 'page' ) );
+    $per_page = (int) $request->get_param( 'per_page' );
+    $per_page = $per_page > 0 ? $per_page : 20;
+    $per_page = min( 100, $per_page );
+    $search   = (string) $request->get_param( 'search' );
+
+    $overrides = [
+        'paged'          => $page,
+        'posts_per_page' => $per_page,
+        'numberposts'    => $per_page,
+        'nopaging'       => false,
+    ];
+
+    if ( '' !== $search ) {
+        $overrides['s'] = $search;
+    }
+
+    $result = visibloc_jlg_get_available_fallback_blocks( $overrides, true );
+
+    if ( ! is_array( $result ) || ! isset( $result['items'] ) ) {
+        $items  = is_array( $result ) ? $result : [];
+        $result = [
+            'items'       => $items,
+            'total'       => count( $items ),
+            'total_pages' => 1,
+        ];
+    }
+
+    $total      = isset( $result['total'] ) ? (int) $result['total'] : count( $result['items'] );
+    $total_pages = isset( $result['total_pages'] ) ? (int) $result['total_pages'] : 1;
+
+    $response = [
+        'items'      => array_values( $result['items'] ),
+        'pagination' => [
+            'page'       => $page,
+            'perPage'    => $per_page,
+            'total'      => $total,
+            'totalPages' => $total_pages > 0 ? $total_pages : 1,
+        ],
+    ];
+
+    return rest_ensure_response( $response );
+}
+
+function visibloc_jlg_register_fallback_blocks_rest_route() {
+    if ( ! function_exists( 'register_rest_route' ) ) {
+        return;
+    }
+
+    register_rest_route(
+        'visibloc-jlg/v1',
+        '/fallback-blocks',
+        [
+            'methods'             => WP_REST_Server::READABLE,
+            'callback'            => 'visibloc_jlg_rest_get_fallback_blocks',
+            'permission_callback' => 'visibloc_jlg_can_manage_fallback_blocks_rest',
+            'args'                => [
+                'page'     => [
+                    'type'              => 'integer',
+                    'default'           => 1,
+                    'sanitize_callback' => 'absint',
+                    'validate_callback' => static function ( $value ) {
+                        return (int) $value >= 1;
+                    },
+                ],
+                'per_page' => [
+                    'type'              => 'integer',
+                    'default'           => 20,
+                    'sanitize_callback' => 'absint',
+                    'validate_callback' => static function ( $value ) {
+                        $value = (int) $value;
+
+                        return $value >= 1 && $value <= 100;
+                    },
+                ],
+                'search'   => [
+                    'type'              => 'string',
+                    'default'           => '',
+                    'sanitize_callback' => 'visibloc_jlg_normalize_fallback_blocks_search_term',
+                ],
+            ],
+        ]
+    );
+}
+
 add_action( 'save_post_wp_block', 'visibloc_jlg_invalidate_fallback_blocks_cache' );
 add_action( 'delete_post', 'visibloc_jlg_maybe_invalidate_fallback_blocks_cache_on_delete' );
+add_action( 'rest_api_init', 'visibloc_jlg_register_fallback_blocks_rest_route' );
 
 /**
  * Clear fallback block caches when a reusable block is deleted.

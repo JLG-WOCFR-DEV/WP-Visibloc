@@ -602,7 +602,9 @@ function visibloc_jlg_enqueue_editor_assets() {
             'commonCookies'     => visibloc_jlg_get_editor_common_cookies(),
             'fallbackSettings' => visibloc_jlg_get_editor_fallback_settings(),
             'fallbackBlocks'   => visibloc_jlg_get_editor_fallback_blocks(),
+            'fallbackBlocksEndpoint' => visibloc_jlg_get_fallback_blocks_rest_url(),
             'visualPresets'    => visibloc_jlg_get_editor_visual_presets(),
+            'guidedRecipes'    => visibloc_jlg_get_editor_guided_recipes(),
         ]
     );
 }
@@ -737,10 +739,25 @@ function visibloc_jlg_get_editor_taxonomies() {
                 }
             }
 
+            $rest_base      = '';
+            $rest_namespace = '';
+
+            if ( is_object( $taxonomy ) ) {
+                if ( isset( $taxonomy->rest_base ) && is_string( $taxonomy->rest_base ) ) {
+                    $rest_base = $taxonomy->rest_base;
+                }
+
+                if ( isset( $taxonomy->rest_namespace ) && is_string( $taxonomy->rest_namespace ) ) {
+                    $rest_namespace = $taxonomy->rest_namespace;
+                }
+            }
+
             $items[] = [
-                'slug'  => $slug,
-                'label' => $label,
-                'terms' => $term_options,
+                'slug'          => $slug,
+                'label'         => $label,
+                'terms'         => $term_options,
+                'rest_base'     => '' !== $rest_base ? $rest_base : $slug,
+                'rest_namespace'=> '' !== $rest_namespace ? $rest_namespace : 'wp/v2',
             ];
         }
 
@@ -759,6 +776,84 @@ function visibloc_jlg_get_editor_taxonomies() {
     }
 
     return visibloc_jlg_get_cached_editor_data( 'taxonomies', $generator );
+}
+
+function visibloc_jlg_get_editor_guided_recipes() {
+    $recipes = [
+        [
+            'id'          => 'welcome-series',
+            'title'       => __( 'Série de bienvenue personnalisée', 'visi-bloc-jlg' ),
+            'description' => __( 'Active une campagne d’onboarding avec planification et repli textuel.', 'visi-bloc-jlg' ),
+            'severity'    => 'critical',
+            'attributes'  => [
+                'deviceVisibility'   => 'all',
+                'isSchedulingEnabled'=> true,
+                'scheduleWindowDays' => 7,
+                'roles'              => [ 'subscriber', 'customer' ],
+                'advancedRules'      => [
+                    [
+                        'type'     => 'logged_in_status',
+                        'operator' => 'is',
+                        'value'    => 'logged_in',
+                    ],
+                ],
+                'fallback'           => [
+                    'behavior' => 'text',
+                    'message'  => __( 'Merci de votre visite ! Ce contenu n’est plus disponible pour votre profil.', 'visi-bloc-jlg' ),
+                ],
+            ],
+        ],
+        [
+            'id'          => 'woocommerce-cart-recovery',
+            'title'       => __( 'Relance panier WooCommerce', 'visi-bloc-jlg' ),
+            'description' => __( 'Cible les clients avec un panier actif et prépare un repli de sécurité.', 'visi-bloc-jlg' ),
+            'severity'    => 'high',
+            'attributes'  => [
+                'deviceVisibility'   => 'hide-on-mobile',
+                'isSchedulingEnabled'=> false,
+                'roles'              => [ 'customer' ],
+                'advancedRules'      => [
+                    [
+                        'type'     => 'woocommerce_cart',
+                        'operator' => 'contains',
+                    ],
+                ],
+                'fallback'           => [
+                    'behavior' => 'inherit',
+                ],
+            ],
+        ],
+        [
+            'id'          => 'b2b-lead-nurturing',
+            'title'       => __( 'Parcours lead nurturing B2B', 'visi-bloc-jlg' ),
+            'description' => __( 'Filtre un segment marketing et crée un repli axé accompagnement.', 'visi-bloc-jlg' ),
+            'severity'    => 'medium',
+            'attributes'  => [
+                'deviceVisibility'   => 'all',
+                'isSchedulingEnabled'=> true,
+                'scheduleWindowDays' => 14,
+                'roles'              => [ 'editor', 'author' ],
+                'advancedRules'      => [
+                    [
+                        'type'     => 'user_segment',
+                        'operator' => 'matches',
+                        'segment'  => 'crm_mql',
+                    ],
+                ],
+                'fallback'           => [
+                    'behavior' => 'text',
+                    'message'  => __( 'Contactez notre équipe pour recevoir une alternative personnalisée.', 'visi-bloc-jlg' ),
+                ],
+            ],
+        ],
+    ];
+
+    /**
+     * Filter the guided recipes exposed in the editor.
+     *
+     * @param array $recipes Recipes definitions.
+     */
+    return apply_filters( 'visibloc_jlg_editor_guided_recipes', $recipes );
 }
 
 function visibloc_jlg_get_editor_templates() {
