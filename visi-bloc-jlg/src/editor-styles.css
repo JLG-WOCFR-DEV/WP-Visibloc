@@ -511,8 +511,16 @@
     --visibloc-badge-shadow: 0 14px 34px -18px rgba(37, 99, 235, 0.75);
 }
 
+.visibloc-status-badge--conditional {
+    --visibloc-badge-bg: rgba(245, 158, 11, 0.16);
+    --visibloc-badge-border: rgba(251, 191, 36, 0.45);
+    --visibloc-badge-foreground: #92400e;
+    --visibloc-badge-shadow: 0 14px 34px -18px rgba(245, 158, 11, 0.75);
+}
+
 .block-editor-block-list__block.bloc-editeur-cache,
-.block-editor-block-list__block.bloc-editeur-repli {
+.block-editor-block-list__block.bloc-editeur-repli,
+.block-editor-block-list__block.bloc-editeur-conditionnel {
     position: relative;
     border-radius: var(--visibloc-radius-base);
     outline: none;
@@ -521,8 +529,10 @@
 
 .block-editor-block-list__block.bloc-editeur-cache:focus-visible,
 .block-editor-block-list__block.bloc-editeur-repli:focus-visible,
+.block-editor-block-list__block.bloc-editeur-conditionnel:focus-visible,
 .block-editor-block-list__block.bloc-editeur-cache.is-selected,
-.block-editor-block-list__block.bloc-editeur-repli.is-selected {
+.block-editor-block-list__block.bloc-editeur-repli.is-selected,
+.block-editor-block-list__block.bloc-editeur-conditionnel.is-selected {
     outline: 2px solid var(--wp-admin-theme-color, #2271b1);
     outline-offset: 2px;
 }
@@ -551,6 +561,19 @@
     z-index: 1;
 }
 
+.block-editor-block-list__block.bloc-editeur-conditionnel {
+    box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.45), 0 0 0 6px rgba(245, 158, 11, 0.12);
+}
+
+.block-editor-block-list__block.bloc-editeur-conditionnel
+    > .visibloc-status-badge.visibloc-status-badge--conditional {
+    position: absolute;
+    top: 0;
+    left: 16px;
+    transform: translateY(-50%);
+    z-index: 1;
+}
+
 .block-editor-list-view__block.bloc-editeur-cache {
     position: relative;
     border-radius: 10px;
@@ -563,6 +586,13 @@
     border-radius: 10px;
     background: rgba(37, 99, 235, 0.08);
     border: 1px solid rgba(37, 99, 235, 0.18);
+}
+
+.block-editor-list-view__block.bloc-editeur-conditionnel {
+    position: relative;
+    border-radius: 10px;
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.18);
 }
 
 .visibloc-fallback-preview {
@@ -603,7 +633,8 @@
 }
 
 .visibloc-compact-badges .block-editor-block-list__block.bloc-editeur-cache > .visibloc-status-badge,
-.visibloc-compact-badges .block-editor-block-list__block.bloc-editeur-repli > .visibloc-status-badge {
+.visibloc-compact-badges .block-editor-block-list__block.bloc-editeur-repli > .visibloc-status-badge,
+.visibloc-compact-badges .block-editor-block-list__block.bloc-editeur-conditionnel > .visibloc-status-badge {
     position: static;
     transform: none;
     margin-bottom: 4px;
@@ -611,7 +642,8 @@
 
 @media (max-width: 782px) {
     .block-editor-block-list__block.bloc-editeur-cache > .visibloc-status-badge,
-    .block-editor-block-list__block.bloc-editeur-repli > .visibloc-status-badge.visibloc-status-badge--fallback {
+    .block-editor-block-list__block.bloc-editeur-repli > .visibloc-status-badge.visibloc-status-badge--fallback,
+    .block-editor-block-list__block.bloc-editeur-conditionnel > .visibloc-status-badge.visibloc-status-badge--conditional {
         position: static;
         transform: none;
         margin: 0 0 10px;
@@ -619,7 +651,8 @@
     }
 
     .block-editor-block-list__block.bloc-editeur-cache,
-    .block-editor-block-list__block.bloc-editeur-repli {
+    .block-editor-block-list__block.bloc-editeur-repli,
+    .block-editor-block-list__block.bloc-editeur-conditionnel {
         box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.16);
     }
 }

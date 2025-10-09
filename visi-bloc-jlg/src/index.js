@@ -368,6 +368,7 @@ const STATUS_BADGE_ICONS = {
     'schedule-error': ClockAlertBadgeIcon,
     fallback: LayersBadgeIcon,
     advanced: SlidersBadgeIcon,
+    conditional: WarningBadgeIcon,
     warning: WarningBadgeIcon,
     success: SuccessBadgeIcon,
     default: InfoBadgeIcon,
@@ -1171,34 +1172,6 @@ const getBlockHasFallback = (attrs) => {
     return Boolean(fallbackSettings && fallbackSettings.hasContent);
 };
 
-const getVisibilityAttributeSignature = (attrs) => {
-    if (!attrs || typeof attrs !== 'object') {
-        return '';
-    }
-
-    const isHidden = attrs.isHidden ? '1' : '0';
-    const fallbackEnabled = typeof attrs.fallbackEnabled === 'undefined' ? true : Boolean(attrs.fallbackEnabled);
-    const fallbackBehavior = typeof attrs.fallbackBehavior === 'string' ? attrs.fallbackBehavior : 'inherit';
-    const fallbackBlockId = attrs.fallbackBlockId ? String(attrs.fallbackBlockId) : '';
-    const fallbackCustomText = typeof attrs.fallbackCustomText === 'string' ? attrs.fallbackCustomText.trim() : '';
-
-    return [isHidden, fallbackEnabled ? '1' : '0', fallbackBehavior, fallbackBlockId, fallbackCustomText].join('|');
-};
-
-const blockVisibilityState = new Map();
-const pendingListViewUpdates = new Map();
-const listViewRowCache = new Map();
-const registeredSupportedClientIds = new Set();
-const blockAttributeHashes = new Map();
-const dirtyClientIds = new Set();
-let lastClientIdsSignature = '';
-let lastRootBlocksReference = null;
-let lastKnownClientIds = [];
-let listViewRafHandle = null;
-let listViewDensityObserver = null;
-let observedListViewElement = null;
-let compactBadgeModeEnabled = false;
-
 const DAY_OF_WEEK_LOOKUP = (() => {
     const entries = getVisiBlocArray('daysOfWeek');
 
@@ -1576,6 +1549,336 @@ const normalizeAdvancedVisibility = (value) => {
         savedGroups,
     };
 };
+
+const getDeviceVisibilitySummaryFromAttributes = (attrs) => {
+    if (!attrs || typeof attrs !== 'object') {
+        return '';
+    }
+
+    const deviceVisibility =
+        typeof attrs.deviceVisibility === 'string'
+            ? attrs.deviceVisibility
+            : DEVICE_VISIBILITY_DEFAULT_OPTION.id;
+
+    if (!deviceVisibility || deviceVisibility === DEVICE_VISIBILITY_DEFAULT_OPTION.id) {
+        return '';
+    }
+
+    const group = DEVICE_VISIBILITY_OPTIONS.find(
+        (item) =>
+            item &&
+            Array.isArray(item.options) &&
+            item.options.some((option) => option.id === deviceVisibility),
+    );
+    const option = DEVICE_VISIBILITY_FLAT_OPTIONS.find((item) => item.id === deviceVisibility);
+
+    if (!option) {
+        return '';
+    }
+
+    return group ? `${group.label} – ${option.label}` : option.label;
+};
+
+const getSchedulingSummaryFromAttributes = (attrs) => {
+    const siteTimezoneLabel = sprintf(__('Fuseau du site (%s)', 'visi-bloc-jlg'), TIMEZONE_LABEL);
+
+    if (!attrs || typeof attrs !== 'object') {
+        return {
+            isSchedulingEnabled: false,
+            scheduleSummary: __('Aucune programmation.', 'visi-bloc-jlg'),
+            timezoneDisplayLabel: siteTimezoneLabel,
+            hasScheduleRangeError: false,
+            hasCustomScheduleTimezone: false,
+        };
+    }
+
+    const isSchedulingEnabled = Boolean(attrs.isSchedulingEnabled);
+    const publishStartDate = typeof attrs.publishStartDate === 'string' ? attrs.publishStartDate : '';
+    const publishEndDate = typeof attrs.publishEndDate === 'string' ? attrs.publishEndDate : '';
+    const publishTimezone = typeof attrs.publishTimezone === 'string' ? attrs.publishTimezone : '';
+
+    const timezoneEntries = getVisiBlocArray('timezones');
+    const timezoneOptions = timezoneEntries
+        .map((item) => {
+            if (!item || typeof item !== 'object') {
+                return null;
+            }
+
+            const value = typeof item.value === 'string' ? item.value.trim() : '';
+
+            if (!value) {
+                return null;
+            }
+
+            const label =
+                typeof item.label === 'string' && item.label.trim() ? item.label : value;
+
+            return {
+                value,
+                label,
+            };
+        })
+        .filter(Boolean);
+
+    const timezoneControlOptions = [
+        { value: SITE_TIMEZONE_VALUE, label: siteTimezoneLabel },
+        ...timezoneOptions,
+    ];
+
+    const normalizedPublishTimezone = timezoneControlOptions.some(
+        (option) => option.value === publishTimezone,
+    )
+        ? publishTimezone
+        : SITE_TIMEZONE_VALUE;
+    const timezoneDisplayLabel =
+        (timezoneControlOptions.find((option) => option.value === normalizedPublishTimezone) || {})
+            .label || siteTimezoneLabel;
+    const hasCustomScheduleTimezone =
+        isSchedulingEnabled && normalizedPublishTimezone !== SITE_TIMEZONE_VALUE;
+
+    let scheduleSummary = __('Aucune programmation.', 'visi-bloc-jlg');
+
+    const startDateObj = parseDateValue(publishStartDate);
+    const endDateObj = parseDateValue(publishEndDate);
+    const hasScheduleRangeError =
+        isSchedulingEnabled &&
+        !!startDateObj &&
+        !!endDateObj &&
+        endDateObj.getTime() < startDateObj.getTime();
+
+    if (isSchedulingEnabled) {
+        const startDate = formatScheduleDate(publishStartDate);
+        const endDate = formatScheduleDate(publishEndDate);
+
+        if (startDate && endDate) {
+            /* translators: 1: Start date, 2: end date. */
+            scheduleSummary = sprintf(__('Du %s au %s.', 'visi-bloc-jlg'), startDate, endDate);
+        } else if (startDate) {
+            /* translators: %s: Start date. */
+            scheduleSummary = sprintf(__('À partir du %s.', 'visi-bloc-jlg'), startDate);
+        } else if (endDate) {
+            /* translators: %s: End date. */
+            scheduleSummary = sprintf(__('Jusqu\'au %s.', 'visi-bloc-jlg'), endDate);
+        } else {
+            scheduleSummary = __('Activée, mais sans date définie.', 'visi-bloc-jlg');
+        }
+
+        if (hasScheduleRangeError) {
+            scheduleSummary = __('Dates de programmation invalides.', 'visi-bloc-jlg');
+        }
+    }
+
+    return {
+        isSchedulingEnabled,
+        scheduleSummary,
+        timezoneDisplayLabel,
+        hasScheduleRangeError,
+        hasCustomScheduleTimezone,
+    };
+};
+
+const getRolesSummary = (roles) => {
+    const normalizedRoles = Array.isArray(roles)
+        ? roles
+              .map((role) => (typeof role === 'string' ? role : ''))
+              .filter(Boolean)
+        : [];
+    const uniqueRoles = Array.from(new Set(normalizedRoles));
+    const count = uniqueRoles.length;
+
+    if (!count) {
+        return {
+            summary: '',
+            count: 0,
+        };
+    }
+
+    return {
+        summary: sprintf(_n('%d rôle', '%d rôles', count, 'visi-bloc-jlg'), count),
+        count,
+    };
+};
+
+const getAdvancedRulesSummary = (advancedVisibility) => {
+    if (!advancedVisibility || typeof advancedVisibility !== 'object') {
+        return {
+            summary: '',
+            count: 0,
+        };
+    }
+
+    const rulesCount = Array.isArray(advancedVisibility.rules)
+        ? advancedVisibility.rules.length
+        : 0;
+
+    if (!rulesCount) {
+        return {
+            summary: '',
+            count: 0,
+        };
+    }
+
+    const logicLabel =
+        advancedVisibility.logic === 'OR'
+            ? __('OU', 'visi-bloc-jlg')
+            : __('ET', 'visi-bloc-jlg');
+
+    return {
+        summary: sprintf(
+            _n('%1$d règle %2$s', '%1$d règles %2$s', rulesCount, 'visi-bloc-jlg'),
+            rulesCount,
+            logicLabel,
+        ),
+        count: rulesCount,
+    };
+};
+
+const getConditionalDescriptionFromSummaries = ({
+    deviceVisibilitySummary,
+    isSchedulingEnabled,
+    scheduleSummary,
+    timezoneDisplayLabel,
+    rolesSummary,
+    advancedRulesSummary,
+}) => {
+    const parts = [];
+
+    if (deviceVisibilitySummary) {
+        parts.push(sprintf(__('Appareils : %s', 'visi-bloc-jlg'), deviceVisibilitySummary));
+    }
+
+    if (isSchedulingEnabled) {
+        parts.push(sprintf(__('Programmation : %s', 'visi-bloc-jlg'), scheduleSummary));
+        parts.push(sprintf(__('Fuseau horaire : %s', 'visi-bloc-jlg'), timezoneDisplayLabel));
+    }
+
+    if (rolesSummary) {
+        parts.push(sprintf(__('Rôles ciblés : %s', 'visi-bloc-jlg'), rolesSummary));
+    }
+
+    if (advancedRulesSummary) {
+        parts.push(sprintf(__('Règles avancées : %s', 'visi-bloc-jlg'), advancedRulesSummary));
+    }
+
+    const description = parts.join('\n').trim();
+
+    return {
+        description,
+        hasConditions: parts.length > 0,
+    };
+};
+
+const getVisibilitySummariesForAttributes = (attrs, advancedVisibility = null) => {
+    const deviceVisibilitySummary = getDeviceVisibilitySummaryFromAttributes(attrs);
+    const scheduling = getSchedulingSummaryFromAttributes(attrs);
+    const rolesSummaryResult = getRolesSummary(attrs ? attrs.visibilityRoles : []);
+    const normalizedAdvanced =
+        advancedVisibility || normalizeAdvancedVisibility(attrs ? attrs.advancedVisibility : undefined);
+    const advancedSummaryResult = getAdvancedRulesSummary(normalizedAdvanced);
+    const { description: conditionalDescription, hasConditions } =
+        getConditionalDescriptionFromSummaries({
+            deviceVisibilitySummary,
+            isSchedulingEnabled: scheduling.isSchedulingEnabled,
+            scheduleSummary: scheduling.scheduleSummary,
+            timezoneDisplayLabel: scheduling.timezoneDisplayLabel,
+            rolesSummary: rolesSummaryResult.summary,
+            advancedRulesSummary: advancedSummaryResult.summary,
+        });
+
+    return {
+        deviceVisibilitySummary,
+        scheduling,
+        rolesSummary: rolesSummaryResult.summary,
+        rolesCount: rolesSummaryResult.count,
+        advancedRulesSummary: advancedSummaryResult.summary,
+        advancedRulesCount: advancedSummaryResult.count,
+        conditionalDescription,
+        hasConditionalVisibility: hasConditions,
+        normalizedAdvancedVisibility: normalizedAdvanced,
+    };
+};
+
+const getVisibilityAttributeSignature = (attrs) => {
+    if (!attrs || typeof attrs !== 'object') {
+        return '';
+    }
+
+    const isHidden = attrs.isHidden ? '1' : '0';
+    const fallbackEnabled = typeof attrs.fallbackEnabled === 'undefined' ? true : Boolean(attrs.fallbackEnabled);
+    const fallbackBehavior = typeof attrs.fallbackBehavior === 'string' ? attrs.fallbackBehavior : 'inherit';
+    const fallbackBlockId = attrs.fallbackBlockId ? String(attrs.fallbackBlockId) : '';
+    const fallbackCustomText = typeof attrs.fallbackCustomText === 'string' ? attrs.fallbackCustomText.trim() : '';
+    const deviceVisibility =
+        typeof attrs.deviceVisibility === 'string'
+            ? attrs.deviceVisibility
+            : DEVICE_VISIBILITY_DEFAULT_OPTION.id;
+    const isSchedulingEnabled = attrs.isSchedulingEnabled ? '1' : '0';
+    const publishStartDate = typeof attrs.publishStartDate === 'string' ? attrs.publishStartDate : '';
+    const publishEndDate = typeof attrs.publishEndDate === 'string' ? attrs.publishEndDate : '';
+    const publishTimezone = typeof attrs.publishTimezone === 'string' ? attrs.publishTimezone : '';
+    const rolesSignature = Array.isArray(attrs.visibilityRoles)
+        ? attrs.visibilityRoles
+              .map((role) => (typeof role === 'string' ? role : ''))
+              .filter(Boolean)
+              .sort()
+              .join(',')
+        : '';
+
+    const normalizedAdvanced = normalizeAdvancedVisibility(attrs.advancedVisibility);
+    const advancedRulesSignature = JSON.stringify(
+        normalizedAdvanced.rules.map((rule) => {
+            if (!rule || typeof rule !== 'object') {
+                return null;
+            }
+
+            const { id, ...rest } = rule;
+
+            return rest;
+        }),
+    );
+    const advancedGroupsSignature = JSON.stringify(
+        normalizedAdvanced.savedGroups.map((group) => {
+            if (!group || typeof group !== 'object') {
+                return null;
+            }
+
+            const { id, ...rest } = group;
+
+            return rest;
+        }),
+    );
+
+    return [
+        isHidden,
+        fallbackEnabled ? '1' : '0',
+        fallbackBehavior,
+        fallbackBlockId,
+        fallbackCustomText,
+        deviceVisibility,
+        isSchedulingEnabled,
+        publishStartDate,
+        publishEndDate,
+        publishTimezone,
+        rolesSignature,
+        normalizedAdvanced.logic || 'AND',
+        advancedRulesSignature,
+        advancedGroupsSignature,
+    ].join('|');
+};
+
+const blockVisibilityState = new Map();
+const pendingListViewUpdates = new Map();
+const listViewRowCache = new Map();
+const registeredSupportedClientIds = new Set();
+const blockAttributeHashes = new Map();
+const dirtyClientIds = new Set();
+let lastClientIdsSignature = '';
+let lastRootBlocksReference = null;
+let lastKnownClientIds = [];
+let listViewRafHandle = null;
+let listViewDensityObserver = null;
+let observedListViewElement = null;
+let compactBadgeModeEnabled = false;
 
 const getSiteIsoDateWithOffset = (days = 0) => {
     const offset = Number.isFinite(days) ? Number(days) : 0;
@@ -2467,10 +2770,14 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             () => (fallbackBehavior === 'text' ? getTextFallbackPreviewHtml(fallbackCustomText) : ''),
             [fallbackBehavior, fallbackCustomText],
         );
+        const visibilitySignature = useMemo(
+            () => getVisibilityAttributeSignature(attributes),
+            [attributes],
+        );
 
         useEffect(() => {
             markClientIdAsDirty(clientId);
-        }, [clientId, isHidden, fallbackBehavior, fallbackCustomText, fallbackBlockId, fallbackEnabled]);
+        }, [clientId, visibilitySignature]);
 
         const { blockPreviewHtml, isBlockPreviewResolving } = useSelect(
             (selectFn) => {
@@ -3477,37 +3784,26 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             return summaries[fallbackBehavior] || summaries.inherit;
         })();
 
+        const {
+            description: conditionalDescription,
+            hasConditions: hasConditionalVisibility,
+        } = getConditionalDescriptionFromSummaries({
+            deviceVisibilitySummary,
+            isSchedulingEnabled,
+            scheduleSummary,
+            timezoneDisplayLabel,
+            rolesSummary,
+            advancedRulesSummary,
+        });
+
         const hiddenDescriptionParts = [];
 
         if (isHidden) {
             hiddenDescriptionParts.push(__('Bloc masqué manuellement.', 'visi-bloc-jlg'));
         }
 
-        if (deviceVisibilitySummary) {
-            hiddenDescriptionParts.push(
-                sprintf(__('Appareils : %s', 'visi-bloc-jlg'), deviceVisibilitySummary),
-            );
-        }
-
-        if (isSchedulingEnabled) {
-            hiddenDescriptionParts.push(
-                sprintf(__('Programmation : %s', 'visi-bloc-jlg'), scheduleSummary),
-            );
-            hiddenDescriptionParts.push(
-                sprintf(__('Fuseau horaire : %s', 'visi-bloc-jlg'), timezoneDisplayLabel),
-            );
-        }
-
-        if (rolesSummary) {
-            hiddenDescriptionParts.push(
-                sprintf(__('Rôles ciblés : %s', 'visi-bloc-jlg'), rolesSummary),
-            );
-        }
-
-        if (advancedRulesSummary) {
-            hiddenDescriptionParts.push(
-                sprintf(__('Règles avancées : %s', 'visi-bloc-jlg'), advancedRulesSummary),
-            );
+        if (conditionalDescription) {
+            hiddenDescriptionParts.push(...conditionalDescription.split('\n'));
         }
 
         const fallbackDescriptionParts = [];
@@ -3562,6 +3858,8 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                 ...previousState,
                 isHidden: Boolean(isHidden),
                 hasFallback,
+                isConditionallyHidden: hasConditionalVisibility && !isHidden,
+                conditionalDescription,
                 hiddenDescription,
                 fallbackDescription,
             };
@@ -3571,7 +3869,9 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             if (
                 previousState.isHidden !== nextState.isHidden ||
                 previousState.hasFallback !== nextState.hasFallback ||
+                previousState.isConditionallyHidden !== nextState.isConditionallyHidden ||
                 previousState.hiddenDescription !== nextState.hiddenDescription ||
+                previousState.conditionalDescription !== nextState.conditionalDescription ||
                 previousState.fallbackDescription !== nextState.fallbackDescription
             ) {
                 queueListViewUpdate(clientId, nextState);
@@ -4250,11 +4550,15 @@ function addEditorCanvasClasses(props, block) {
 
     const { isHidden } = block.attributes;
     const hasFallbackIndicator = getBlockHasFallback(block.attributes);
+    const visibilityDetails = getVisibilitySummariesForAttributes(block.attributes);
+    const hasConditionalIndicator =
+        visibilityDetails.hasConditionalVisibility && !isHidden;
 
     const newClasses = [
         props.className,
         isHidden ? 'bloc-editeur-cache' : '',
         hasFallbackIndicator ? 'bloc-editeur-repli' : '',
+        hasConditionalIndicator ? 'bloc-editeur-conditionnel' : '',
     ]
         .filter(Boolean)
         .join(' ');
@@ -4474,6 +4778,12 @@ function flushListViewUpdates() {
         } else {
             row.classList.remove('bloc-editeur-repli');
         }
+
+        if (state.isConditionallyHidden) {
+            row.classList.add('bloc-editeur-conditionnel');
+        } else {
+            row.classList.remove('bloc-editeur-conditionnel');
+        }
     });
 
     pendingListViewUpdates.clear();
@@ -4504,7 +4814,9 @@ function queueListViewUpdate(clientId, state) {
         pendingState &&
         pendingState.isHidden === state.isHidden &&
         pendingState.hasFallback === state.hasFallback &&
+        pendingState.isConditionallyHidden === state.isConditionallyHidden &&
         pendingState.hiddenDescription === state.hiddenDescription &&
+        pendingState.conditionalDescription === state.conditionalDescription &&
         pendingState.fallbackDescription === state.fallbackDescription
     ) {
         return;
@@ -4666,10 +4978,27 @@ function syncListViewInternal() {
         blockAttributeHashes.set(clientId, signatureValue);
 
         const previousState = blockVisibilityState.get(clientId) || {};
+        const visibilityDetails = getVisibilitySummariesForAttributes(block.attributes);
+        const conditionalDescription = visibilityDetails.conditionalDescription || '';
+        const hiddenDescriptionParts = [];
+
+        if (block.attributes.isHidden) {
+            hiddenDescriptionParts.push(__('Bloc masqué manuellement.', 'visi-bloc-jlg'));
+        }
+
+        if (conditionalDescription) {
+            hiddenDescriptionParts.push(...conditionalDescription.split('\n'));
+        }
+
+        const hiddenDescription = hiddenDescriptionParts.join('\n').trim();
         const nextState = {
             ...previousState,
             isHidden: Boolean(block.attributes.isHidden),
             hasFallback: getBlockHasFallback(block.attributes),
+            isConditionallyHidden:
+                visibilityDetails.hasConditionalVisibility && !block.attributes.isHidden,
+            conditionalDescription,
+            hiddenDescription,
         };
 
         blockVisibilityState.set(clientId, nextState);
@@ -4723,6 +5052,7 @@ addFilter(
             const className = typeof props.className === 'string' ? props.className : '';
             const hasHiddenBadge = className.includes('bloc-editeur-cache');
             const hasFallbackBadge = className.includes('bloc-editeur-repli');
+            const hasConditionalBadge = className.includes('bloc-editeur-conditionnel');
             const visibilityState = props.clientId
                 ? blockVisibilityState.get(props.clientId) || {}
                 : {};
@@ -4730,12 +5060,16 @@ addFilter(
                 typeof visibilityState.hiddenDescription === 'string'
                     ? visibilityState.hiddenDescription
                     : '';
+            const conditionalDescription =
+                typeof visibilityState.conditionalDescription === 'string'
+                    ? visibilityState.conditionalDescription
+                    : '';
             const fallbackDescription =
                 typeof visibilityState.fallbackDescription === 'string'
                     ? visibilityState.fallbackDescription
                     : '';
 
-            if (!hasHiddenBadge && !hasFallbackBadge) {
+            if (!hasHiddenBadge && !hasFallbackBadge && !hasConditionalBadge) {
                 return <BlockListBlock {...props} />;
             }
 
@@ -4754,6 +5088,21 @@ addFilter(
                             'visi-bloc-jlg',
                         )}
                         description={hiddenDescription}
+                    />,
+                );
+            }
+
+            if (hasConditionalBadge) {
+                badges.push(
+                    <StatusBadge
+                        key="visibloc-conditional-badge"
+                        label={__('Conditions actives', 'visi-bloc-jlg')}
+                        variant="conditional"
+                        screenReaderText={__(
+                            'Ce bloc applique des conditions de visibilité dynamiques.',
+                            'visi-bloc-jlg',
+                        )}
+                        description={conditionalDescription}
                     />,
                 );
             }
