@@ -7,6 +7,7 @@ require_once __DIR__ . '/block-utils.php';
 require_once __DIR__ . '/fallback.php';
 require_once __DIR__ . '/utils.php';
 require_once __DIR__ . '/plugin-meta.php';
+require_once __DIR__ . '/insights.php';
 
 visibloc_jlg_define_default_supported_blocks();
 
@@ -1045,6 +1046,13 @@ function visibloc_jlg_render_help_page_content() {
         ];
     }
 
+    $section_map['visibloc-section-insights'] = [
+        'id'     => 'visibloc-section-insights',
+        'label'  => __( 'Insights d’affichage', 'visi-bloc-jlg' ),
+        'render' => 'visibloc_jlg_render_insights_dashboard_section',
+        'args'   => [],
+    ];
+
     $section_map['visibloc-section-blocks'] = [
         'id'     => 'visibloc-section-blocks',
         'label'  => __( 'Blocs compatibles', 'visi-bloc-jlg' ),
@@ -1111,7 +1119,7 @@ function visibloc_jlg_render_help_page_content() {
             'id'          => 'visibloc-group-dashboards',
             'label'       => __( 'Tableaux de bord', 'visi-bloc-jlg' ),
             'description' => __( 'Surveillez les blocs masqués, programmés ou ciblés par appareil pour détecter les anomalies en production.', 'visi-bloc-jlg' ),
-            'section_ids' => [ 'visibloc-section-hidden', 'visibloc-section-device', 'visibloc-section-scheduled' ],
+            'section_ids' => [ 'visibloc-section-insights', 'visibloc-section-hidden', 'visibloc-section-device', 'visibloc-section-scheduled' ],
         ],
         [
             'id'          => 'visibloc-group-configuration',
@@ -1997,6 +2005,133 @@ function visibloc_jlg_render_permissions_section( $allowed_roles ) {
                 <?php wp_nonce_field( 'visibloc_save_permissions', 'visibloc_nonce' ); ?>
                 <?php submit_button( __( 'Enregistrer les Permissions', 'visi-bloc-jlg' ) ); ?>
             </form>
+        </div>
+    </div>
+    <?php
+}
+
+function visibloc_jlg_render_insights_dashboard_section() {
+    $section_id = 'visibloc-section-insights';
+    $model      = visibloc_jlg_get_insight_dashboard_model();
+    $tracked    = isset( $model['totals']['tracked'] ) ? (int) $model['totals']['tracked'] : 0;
+
+    $metrics = [
+        [
+            'label'       => __( 'Rendus suivis', 'visi-bloc-jlg' ),
+            'value'       => $model['totals']['tracked_display'] ?? '0',
+            'description' => ! empty( $model['totals']['updated_human'] )
+                ? sprintf( __( 'Dernière mise à jour %s.', 'visi-bloc-jlg' ), $model['totals']['updated_human'] )
+                : __( 'Les données seront affichées après les prochaines visites.', 'visi-bloc-jlg' ),
+        ],
+        [
+            'label'       => __( 'Fallback servi', 'visi-bloc-jlg' ),
+            'value'       => visibloc_jlg_format_insight_number( $model['counters']['fallback'] ?? 0 ),
+            'description' => sprintf( __( '%s des expositions conditionnelles', 'visi-bloc-jlg' ), $model['rates']['fallback_display'] ?? '0 %' ),
+        ],
+        [
+            'label'       => __( 'Bloc masqué', 'visi-bloc-jlg' ),
+            'value'       => visibloc_jlg_format_insight_number( $model['counters']['hidden'] ?? 0 ),
+            'description' => sprintf( __( '%s des expositions conditionnelles', 'visi-bloc-jlg' ), $model['rates']['hidden_display'] ?? '0 %' ),
+        ],
+        [
+            'label'       => __( 'Aperçus éditeur', 'visi-bloc-jlg' ),
+            'value'       => visibloc_jlg_format_insight_number( $model['counters']['preview'] ?? 0 ),
+            'description' => sprintf( __( '%s des événements enregistrés', 'visi-bloc-jlg' ), $model['rates']['preview_display'] ?? '0 %' ),
+        ],
+    ];
+
+    ?>
+    <div
+        id="<?php echo esc_attr( $section_id ); ?>"
+        class="postbox"
+        data-visibloc-section="<?php echo esc_attr( $section_id ); ?>"
+    >
+        <h2 class="hndle"><span><?php esc_html_e( 'Insights d’affichage', 'visi-bloc-jlg' ); ?></span></h2>
+        <div class="inside">
+            <?php if ( $tracked <= 0 ) : ?>
+                <p><?php esc_html_e( 'Aucune donnée n’a encore été collectée. Les insights apparaîtront dès qu’un bloc conditionnel sera affiché sur le site public.', 'visi-bloc-jlg' ); ?></p>
+            <?php else : ?>
+                <div class="visibloc-insights-metrics">
+                    <?php foreach ( $metrics as $metric ) : ?>
+                        <div class="visibloc-insights-metric">
+                            <span class="visibloc-insights-metric__label"><?php echo esc_html( $metric['label'] ); ?></span>
+                            <span class="visibloc-insights-metric__value"><?php echo esc_html( $metric['value'] ); ?></span>
+                            <?php if ( ! empty( $metric['description'] ) ) : ?>
+                                <span class="visibloc-insights-metric__description"><?php echo esc_html( $metric['description'] ); ?></span>
+                            <?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+
+                <?php if ( ! empty( $model['reasons'] ) ) : ?>
+                    <h3 class="visibloc-insights-subtitle"><?php esc_html_e( 'Principales raisons de masquage', 'visi-bloc-jlg' ); ?></h3>
+                    <ul class="visibloc-insights-reasons">
+                        <?php foreach ( $model['reasons'] as $reason ) : ?>
+                            <li class="visibloc-insights-reasons__item">
+                                <span class="visibloc-insights-reasons__label"><?php echo esc_html( $reason['label'] ); ?></span>
+                                <span class="visibloc-insights-reasons__count"><?php echo esc_html( $reason['count_display'] ); ?></span>
+                                <?php if ( ! empty( $reason['percentage_display'] ) ) : ?>
+                                    <span class="visibloc-insights-reasons__percentage"><?php echo esc_html( $reason['percentage_display'] ); ?></span>
+                                <?php endif; ?>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+
+                <h3 class="visibloc-insights-subtitle"><?php esc_html_e( 'Événements récents', 'visi-bloc-jlg' ); ?></h3>
+                <?php if ( empty( $model['events'] ) ) : ?>
+                    <p><?php esc_html_e( 'Aucun événement récent à afficher pour le moment.', 'visi-bloc-jlg' ); ?></p>
+                <?php else : ?>
+                    <div class="visibloc-admin-table-wrapper">
+                        <table class="wp-list-table widefat striped visibloc-insights-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col"><?php esc_html_e( 'Événement', 'visi-bloc-jlg' ); ?></th>
+                                    <th scope="col"><?php esc_html_e( 'Raison', 'visi-bloc-jlg' ); ?></th>
+                                    <th scope="col"><?php esc_html_e( 'Cible', 'visi-bloc-jlg' ); ?></th>
+                                    <th scope="col"><?php esc_html_e( 'Horodatage', 'visi-bloc-jlg' ); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ( $model['events'] as $event ) : ?>
+                                    <tr>
+                                        <td>
+                                            <span class="visibloc-insights-event-label"><?php echo esc_html( $event['event_label'] ); ?></span>
+                                            <?php if ( ! empty( $event['is_preview'] ) ) : ?>
+                                                <span class="visibloc-insights-badge visibloc-insights-badge--preview"><?php esc_html_e( 'Aperçu', 'visi-bloc-jlg' ); ?></span>
+                                            <?php endif; ?>
+                                            <?php if ( ! empty( $event['uses_fallback'] ) ) : ?>
+                                                <span class="visibloc-insights-badge visibloc-insights-badge--fallback"><?php esc_html_e( 'Fallback', 'visi-bloc-jlg' ); ?></span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <span class="visibloc-insights-reason-label"><?php echo esc_html( $event['reason_label'] ); ?></span>
+                                        </td>
+                                        <td>
+                                            <span class="visibloc-insights-target-block"><?php echo esc_html( $event['block_label'] ); ?></span>
+                                            <?php if ( '' !== $event['post_title'] ) : ?>
+                                                <span class="visibloc-insights-target-post">
+                                                    <?php if ( '' !== $event['post_link'] ) : ?>
+                                                        <a href="<?php echo esc_url( $event['post_link'] ); ?>"><?php echo esc_html( $event['post_title'] ); ?></a>
+                                                    <?php else : ?>
+                                                        <?php echo esc_html( $event['post_title'] ); ?>
+                                                    <?php endif; ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <span class="visibloc-insights-time-primary"><?php echo esc_html( $event['relative_time'] ?: '—' ); ?></span>
+                                            <?php if ( ! empty( $event['absolute_time'] ) ) : ?>
+                                                <span class="visibloc-insights-time-secondary"><?php echo esc_html( $event['absolute_time'] ); ?></span>
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            <?php endif; ?>
         </div>
     </div>
     <?php
