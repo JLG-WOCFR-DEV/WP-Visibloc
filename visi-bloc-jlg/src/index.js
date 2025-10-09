@@ -35,6 +35,7 @@ import {
     TextareaControl,
     TextControl,
     Tooltip,
+    ButtonGroup,
 } from '@wordpress/components';
 import { __, sprintf, _n } from '@wordpress/i18n';
 import { __experimentalGetSettings, dateI18n, format as formatDate } from '@wordpress/date';
@@ -758,7 +759,12 @@ const getBlockHasFallback = (attrs) => {
 
 const blockVisibilityState = new Map();
 const pendingListViewUpdates = new Map();
+const listViewRowCache = new Map();
+const registeredSupportedClientIds = new Set();
 let listViewRafHandle = null;
+let listViewDensityObserver = null;
+let observedListViewElement = null;
+let compactBadgeModeEnabled = false;
 
 const DAY_OF_WEEK_LOOKUP = (() => {
     const entries = getVisiBlocArray('daysOfWeek');
@@ -1182,6 +1188,7 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
         const advancedVisibility = normalizeAdvancedVisibility(rawAdvancedVisibility);
         const fallbackSettings = getVisiBlocObject('fallbackSettings') || {};
         const [isFallbackPreviewVisible, setFallbackPreviewVisible] = useState(false);
+        const [activeInspectorStep, setActiveInspectorStep] = useState('device');
         const hasFallback = getBlockHasFallback(attributes);
         const hasGlobalFallback = Boolean(fallbackSettings && fallbackSettings.hasContent);
         const globalFallbackSummary = fallbackSettings && typeof fallbackSettings.summary === 'string'
@@ -1385,6 +1392,20 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             fallbackPreviewHtmlContent,
             fallbackPreviewNoticeStatus,
         ]);
+
+        useEffect(
+            () => () => {
+                if (!clientId) {
+                    return;
+                }
+
+                blockVisibilityState.delete(clientId);
+                pendingListViewUpdates.delete(clientId);
+                listViewRowCache.delete(clientId);
+                registeredSupportedClientIds.delete(clientId);
+            },
+            [clientId],
+        );
 
 
         const updateAdvancedVisibility = (updater) => {
@@ -2147,14 +2168,22 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
 
         const inactiveSummaryLabel = __('Inactif', 'visi-bloc-jlg');
 
-        const panelTitleWithSummary = (label, summary) => (
-            <Fragment>
-                <span>{label}</span>
-                <span className="components-panel__summary">
-                    {summary && String(summary).trim() ? summary : inactiveSummaryLabel}
-                </span>
-            </Fragment>
-        );
+        const summaryOrInactive = (summary) =>
+            summary && String(summary).trim() ? summary : inactiveSummaryLabel;
+
+        const renderHelpText = (text, extraClassName = '') => {
+            if (!text) {
+                return null;
+            }
+
+            const classNames = ['visi-bloc-help-text'];
+
+            if (extraClassName) {
+                classNames.push(extraClassName);
+            }
+
+            return <p className={classNames.join(' ')}>{text}</p>;
+        };
 
         const deviceVisibilitySummary = (() => {
             if (!deviceVisibility || deviceVisibility === DEVICE_VISIBILITY_DEFAULT_OPTION.id) {
@@ -2358,6 +2387,417 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             }
         }
 
+        const inspectorSteps = [
+            {
+                id: 'device',
+                label: __('Appareils', 'visi-bloc-jlg'),
+                summary: deviceVisibilitySummary,
+                content: (
+                    <BaseControl label={__('Visibilité par appareil', 'visi-bloc-jlg')}>
+                        <div className="visi-bloc-device-toggle-groups">
+                            {DEVICE_VISIBILITY_OPTIONS.map((group) => {
+                                const isGroupActive = group.options.some(
+                                    (option) => option.id === deviceVisibility,
+                                );
+
+                                return (
+                                    <div key={group.id} className="visi-bloc-device-toggle-group">
+                                        <BaseControl.VisualLabel>{group.label}</BaseControl.VisualLabel>
+                                        <ToggleGroupControl
+                                            className="visi-bloc-device-toggle"
+                                            isBlock
+                                            isDeselectable
+                                            value={isGroupActive ? deviceVisibility : undefined}
+                                            onChange={(newValue) =>
+                                                setAttributes({
+                                                    deviceVisibility:
+                                                        newValue || DEVICE_VISIBILITY_DEFAULT_OPTION.id,
+                                                })
+                                            }
+                                        >
+                                            {group.options.map((option) => (
+                                                <ToggleGroupControlOptionIcon
+                                                    key={option.id}
+                                                    value={option.id}
+                                                    icon={option.icon}
+                                                    label={option.label}
+                                                />
+                                            ))}
+                                        </ToggleGroupControl>
+                                    </div>
+                                );
+                            })}
+                            <Button
+                                className="visi-bloc-device-toggle-reset"
+                                variant="link"
+                                isLink
+                                onClick={() =>
+                                    setAttributes({
+                                        deviceVisibility: DEVICE_VISIBILITY_DEFAULT_OPTION.id,
+                                    })
+                                }
+                                disabled={deviceVisibility === DEVICE_VISIBILITY_DEFAULT_OPTION.id}
+                            >
+                                {DEVICE_VISIBILITY_DEFAULT_OPTION.label}
+                            </Button>
+                        </div>
+                    </BaseControl>
+                ),
+            },
+            {
+                id: 'schedule',
+                label: __('Calendrier', 'visi-bloc-jlg'),
+                summary: schedulingSummaryLabel,
+                content: (
+                    <Fragment>
+                        <ToggleControl
+                            label={__('Activer la programmation', 'visi-bloc-jlg')}
+                            checked={isSchedulingEnabled}
+                            onChange={() =>
+                                setAttributes({
+                                    isSchedulingEnabled: !isSchedulingEnabled,
+                                })
+                            }
+                        />
+                        {renderHelpText(scheduleSummary, 'is-subtle')}
+                        {isSchedulingEnabled && (
+                            <div className="visibloc-schedule-controls">
+                                {hasScheduleRangeError && (
+                                    <Notice status="error" isDismissible={false}>
+                                        {__(
+                                            'La date de fin doit être postérieure à la date de début.',
+                                            'visi-bloc-jlg',
+                                        )}
+                                    </Notice>
+                                )}
+                                <ComboboxControl
+                                    label={__('Fuseau horaire de programmation', 'visi-bloc-jlg')}
+                                    value={normalizedPublishTimezone}
+                                    options={timezoneControlOptions}
+                                    onChange={(newValue) => {
+                                        const matchingOption = timezoneControlOptions.find(
+                                            (option) => option.value === newValue,
+                                        );
+
+                                        setAttributes({
+                                            publishTimezone: matchingOption
+                                                ? matchingOption.value
+                                                : SITE_TIMEZONE_VALUE,
+                                        });
+                                    }}
+                                    placeholder={__('Rechercher un fuseau horaire…', 'visi-bloc-jlg')}
+                                    __nextHasNoMarginBottom
+                                    help={__(
+                                        'Choisissez un fuseau horaire spécifique pour cette plage. Par défaut, le fuseau du site est utilisé.',
+                                        'visi-bloc-jlg',
+                                    )}
+                                />
+                                {renderHelpText(timezoneSummary, 'is-subtle')}
+                                <div className="visibloc-schedule-date-field">
+                                    <CheckboxControl
+                                        label={__('Définir une date de début', 'visi-bloc-jlg')}
+                                        checked={!!publishStartDate}
+                                        onChange={(isChecked) => {
+                                            setAttributes({
+                                                publishStartDate: isChecked
+                                                    ? getCurrentSiteIsoDate()
+                                                    : undefined,
+                                            });
+                                        }}
+                                    />
+                                    {!!publishStartDate && (
+                                        <div className="visi-bloc-datepicker-wrapper">
+                                            <DateTimePicker
+                                                currentDate={publishStartDate}
+                                                onChange={(newDate) =>
+                                                    setAttributes({
+                                                        publishStartDate: newDate,
+                                                    })
+                                                }
+                                                is12Hour={is12Hour}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="visibloc-schedule-date-field">
+                                    <CheckboxControl
+                                        label={__('Définir une date de fin', 'visi-bloc-jlg')}
+                                        checked={!!publishEndDate}
+                                        onChange={(isChecked) => {
+                                            setAttributes({
+                                                publishEndDate: isChecked
+                                                    ? getCurrentSiteIsoDate()
+                                                    : undefined,
+                                            });
+                                        }}
+                                    />
+                                    {!!publishEndDate && (
+                                        <div className="visi-bloc-datepicker-wrapper">
+                                            <DateTimePicker
+                                                currentDate={publishEndDate}
+                                                onChange={(newDate) =>
+                                                    setAttributes({
+                                                        publishEndDate: newDate,
+                                                    })
+                                                }
+                                                is12Hour={is12Hour}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </Fragment>
+                ),
+            },
+            {
+                id: 'roles',
+                label: __('Rôles', 'visi-bloc-jlg'),
+                summary: rolesSummary,
+                content: (
+                    <BaseControl
+                        label={__('Audience ciblée', 'visi-bloc-jlg')}
+                        help={__(
+                            "Sélectionnez les rôles autorisés à voir ce bloc. Laisser vide pour l’afficher à tout le monde.",
+                            'visi-bloc-jlg',
+                        )}
+                    >
+                        <div className="visibloc-roles-list">
+                            <CheckboxControl
+                                label={__('Visiteurs déconnectés', 'visi-bloc-jlg')}
+                                checked={visibilityRoles.includes('logged-out')}
+                                onChange={(isChecked) => onRoleChange(isChecked, 'logged-out')}
+                            />
+                            <CheckboxControl
+                                label={__('Utilisateurs connectés (tous)', 'visi-bloc-jlg')}
+                                checked={visibilityRoles.includes('logged-in')}
+                                onChange={(isChecked) => onRoleChange(isChecked, 'logged-in')}
+                            />
+                            <div className="visibloc-roles-list__divider" aria-hidden="true" />
+                            {Object.entries(VisiBlocData.roles || {})
+                                .sort(([, firstLabel], [, secondLabel]) =>
+                                    String(firstLabel).localeCompare(String(secondLabel)),
+                                )
+                                .map(([slug, name]) => (
+                                    <CheckboxControl
+                                        key={slug}
+                                        label={name}
+                                        checked={visibilityRoles.includes(slug)}
+                                        onChange={(isChecked) => onRoleChange(isChecked, slug)}
+                                    />
+                                ))}
+                        </div>
+                    </BaseControl>
+                ),
+            },
+            {
+                id: 'advanced',
+                label: __('Règles avancées', 'visi-bloc-jlg'),
+                summary: advancedRulesSummary,
+                content: (
+                    <div className="visibloc-advanced-rules">
+                        <SelectControl
+                            label={__('Logique entre les règles', 'visi-bloc-jlg')}
+                            value={advancedVisibility.logic}
+                            options={[
+                                {
+                                    value: 'AND',
+                                    label: __('Toutes les règles doivent être vraies (ET)', 'visi-bloc-jlg'),
+                                },
+                                {
+                                    value: 'OR',
+                                    label: __('Au moins une règle doit être vraie (OU)', 'visi-bloc-jlg'),
+                                },
+                            ]}
+                            onChange={(newLogic) =>
+                                updateAdvancedVisibility((current) => ({
+                                    ...current,
+                                    logic: newLogic === 'OR' ? 'OR' : 'AND',
+                                }))
+                            }
+                        />
+                        {advancedVisibility.rules.map((rule, index) =>
+                            renderAdvancedRule(rule, index),
+                        )}
+                        <DropdownMenu
+                            text={__('Ajouter une règle de…', 'visi-bloc-jlg')}
+                            label={__('Ajouter une règle de…', 'visi-bloc-jlg')}
+                            toggleProps={{ variant: 'secondary' }}
+                        >
+                            {({ onClose }) => (
+                                <MenuGroup label={__('Types de règles disponibles', 'visi-bloc-jlg')}>
+                                    {ADVANCED_RULE_TYPE_OPTIONS.map((option) => (
+                                        <MenuItem
+                                            key={option.value}
+                                            onClick={() => {
+                                                updateAdvancedVisibility((current) => ({
+                                                    ...current,
+                                                    rules: [
+                                                        ...current.rules,
+                                                        createDefaultRuleForType(option.value),
+                                                    ],
+                                                }));
+                                                onClose();
+                                            }}
+                                        >
+                                            {option.label}
+                                        </MenuItem>
+                                    ))}
+                                </MenuGroup>
+                            )}
+                        </DropdownMenu>
+                        {renderHelpText(
+                            __('Ces règles permettent d’affiner la visibilité selon le contexte du contenu, le modèle ou un horaire récurrent.', 'visi-bloc-jlg'),
+                            'is-subtle',
+                        )}
+                    </div>
+                ),
+            },
+            {
+                id: 'fallback',
+                label: __('Repli', 'visi-bloc-jlg'),
+                summary: fallbackSummary,
+                content: (
+                    <Fragment>
+                        <ToggleControl
+                            label={__('Activer le repli pour ce bloc', 'visi-bloc-jlg')}
+                            checked={fallbackEnabled}
+                            onChange={() => setAttributes({ fallbackEnabled: !fallbackEnabled })}
+                        />
+                        {!fallbackEnabled && (
+                            <Notice status="info" isDismissible={false}>
+                                {__('Aucun contenu de repli ne sera affiché si ce bloc est masqué.', 'visi-bloc-jlg')}
+                            </Notice>
+                        )}
+                        {fallbackEnabled && (
+                            <Fragment>
+                                <SelectControl
+                                    label={__('Source du repli', 'visi-bloc-jlg')}
+                                    value={fallbackBehavior}
+                                    options={fallbackBehaviorOptions}
+                                    onChange={(newBehavior) =>
+                                        setAttributes({
+                                            fallbackBehavior: fallbackBehaviorOptions.some(
+                                                (option) => option.value === newBehavior,
+                                            )
+                                                ? newBehavior
+                                                : 'inherit',
+                                        })
+                                    }
+                                />
+                                {fallbackBehavior === 'inherit' && (
+                                    hasGlobalFallback ? (
+                                        <Notice status="info" isDismissible={false}>
+                                            {globalFallbackSummary
+                                                ? sprintf(
+                                                      __('Repli global : %s', 'visi-bloc-jlg'),
+                                                      globalFallbackSummary,
+                                                  )
+                                                : __('Un repli global est configuré.', 'visi-bloc-jlg')}
+                                        </Notice>
+                                    ) : (
+                                        <Notice status="warning" isDismissible={false}>
+                                            {__('Aucun repli global n’est actuellement défini.', 'visi-bloc-jlg')}
+                                        </Notice>
+                                    )
+                                )}
+                                {fallbackBehavior === 'text' && (
+                                    <TextareaControl
+                                        label={__('Texte affiché en repli', 'visi-bloc-jlg')}
+                                        help={__('Ce texte remplace le bloc lorsque les visiteurs n’y ont pas accès.', 'visi-bloc-jlg')}
+                                        value={fallbackCustomText}
+                                        onChange={(value) => setAttributes({ fallbackCustomText: value })}
+                                    />
+                                )}
+                                {fallbackBehavior === 'block' && (
+                                    <Fragment>
+                                        <SelectControl
+                                            label={__('Bloc réutilisable à afficher', 'visi-bloc-jlg')}
+                                            value={fallbackBlockId ? String(fallbackBlockId) : ''}
+                                            options={[
+                                                {
+                                                    value: '',
+                                                    label: __('— Sélectionnez un bloc —', 'visi-bloc-jlg'),
+                                                },
+                                                ...fallbackBlockOptions,
+                                            ]}
+                                            onChange={(newValue) => {
+                                                const parsedValue = parseInt(newValue, 10);
+
+                                                setAttributes({
+                                                    fallbackBlockId: Number.isNaN(parsedValue)
+                                                        ? 0
+                                                        : parsedValue,
+                                                });
+                                            }}
+                                            disabled={!fallbackBlockOptions.length}
+                                        />
+                                        {!fallbackBlockOptions.length && (
+                                            <Notice status="warning" isDismissible={false}>
+                                                {__('Aucun bloc réutilisable publié n’est disponible.', 'visi-bloc-jlg')}
+                                            </Notice>
+                                        )}
+                                    </Fragment>
+                                )}
+                                <ToggleControl
+                                    label={__('Prévisualiser le repli', 'visi-bloc-jlg')}
+                                    checked={isFallbackPreviewVisible}
+                                    onChange={() =>
+                                        setFallbackPreviewVisible((currentValue) => !currentValue)
+                                    }
+                                    disabled={!fallbackEnabled}
+                                    aria-controls={fallbackPreviewRegionId}
+                                    aria-expanded={isFallbackPreviewVisible && fallbackEnabled}
+                                />
+                                {isFallbackPreviewVisible && fallbackEnabled && (
+                                    <div
+                                        ref={fallbackPreviewRegionRef}
+                                        id={fallbackPreviewRegionId}
+                                        className="visibloc-fallback-preview"
+                                        role="region"
+                                        aria-live="polite"
+                                        aria-labelledby={fallbackPreviewRegionLabelId}
+                                        tabIndex="-1"
+                                    >
+                                        <span
+                                            id={fallbackPreviewRegionLabelId}
+                                            className="screen-reader-text"
+                                        >
+                                            {__('Aperçu du contenu de repli', 'visi-bloc-jlg')}
+                                        </span>
+                                        {fallbackPreviewHtmlContent ? (
+                                            <div className="visibloc-fallback-preview__content">
+                                                <RawHTML>{fallbackPreviewHtmlContent}</RawHTML>
+                                            </div>
+                                        ) : (
+                                            <Notice
+                                                status={
+                                                    fallbackPreviewNoticeStatus === 'warning'
+                                                        ? 'warning'
+                                                        : 'info'
+                                                }
+                                                isDismissible={false}
+                                            >
+                                                {fallbackPreviewNoticeMessage ||
+                                                    __('Aucun aperçu disponible pour ce repli.', 'visi-bloc-jlg')}
+                                            </Notice>
+                                        )}
+                                    </div>
+                                )}
+                            </Fragment>
+                        )}
+                    </Fragment>
+                ),
+            },
+        ];
+
+        const defaultInspectorStep = inspectorSteps[0] || null;
+        const activeStep =
+            inspectorSteps.find((step) => step.id === activeInspectorStep) || defaultInspectorStep;
+        const activeStepId = activeStep ? activeStep.id : '';
+        const activeStepSummary = summaryOrInactive(activeStep ? activeStep.summary : '');
+        const activeStepContent = activeStep ? activeStep.content : null;
+
         return (
             <Fragment>
                 <BlockEdit {...props} />
@@ -2381,429 +2821,32 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                         </BlockControls>
                         <InspectorControls>
                             <PanelBody
-                                title={panelTitleWithSummary(
-                                    __('Contrôles de Visibilité', 'visi-bloc-jlg'),
-                                    deviceVisibilitySummary,
-                                )}
+                                title={__('Parcours de visibilité', 'visi-bloc-jlg')}
                                 initialOpen={true}
+                                className="visibloc-panel--guided"
                             >
-                                <BaseControl label={__('Visibilité par Appareil', 'visi-bloc-jlg')}>
-                                    <div className="visi-bloc-device-toggle-groups">
-                                        {DEVICE_VISIBILITY_OPTIONS.map((group) => {
-                                            const isGroupActive = group.options.some(
-                                                (option) => option.id === deviceVisibility,
-                                            );
-
-                                            return (
-                                                <div
-                                                    key={group.id}
-                                                    className="visi-bloc-device-toggle-group"
-                                                >
-                                                    <BaseControl.VisualLabel>
-                                                        {group.label}
-                                                    </BaseControl.VisualLabel>
-                                                    <ToggleGroupControl
-                                                        className="visi-bloc-device-toggle"
-                                                        isBlock
-                                                        isDeselectable
-                                                        value={isGroupActive ? deviceVisibility : undefined}
-                                                        onChange={(newValue) =>
-                                                            setAttributes({
-                                                                deviceVisibility:
-                                                                    newValue ||
-                                                                    DEVICE_VISIBILITY_DEFAULT_OPTION.id,
-                                                            })
-                                                        }
-                                                    >
-                                                        {group.options.map((option) => (
-                                                            <ToggleGroupControlOptionIcon
-                                                                key={option.id}
-                                                                value={option.id}
-                                                                icon={option.icon}
-                                                                label={option.label}
-                                                            />
-                                                        ))}
-                                                    </ToggleGroupControl>
-                                                </div>
-                                            );
-                                        })}
-                                        <Button
-                                            className="visi-bloc-device-toggle-reset"
-                                            variant="link"
-                                            isLink
-                                            onClick={() =>
-                                                setAttributes({
-                                                    deviceVisibility:
-                                                        DEVICE_VISIBILITY_DEFAULT_OPTION.id,
-                                                })
-                                            }
-                                            disabled={
-                                                deviceVisibility ===
-                                                DEVICE_VISIBILITY_DEFAULT_OPTION.id
-                                            }
-                                        >
-                                            {DEVICE_VISIBILITY_DEFAULT_OPTION.label}
-                                        </Button>
-                                    </div>
-                                </BaseControl>
-                            </PanelBody>
-                            <PanelBody
-                                title={panelTitleWithSummary(
-                                    __('Programmation', 'visi-bloc-jlg'),
-                                    schedulingSummaryLabel,
-                                )}
-                                initialOpen={false}
-                                className="visi-bloc-panel-schedule"
-                            >
-                                <ToggleControl
-                                    label={__('Activer la programmation', 'visi-bloc-jlg')}
-                                    checked={isSchedulingEnabled}
-                                    onChange={() =>
-                                        setAttributes({
-                                            isSchedulingEnabled: !isSchedulingEnabled,
-                                        })
-                                    }
-                                />
-                                {isSchedulingEnabled && (
-                                    <div>
-                                        <p
-                                            style={{
-                                                fontStyle: 'italic',
-                                                color: '#555',
-                                            }}
-                                        >
-                                            {scheduleSummary}
-                                        </p>
-                                        {hasScheduleRangeError && (
-                                            <Notice status="error" isDismissible={false}>
-                                                {__(
-                                                    'La date de fin doit être postérieure à la date de début.',
-                                                    'visi-bloc-jlg',
-                                                )}
-                                            </Notice>
-                                        )}
-                                        <ComboboxControl
-                                            label={__('Fuseau horaire de programmation', 'visi-bloc-jlg')}
-                                            value={normalizedPublishTimezone}
-                                            options={timezoneControlOptions}
-                                            onChange={(newValue) => {
-                                                const matchingOption = timezoneControlOptions.find(
-                                                    (option) => option.value === newValue,
-                                                );
-
-                                                setAttributes({
-                                                    publishTimezone: matchingOption
-                                                        ? matchingOption.value
-                                                        : SITE_TIMEZONE_VALUE,
-                                                });
-                                            }}
-                                            placeholder={__('Rechercher un fuseau horaire…', 'visi-bloc-jlg')}
-                                            __nextHasNoMarginBottom
-                                            help={__(
-                                                'Choisissez un fuseau horaire spécifique pour cette plage. Par défaut, le fuseau du site est utilisé.',
-                                                'visi-bloc-jlg',
-                                            )}
-                                        />
-                                        <p
-                                            style={{
-                                                fontStyle: 'italic',
-                                                color: '#555',
-                                            }}
-                                        >
-                                            {timezoneSummary}
-                                        </p>
-                                        <CheckboxControl
-                                            label={__('Définir une date de début', 'visi-bloc-jlg')}
-                                            checked={!!publishStartDate}
-                                            onChange={(isChecked) => {
-                                                setAttributes({
-                                                    publishStartDate: isChecked
-                                                        ? getCurrentSiteIsoDate()
-                                                        : undefined,
-                                                });
-                                            }}
-                                        />
-                                        {!!publishStartDate && (
-                                            <div className="visi-bloc-datepicker-wrapper">
-                                                <DateTimePicker
-                                                    currentDate={publishStartDate}
-                                                    onChange={(newDate) =>
-                                                        setAttributes({
-                                                            publishStartDate: newDate,
-                                                        })
-                                                    }
-                                                    is12Hour={is12Hour}
-                                                />
-                                            </div>
-                                        )}
-                                        <CheckboxControl
-                                            label={__('Définir une date de fin', 'visi-bloc-jlg')}
-                                            checked={!!publishEndDate}
-                                            onChange={(isChecked) => {
-                                                setAttributes({
-                                                    publishEndDate: isChecked
-                                                        ? getCurrentSiteIsoDate()
-                                                        : undefined,
-                                                });
-                                            }}
-                                        />
-                                        {!!publishEndDate && (
-                                            <div className="visi-bloc-datepicker-wrapper">
-                                                <DateTimePicker
-                                                    currentDate={publishEndDate}
-                                                    onChange={(newDate) =>
-                                                        setAttributes({
-                                                            publishEndDate: newDate,
-                                                        })
-                                                    }
-                                                    is12Hour={is12Hour}
-                                                />
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </PanelBody>
-                            <PanelBody
-                                title={panelTitleWithSummary(
-                                    __('Visibilité par Rôle', 'visi-bloc-jlg'),
-                                    rolesSummary,
-                                )}
-                                initialOpen={false}
-                            >
-                                <p>
-                                    {__(
-                                        "N'afficher que pour les rôles sélectionnés. Laisser vide pour afficher à tout le monde.",
-                                        'visi-bloc-jlg',
-                                    )}
-                                </p>
-                                <CheckboxControl
-                                    label={__('Visiteurs Déconnectés', 'visi-bloc-jlg')}
-                                    checked={visibilityRoles.includes('logged-out')}
-                                    onChange={(isChecked) =>
-                                        onRoleChange(isChecked, 'logged-out')
-                                    }
-                                />
-                                <CheckboxControl
-                                    label={__('Utilisateurs Connectés (tous)', 'visi-bloc-jlg')}
-                                    checked={visibilityRoles.includes('logged-in')}
-                                    onChange={(isChecked) =>
-                                        onRoleChange(isChecked, 'logged-in')
-                                    }
-                                />
-                                <hr />
-                                {Object.entries(VisiBlocData.roles || {})
-                                    .sort(([, firstLabel], [, secondLabel]) =>
-                                        String(firstLabel).localeCompare(String(secondLabel)),
-                                    )
-                                    .map(([slug, name]) => (
-                                        <CheckboxControl
-                                            key={slug}
-                                            label={name}
-                                            checked={visibilityRoles.includes(slug)}
-                                            onChange={(isChecked) =>
-                                                onRoleChange(isChecked, slug)
-                                            }
-                                        />
-                                    ))}
-                            </PanelBody>
-                            <PanelBody
-                                title={panelTitleWithSummary(
-                                    __('Règles de visibilité avancées', 'visi-bloc-jlg'),
-                                    advancedRulesSummary,
-                                )}
-                                initialOpen={false}
-                            >
-                                <SelectControl
-                                    label={__('Logique entre les règles', 'visi-bloc-jlg')}
-                                    value={advancedVisibility.logic}
-                                    options={[
-                                        { value: 'AND', label: __('Toutes les règles doivent être vraies (ET)', 'visi-bloc-jlg') },
-                                        { value: 'OR', label: __('Au moins une règle doit être vraie (OU)', 'visi-bloc-jlg') },
-                                    ]}
-                                    onChange={(newLogic) =>
-                                        updateAdvancedVisibility((current) => ({
-                                            ...current,
-                                            logic: newLogic === 'OR' ? 'OR' : 'AND',
-                                        }))
-                                    }
-                                />
-                                {advancedVisibility.rules.map((rule, index) =>
-                                    renderAdvancedRule(rule, index),
-                                )}
-                                <DropdownMenu
-                                    text={__('Ajouter une règle de…', 'visi-bloc-jlg')}
-                                    label={__('Ajouter une règle de…', 'visi-bloc-jlg')}
-                                    toggleProps={{ variant: 'secondary' }}
+                                <ButtonGroup
+                                    className="visibloc-stepper"
+                                    aria-label={__('Choisir une étape de visibilité', 'visi-bloc-jlg')}
                                 >
-                                    {({ onClose }) => (
-                                        <MenuGroup
-                                            label={__('Types de règles disponibles', 'visi-bloc-jlg')}
+                                    {inspectorSteps.map((step, index) => (
+                                        <Button
+                                            key={step.id}
+                                            isPressed={activeStepId === step.id}
+                                            variant={activeStepId === step.id ? 'primary' : 'tertiary'}
+                                            onClick={() => setActiveInspectorStep(step.id)}
+                                            aria-current={activeStepId === step.id ? 'step' : undefined}
                                         >
-                                            {ADVANCED_RULE_TYPE_OPTIONS.map((option) => (
-                                                <MenuItem
-                                                    key={option.value}
-                                                    onClick={() => {
-                                                        updateAdvancedVisibility((current) => ({
-                                                            ...current,
-                                                            rules: [
-                                                                ...current.rules,
-                                                                createDefaultRuleForType(option.value),
-                                                            ],
-                                                        }));
-                                                        onClose();
-                                                    }}
-                                                >
-                                                    {option.label}
-                                                </MenuItem>
-                                            ))}
-                                        </MenuGroup>
-                                    )}
-                                </DropdownMenu>
-                                <p className="components-help-text">
-                                    {__(
-                                        'Ces règles permettent d’affiner la visibilité selon le contexte du contenu, le modèle ou un horaire récurrent.',
-                                        'visi-bloc-jlg',
-                                    )}
-                                </p>
-                            </PanelBody>
-                            <PanelBody
-                                title={panelTitleWithSummary(
-                                    __('Contenu de repli', 'visi-bloc-jlg'),
-                                    fallbackSummary,
-                                )}
-                                initialOpen={false}
-                            >
-                                <ToggleControl
-                                    label={__('Activer le repli pour ce bloc', 'visi-bloc-jlg')}
-                                    checked={fallbackEnabled}
-                                    onChange={() =>
-                                        setAttributes({ fallbackEnabled: !fallbackEnabled })
-                                    }
-                                />
-                                {!fallbackEnabled && (
-                                    <Notice status="info" isDismissible={false}>
-                                        {__('Aucun contenu de repli ne sera affiché si ce bloc est masqué.', 'visi-bloc-jlg')}
-                                    </Notice>
-                                )}
-                                {fallbackEnabled && (
-                                    <Fragment>
-                                        <SelectControl
-                                            label={__('Source du repli', 'visi-bloc-jlg')}
-                                            value={fallbackBehavior}
-                                            options={fallbackBehaviorOptions}
-                                            onChange={(newBehavior) =>
-                                                setAttributes({
-                                                    fallbackBehavior: fallbackBehaviorOptions.some(
-                                                        (option) => option.value === newBehavior,
-                                                    )
-                                                        ? newBehavior
-                                                        : 'inherit',
-                                                })
-                                            }
-                                        />
-                                        {fallbackBehavior === 'inherit' && (
-                                            hasGlobalFallback ? (
-                                                <Notice status="info" isDismissible={false}>
-                                                    {globalFallbackSummary
-                                                        ? sprintf(
-                                                              __('Repli global : %s', 'visi-bloc-jlg'),
-                                                              globalFallbackSummary,
-                                                          )
-                                                        : __('Un repli global est configuré.', 'visi-bloc-jlg')}
-                                                </Notice>
-                                            ) : (
-                                                <Notice status="warning" isDismissible={false}>
-                                                    {__('Aucun repli global n’est actuellement défini.', 'visi-bloc-jlg')}
-                                                </Notice>
-                                            )
-                                        )}
-                                        {fallbackBehavior === 'text' && (
-                                            <TextareaControl
-                                                label={__('Texte affiché en repli', 'visi-bloc-jlg')}
-                                                help={__('Ce texte remplace le bloc lorsque les visiteurs n’y ont pas accès.', 'visi-bloc-jlg')}
-                                                value={fallbackCustomText}
-                                                onChange={(value) =>
-                                                    setAttributes({ fallbackCustomText: value })
-                                                }
-                                            />
-                                        )}
-                                        {fallbackBehavior === 'block' && (
-                                            <Fragment>
-                                                <SelectControl
-                                                    label={__('Bloc réutilisable à afficher', 'visi-bloc-jlg')}
-                                                    value={fallbackBlockId ? String(fallbackBlockId) : ''}
-                                                    options={[
-                                                        {
-                                                            value: '',
-                                                            label: __('— Sélectionnez un bloc —', 'visi-bloc-jlg'),
-                                                        },
-                                                        ...fallbackBlockOptions,
-                                                    ]}
-                                                    onChange={(newValue) => {
-                                                        const parsedValue = parseInt(newValue, 10);
-
-                                                        setAttributes({
-                                                            fallbackBlockId: Number.isNaN(parsedValue)
-                                                                ? 0
-                                                                : parsedValue,
-                                                        });
-                                                    }}
-                                                    disabled={!fallbackBlockOptions.length}
-                                                />
-                                                {!fallbackBlockOptions.length && (
-                                                    <Notice status="warning" isDismissible={false}>
-                                                        {__('Aucun bloc réutilisable publié n’est disponible.', 'visi-bloc-jlg')}
-                                                    </Notice>
-                                                )}
-                                            </Fragment>
-                                        )}
-                                        <ToggleControl
-                                            label={__('Prévisualiser le repli', 'visi-bloc-jlg')}
-                                            checked={isFallbackPreviewVisible}
-                                            onChange={() =>
-                                                setFallbackPreviewVisible((currentValue) => !currentValue)
-                                            }
-                                            disabled={!fallbackEnabled}
-                                            aria-controls={fallbackPreviewRegionId}
-                                            aria-expanded={isFallbackPreviewVisible && fallbackEnabled}
-                                        />
-                                        {isFallbackPreviewVisible && fallbackEnabled && (
-                                            <div
-                                                ref={fallbackPreviewRegionRef}
-                                                id={fallbackPreviewRegionId}
-                                                className="visibloc-fallback-preview"
-                                                role="region"
-                                                aria-live="polite"
-                                                aria-labelledby={fallbackPreviewRegionLabelId}
-                                                tabIndex="-1"
-                                            >
-                                                <span
-                                                    id={fallbackPreviewRegionLabelId}
-                                                    className="screen-reader-text"
-                                                >
-                                                    {__('Aperçu du contenu de repli', 'visi-bloc-jlg')}
-                                                </span>
-                                                {fallbackPreviewHtmlContent ? (
-                                                    <div className="visibloc-fallback-preview__content">
-                                                        <RawHTML>{fallbackPreviewHtmlContent}</RawHTML>
-                                                    </div>
-                                                ) : (
-                                                    <Notice
-                                                        status={
-                                                            fallbackPreviewNoticeStatus === 'warning'
-                                                                ? 'warning'
-                                                                : 'info'
-                                                        }
-                                                        isDismissible={false}
-                                                    >
-                                                        {fallbackPreviewNoticeMessage ||
-                                                            __('Aucun aperçu disponible pour ce repli.', 'visi-bloc-jlg')}
-                                                    </Notice>
-                                                )}
-                                            </div>
-                                        )}
-                                    </Fragment>
-                                )}
+                                            {sprintf(
+                                                __('Étape %1$d · %2$s', 'visi-bloc-jlg'),
+                                                index + 1,
+                                                step.label,
+                                            )}
+                                        </Button>
+                                    ))}
+                                </ButtonGroup>
+                                {renderHelpText(activeStepSummary, 'is-summary')}
+                                <div className="visibloc-step-content">{activeStepContent}</div>
                             </PanelBody>
                         </InspectorControls>
                     </Fragment>
@@ -2874,6 +2917,117 @@ function getIsListViewOpened() {
     return false;
 }
 
+function toggleCompactBadgeMode(shouldEnable) {
+    if (compactBadgeModeEnabled === shouldEnable) {
+        return;
+    }
+
+    if (typeof document === 'undefined' || !document.body) {
+        compactBadgeModeEnabled = shouldEnable;
+
+        return;
+    }
+
+    compactBadgeModeEnabled = shouldEnable;
+    document.body.classList.toggle('visibloc-compact-badges', shouldEnable);
+}
+
+function disconnectListViewDensityObserver() {
+    if (listViewDensityObserver && observedListViewElement) {
+        listViewDensityObserver.unobserve(observedListViewElement);
+    }
+
+    if (listViewDensityObserver) {
+        listViewDensityObserver.disconnect();
+    }
+
+    listViewDensityObserver = null;
+    observedListViewElement = null;
+    toggleCompactBadgeMode(false);
+}
+
+function ensureListViewDensityObserver() {
+    if (
+        typeof document === 'undefined' ||
+        typeof ResizeObserver === 'undefined'
+    ) {
+        return;
+    }
+
+    const container =
+        document.querySelector('.block-editor-list-view__container') ||
+        document.querySelector('.block-editor-list-view');
+
+    if (!container) {
+        return;
+    }
+
+    if (!listViewDensityObserver) {
+        listViewDensityObserver = new ResizeObserver((entries) => {
+            entries.forEach((entry) => {
+                const target = entry && entry.target ? entry.target : container;
+                const width = entry && entry.contentRect ? entry.contentRect.width : target.offsetWidth;
+
+                toggleCompactBadgeMode(width < 260);
+            });
+        });
+    }
+
+    if (observedListViewElement && observedListViewElement !== container) {
+        listViewDensityObserver.unobserve(observedListViewElement);
+    }
+
+    observedListViewElement = container;
+    listViewDensityObserver.observe(container);
+
+    const initialWidth = container.getBoundingClientRect
+        ? container.getBoundingClientRect().width
+        : container.offsetWidth;
+
+    toggleCompactBadgeMode(initialWidth < 260);
+}
+
+function getAllClientIds(blockEditor) {
+    if (!blockEditor) {
+        return [];
+    }
+
+    if (typeof blockEditor.getClientIdsWithDescendants === 'function') {
+        const ids = blockEditor.getClientIdsWithDescendants();
+
+        if (Array.isArray(ids)) {
+            return ids;
+        }
+    }
+
+    const rootClientIds = blockEditor.getBlockOrder();
+
+    if (!Array.isArray(rootClientIds) || !rootClientIds.length) {
+        return [];
+    }
+
+    const stack = [...rootClientIds];
+    const result = [];
+
+    while (stack.length) {
+        const clientId = stack.pop();
+
+        if (!clientId) {
+            continue;
+        }
+
+        result.push(clientId);
+
+        const childIds = blockEditor.getBlockOrder(clientId);
+
+        if (Array.isArray(childIds) && childIds.length) {
+            childIds.forEach((childId) => stack.push(childId));
+        }
+    }
+
+    return result;
+}
+
 function replayPendingListViewUpdates() {
     if (!pendingListViewUpdates.size) {
         return;
@@ -2903,11 +3057,20 @@ function flushListViewUpdates() {
     const unresolvedUpdates = new Map();
 
     pendingListViewUpdates.forEach((state, clientId) => {
-        const row = document.querySelector(
-            `.block-editor-list-view__block[data-block="${clientId}"]`,
-        );
+        let row = listViewRowCache.get(clientId);
+
+        if (!row || !row.isConnected) {
+            row = document.querySelector(
+                `.block-editor-list-view__block[data-block="${clientId}"]`,
+            );
+
+            if (row) {
+                listViewRowCache.set(clientId, row);
+            }
+        }
 
         if (!row) {
+            listViewRowCache.delete(clientId);
             unresolvedUpdates.set(clientId, state);
 
             return;
@@ -2941,6 +3104,8 @@ function flushListViewUpdates() {
 
         return;
     }
+
+    ensureListViewDensityObserver();
 
     listViewRafHandle = null;
 }
@@ -2976,62 +3141,70 @@ function syncListView() {
         return;
     }
 
-    const rootClientIds = blockEditor.getBlockOrder();
+    const allClientIds = getAllClientIds(blockEditor);
 
-    if (!rootClientIds.length) {
+    if (!allClientIds.length) {
+        if (registeredSupportedClientIds.size) {
+            registeredSupportedClientIds.clear();
+            blockVisibilityState.clear();
+            pendingListViewUpdates.clear();
+            listViewRowCache.clear();
+        }
+
         return;
     }
 
-    const stack = [...rootClientIds];
-    const seenSupportedBlocks = new Set();
+    const currentClientIds = new Set(allClientIds);
+    const newSupportedIds = [];
 
-    while (stack.length) {
-        const clientId = stack.pop();
+    allClientIds.forEach((clientId) => {
+        if (registeredSupportedClientIds.has(clientId)) {
+            return;
+        }
+
+        let blockName = typeof blockEditor.getBlockName === 'function'
+            ? blockEditor.getBlockName(clientId)
+            : undefined;
+
+        if (!blockName) {
+            const block = blockEditor.getBlock(clientId);
+            blockName = block ? block.name : undefined;
+        }
+
+        if (blockName && isSupportedBlockName(blockName)) {
+            registeredSupportedClientIds.add(clientId);
+            newSupportedIds.push(clientId);
+        }
+    });
+
+    newSupportedIds.forEach((clientId) => {
         const block = blockEditor.getBlock(clientId);
 
         if (!block) {
-            continue;
+            return;
         }
 
-        if (isSupportedBlockName(block.name)) {
-            const isHidden = Boolean(block.attributes.isHidden);
-            const hasFallback = getBlockHasFallback(block.attributes);
-            const previousState = blockVisibilityState.get(clientId) || {};
+        const previousState = blockVisibilityState.get(clientId) || {};
+        const nextState = {
+            ...previousState,
+            isHidden: Boolean(block.attributes.isHidden),
+            hasFallback: getBlockHasFallback(block.attributes),
+        };
 
-            const nextState = {
-                ...previousState,
-                isHidden,
-                hasFallback,
-            };
+        blockVisibilityState.set(clientId, nextState);
+        queueListViewUpdate(clientId, nextState);
+    });
 
-            if (
-                previousState.isHidden !== nextState.isHidden ||
-                previousState.hasFallback !== nextState.hasFallback
-            ) {
-                queueListViewUpdate(clientId, nextState);
-            }
+    const staleClientIds = Array.from(registeredSupportedClientIds).filter(
+        (clientId) => !currentClientIds.has(clientId),
+    );
 
-            blockVisibilityState.set(clientId, nextState);
-            seenSupportedBlocks.add(clientId);
-        }
-
-        if (block.innerBlocks && block.innerBlocks.length) {
-            block.innerBlocks.forEach((innerBlock) => {
-                if (innerBlock && innerBlock.clientId) {
-                    stack.push(innerBlock.clientId);
-                }
-            });
-        }
-    }
-
-    if (seenSupportedBlocks.size !== blockVisibilityState.size) {
-        Array.from(blockVisibilityState.keys()).forEach((clientId) => {
-            if (!seenSupportedBlocks.has(clientId)) {
-                blockVisibilityState.delete(clientId);
-                pendingListViewUpdates.delete(clientId);
-            }
-        });
-    }
+    staleClientIds.forEach((clientId) => {
+        registeredSupportedClientIds.delete(clientId);
+        blockVisibilityState.delete(clientId);
+        pendingListViewUpdates.delete(clientId);
+        listViewRowCache.delete(clientId);
+    });
 }
 
 addFilter(
@@ -3127,6 +3300,12 @@ function handleEditorSubscription() {
 
     if (isCurrentlyOpened && !wasListViewOpened) {
         replayPendingListViewUpdates();
+    }
+
+    if (isCurrentlyOpened) {
+        ensureListViewDensityObserver();
+    } else if (wasListViewOpened) {
+        disconnectListViewDensityObserver();
     }
 
     wasListViewOpened = isCurrentlyOpened;
