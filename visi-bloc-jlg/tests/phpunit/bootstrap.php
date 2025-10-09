@@ -1350,13 +1350,61 @@ if ( ! class_exists( 'WP_Query' ) ) {
     class WP_Query {
         public $posts = [];
 
+        public $post_count = 0;
+
+        public $found_posts = 0;
+
+        public $max_num_pages = 1;
+
+        public $query_vars = [];
+
+        public $query = [];
+
         public function __construct( $args = [] ) {
-            $posts        = $GLOBALS['visibloc_posts'] ?? [];
-            $post_types   = isset( $args['post_type'] ) ? (array) $args['post_type'] : null;
-            $post_status  = isset( $args['post_status'] ) ? (array) $args['post_status'] : null;
-            $per_page     = isset( $args['posts_per_page'] ) ? max( 1, (int) $args['posts_per_page'] ) : count( $posts );
-            $paged        = isset( $args['paged'] ) ? max( 1, (int) $args['paged'] ) : 1;
-            $matching_ids = [];
+            $posts = is_array( $GLOBALS['visibloc_posts'] ?? null ) ? $GLOBALS['visibloc_posts'] : [];
+
+            if ( isset( $GLOBALS['visibloc_test_stats'] ) ) {
+                if ( ! isset( $GLOBALS['visibloc_test_stats']['get_posts_calls'] ) ) {
+                    $GLOBALS['visibloc_test_stats']['get_posts_calls'] = 0;
+                }
+
+                $GLOBALS['visibloc_test_stats']['get_posts_calls']++;
+            }
+
+            if ( ! is_array( $args ) ) {
+                $args = [];
+            }
+
+            $this->query_vars = $args;
+            $this->query      = $args;
+
+            $post_types  = isset( $args['post_type'] ) ? (array) $args['post_type'] : null;
+            $post_status = isset( $args['post_status'] ) ? (array) $args['post_status'] : null;
+
+            if ( is_array( $post_types ) && in_array( 'any', $post_types, true ) ) {
+                $post_types = null;
+            }
+
+            if ( is_array( $post_status ) && in_array( 'any', $post_status, true ) ) {
+                $post_status = null;
+            }
+
+            $search_term = '';
+
+            if ( isset( $args['s'] ) && ( is_string( $args['s'] ) || is_numeric( $args['s'] ) ) ) {
+                $search_term = strtolower( trim( (string) $args['s'] ) );
+            }
+
+            $search_tokens = array_values(
+                array_filter(
+                    preg_split( '/\s+/', $search_term ) ?: [],
+                    static function ( $token ) {
+                        return '' !== $token;
+                    }
+                )
+            );
+
+            $matching_posts = [];
 
             foreach ( $posts as $post_id => $post ) {
                 $post_type  = $post['post_type'] ?? 'post';
@@ -1370,13 +1418,144 @@ if ( ! class_exists( 'WP_Query' ) ) {
                     continue;
                 }
 
-                $matching_ids[] = absint( $post_id );
+                if ( ! empty( $search_tokens ) ) {
+                    $haystack_title   = strtolower( (string) ( $post['post_title'] ?? '' ) );
+                    $haystack_content = strtolower( (string) ( $post['post_content'] ?? '' ) );
+                    $haystack_excerpt = strtolower( (string) ( $post['post_excerpt'] ?? '' ) );
+                    $matches_search   = true;
+
+                    foreach ( $search_tokens as $token ) {
+                        if (
+                            false === strpos( $haystack_title, $token )
+                            && false === strpos( $haystack_content, $token )
+                            && false === strpos( $haystack_excerpt, $token )
+                        ) {
+                            $matches_search = false;
+                            break;
+                        }
+                    }
+
+                    if ( ! $matches_search ) {
+                        continue;
+                    }
+                }
+
+                $post_data           = $post;
+                $post_data['ID']     = absint( $post_id );
+                $post_data['filter'] = 'raw';
+
+                $matching_posts[] = $post_data;
             }
 
-            sort( $matching_ids );
+            $orderby = strtolower( isset( $args['orderby'] ) ? (string) $args['orderby'] : 'date' );
+            $order   = strtoupper( isset( $args['order'] ) ? (string) $args['order'] : 'DESC' );
 
-            $offset       = ( $paged - 1 ) * $per_page;
-            $this->posts  = array_slice( $matching_ids, $offset, $per_page );
+            $compare = static function ( $a, $b, $key, $order ) {
+                $value_a = $a[ $key ] ?? '';
+                $value_b = $b[ $key ] ?? '';
+
+                if ( is_numeric( $value_a ) && is_numeric( $value_b ) ) {
+                    $result = (int) $value_a <=> (int) $value_b;
+                } else {
+                    $result = strcmp( (string) $value_a, (string) $value_b );
+                }
+
+                return 'DESC' === $order ? -$result : $result;
+            };
+
+            if ( 'title' === $orderby || 'name' === $orderby ) {
+                usort(
+                    $matching_posts,
+                    static function ( $a, $b ) use ( $order ) {
+                        $value_a = strtolower( (string) ( $a['post_title'] ?? '' ) );
+                        $value_b = strtolower( (string) ( $b['post_title'] ?? '' ) );
+                        $result  = strcmp( $value_a, $value_b );
+
+                        return 'DESC' === $order ? -$result : $result;
+                    }
+                );
+            } elseif ( 'id' === $orderby ) {
+                usort(
+                    $matching_posts,
+                    static function ( $a, $b ) use ( $order, $compare ) {
+                        return $compare( $a, $b, 'ID', $order );
+                    }
+                );
+            } else {
+                usort(
+                    $matching_posts,
+                    static function ( $a, $b ) use ( $order, $compare ) {
+                        return $compare( $a, $b, 'post_date', $order );
+                    }
+                );
+            }
+
+            $per_page_arg = isset( $args['posts_per_page'] ) ? (int) $args['posts_per_page'] : 0;
+            $numberposts  = isset( $args['numberposts'] ) ? (int) $args['numberposts'] : 0;
+            $paged        = isset( $args['paged'] ) ? (int) $args['paged'] : 0;
+            $offset       = isset( $args['offset'] ) ? (int) $args['offset'] : 0;
+            $nopaging     = ! empty( $args['nopaging'] );
+
+            if ( $per_page_arg <= 0 && $numberposts > 0 ) {
+                $per_page_arg = $numberposts;
+            }
+
+            $paged = $paged > 0 ? $paged : 1;
+
+            if ( $nopaging && $per_page_arg <= 0 ) {
+                $per_page_arg = -1;
+            }
+
+            $unbounded = $per_page_arg <= 0;
+            $per_page  = $unbounded ? count( $matching_posts ) : max( 1, $per_page_arg );
+
+            if ( $paged > 1 && ! $unbounded ) {
+                if ( $offset <= 0 ) {
+                    $offset = ( $paged - 1 ) * $per_page;
+                }
+
+                $offset = max( 0, $offset );
+            }
+
+            $this->found_posts   = count( $matching_posts );
+            $this->max_num_pages = $unbounded || $per_page <= 0
+                ? 1
+                : max( 1, (int) ceil( $this->found_posts / $per_page ) );
+
+            if ( $unbounded ) {
+                $page_posts = array_slice( $matching_posts, max( 0, $offset ) );
+            } else {
+                $page_posts = array_slice( $matching_posts, max( 0, $offset ), $per_page );
+            }
+
+            $fields = isset( $args['fields'] ) ? $args['fields'] : '';
+
+            if ( 'ids' === $fields ) {
+                $this->posts = array_values(
+                    array_map(
+                        static function ( $post ) {
+                            return absint( $post['ID'] ?? 0 );
+                        },
+                        $page_posts
+                    )
+                );
+            } elseif ( 'id=>parent' === $fields ) {
+                $this->posts = [];
+
+                foreach ( $page_posts as $post ) {
+                    $post_id                 = absint( $post['ID'] ?? 0 );
+                    $this->posts[ $post_id ] = absint( $post['post_parent'] ?? 0 );
+                }
+            } else {
+                $this->posts = array_map(
+                    static function ( $post ) {
+                        return new WP_Post( $post );
+                    },
+                    $page_posts
+                );
+            }
+
+            $this->post_count = is_array( $this->posts ) ? count( $this->posts ) : 0;
         }
     }
 }

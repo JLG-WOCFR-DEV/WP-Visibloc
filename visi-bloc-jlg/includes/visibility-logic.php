@@ -5,6 +5,7 @@ require_once __DIR__ . '/datetime-utils.php';
 require_once __DIR__ . '/fallback.php';
 require_once __DIR__ . '/utils.php';
 require_once __DIR__ . '/plugin-meta.php';
+require_once __DIR__ . '/insights.php';
 
 visibloc_jlg_define_default_supported_blocks();
 
@@ -227,6 +228,32 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
 
     $attrs = $block['attrs'];
 
+    $block_name = is_array( $block ) && isset( $block['blockName'] ) && is_string( $block['blockName'] )
+        ? $block['blockName']
+        : '';
+
+    $post_id = 0;
+
+    if ( function_exists( 'get_the_ID' ) ) {
+        $post_id = (int) get_the_ID();
+    }
+
+    $post_type = '';
+
+    if ( $post_id > 0 && function_exists( 'get_post_type' ) ) {
+        $post_type_value = get_post_type( $post_id );
+
+        if ( is_string( $post_type_value ) ) {
+            $post_type = $post_type_value;
+        }
+    }
+
+    $insight_context = [
+        'block_name' => $block_name,
+        'post_id'    => $post_id,
+        'post_type'  => $post_type,
+    ];
+
     $visibility_roles   = visibloc_jlg_normalize_visibility_roles( $attrs['visibilityRoles'] ?? [] );
     $advanced_visibility = visibloc_jlg_normalize_advanced_visibility( $attrs['advancedVisibility'] ?? null );
     $has_advanced_rules = ! empty( $advanced_visibility['rules'] );
@@ -250,6 +277,7 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
     $can_preview_hidden_blocks = ! empty( $preview_context['can_preview_hidden_blocks'] );
     $user_visibility_context   = visibloc_jlg_get_user_visibility_context( $preview_context, $can_preview_hidden_blocks );
     $preview_transforms        = [];
+    $preview_reasons           = [];
 
     $decisions = [];
 
@@ -276,7 +304,14 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
     $decisions[] = visibloc_jlg_should_display_for_manual_flag( $has_hidden_flag, $can_preview_hidden_blocks );
 
     foreach ( $decisions as $decision ) {
-        $rendered = visibloc_jlg_process_visibility_decision( $decision, $block_content, $get_fallback_markup, $preview_transforms );
+        $rendered = visibloc_jlg_process_visibility_decision(
+            $decision,
+            $block_content,
+            $get_fallback_markup,
+            $preview_transforms,
+            $insight_context,
+            $preview_reasons
+        );
 
         if ( null !== $rendered ) {
             return $rendered;
@@ -284,8 +319,17 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
     }
 
     if ( ! empty( $preview_transforms ) ) {
+        $preview_context = $insight_context;
+        $preview_context['reason']        = $preview_reasons[0] ?? '';
+        $preview_context['preview']       = true;
+        $preview_context['uses_fallback'] = false;
+
+        visibloc_jlg_record_insight_event( 'preview', $preview_context );
+
         return visibloc_jlg_apply_preview_transforms( $preview_transforms, $block_content );
     }
+
+    visibloc_jlg_record_insight_event( 'visible', $insight_context );
 
     return $block_content;
 }
@@ -525,9 +569,15 @@ function visibloc_jlg_should_display_for_manual_flag( $has_hidden_flag, $can_pre
     return visibloc_jlg_visibility_decision( false, true, null, 'manual-flag' );
 }
 
-function visibloc_jlg_process_visibility_decision( Visibloc_Jlg_Visibility_Decision $decision, $block_content, callable $get_fallback_markup, array &$preview_transforms ) {
+function visibloc_jlg_process_visibility_decision( Visibloc_Jlg_Visibility_Decision $decision, $block_content, callable $get_fallback_markup, array &$preview_transforms, array $insight_context = [], array &$preview_reasons = [] ) {
+    $reason = is_string( $decision->reason ) ? $decision->reason : '';
+
     if ( $decision->has_preview_transform() ) {
         $preview_transforms[] = $decision->preview_transform;
+
+        if ( '' !== $reason ) {
+            $preview_reasons[] = $reason;
+        }
     }
 
     if ( $decision->is_visible ) {
@@ -537,6 +587,13 @@ function visibloc_jlg_process_visibility_decision( Visibloc_Jlg_Visibility_Decis
     if ( ! empty( $preview_transforms ) ) {
         $preview_markup = visibloc_jlg_apply_preview_transforms( $preview_transforms, $block_content );
 
+        $event_context = $insight_context;
+        $event_context['reason']        = $reason;
+        $event_context['preview']       = true;
+        $event_context['uses_fallback'] = (bool) $decision->use_fallback;
+
+        visibloc_jlg_record_insight_event( 'preview', $event_context );
+
         if ( $decision->use_fallback ) {
             $preview_markup = visibloc_jlg_wrap_preview_with_fallback_notice( $preview_markup, $get_fallback_markup(), $decision->reason );
         }
@@ -545,8 +602,19 @@ function visibloc_jlg_process_visibility_decision( Visibloc_Jlg_Visibility_Decis
     }
 
     if ( $decision->use_fallback ) {
+        $event_context = $insight_context;
+        $event_context['reason']        = $reason;
+        $event_context['uses_fallback'] = true;
+
+        visibloc_jlg_record_insight_event( 'fallback', $event_context );
+
         return $get_fallback_markup();
     }
+
+    $event_context = $insight_context;
+    $event_context['reason'] = $reason;
+
+    visibloc_jlg_record_insight_event( 'hidden', $event_context );
 
     return '';
 }
