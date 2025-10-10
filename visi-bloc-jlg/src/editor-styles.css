@@ -504,6 +504,29 @@
     flex-wrap: wrap;
 }
 
+.visibloc-fallback-selector__error {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.visibloc-fallback-selector__error-summary,
+.visibloc-fallback-selector__error-meta,
+.visibloc-fallback-selector__error-message {
+    margin: 0;
+    font-size: 13px;
+}
+
+.visibloc-fallback-selector__error-meta {
+    color: var(--wp-components-color-foreground-muted, #50575e);
+}
+
+.visibloc-fallback-selector__error-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
 .visibloc-term-chips {
     display: flex;
     flex-wrap: wrap;

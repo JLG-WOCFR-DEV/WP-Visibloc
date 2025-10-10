@@ -10,7 +10,7 @@ import {
     useCallback,
     RawHTML,
 } from '@wordpress/element';
-import { addFilter, applyFilters } from '@wordpress/hooks';
+import { addFilter, applyFilters, doAction } from '@wordpress/hooks';
 import { createHigherOrderComponent, useInstanceId } from '@wordpress/compose';
 import { BlockControls, InspectorControls } from '@wordpress/block-editor';
 import {
@@ -995,6 +995,8 @@ const FallbackBlockSelect = ({
     const [isEnsuringSelection, setIsEnsuringSelection] = useState(false);
     const [hasMore, setHasMore] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
+    const [errorDetails, setErrorDetails] = useState(null);
+    const [reloadToken, setReloadToken] = useState(0);
 
     useEffect(() => {
         setOptions(normalizedInitialOptions);
@@ -1017,6 +1019,7 @@ const FallbackBlockSelect = ({
 
         setIsLoading(true);
         setErrorMessage('');
+        setErrorDetails(null);
 
         const fetchBlocks = async () => {
             try {
@@ -1036,6 +1039,26 @@ const FallbackBlockSelect = ({
                     parse: false,
                 });
                 const payload = await response.json();
+
+                if (!response.ok) {
+                    const httpError = new Error(
+                        (payload && typeof payload.message === 'string'
+                            ? payload.message
+                            : __('La requête REST a échoué.', 'visi-bloc-jlg')) ||
+                            __('La requête REST a échoué.', 'visi-bloc-jlg'),
+                    );
+
+                    httpError.status = response.status;
+                    httpError.statusText = response.statusText;
+
+                    if (payload && typeof payload.code === 'string') {
+                        httpError.code = payload.code;
+                    }
+
+                    httpError.responseJson = payload;
+
+                    throw httpError;
+                }
 
                 if (!isMounted) {
                     return;
@@ -1080,15 +1103,55 @@ const FallbackBlockSelect = ({
                 if (typeof onOptionsLoaded === 'function' && nextOptions.length) {
                     onOptionsLoaded(nextOptions);
                 }
+
+                setErrorMessage('');
+                setErrorDetails(null);
             } catch (error) {
                 if (!isMounted || (error && error.name === 'AbortError')) {
                     return;
                 }
 
-                setErrorMessage(
-                    __('Impossible de charger la liste des blocs de repli.', 'visi-bloc-jlg'),
-                );
+                const restPayload = error && typeof error === 'object' ? error.responseJson : null;
+                const httpStatus = error && typeof error.status === 'number' ? error.status : null;
+                const httpStatusText =
+                    error && typeof error.statusText === 'string' ? error.statusText : '';
+                const restCode =
+                    restPayload && typeof restPayload.code === 'string' ? restPayload.code : '';
+                const restMessage =
+                    restPayload && typeof restPayload.message === 'string'
+                        ? restPayload.message
+                        : '';
+
+                const summaryMessage = httpStatus
+                    ? sprintf(
+                          __('Erreur %s lors du chargement des blocs de repli.', 'visi-bloc-jlg'),
+                          httpStatus,
+                      )
+                    : __('Impossible de charger la liste des blocs de repli.', 'visi-bloc-jlg');
+
+                setErrorMessage(summaryMessage);
+                setErrorDetails({
+                    status: httpStatus,
+                    statusText: httpStatusText,
+                    code: restCode,
+                    message: restMessage,
+                });
                 setHasMore(false);
+
+                if (typeof console !== 'undefined' && typeof console.error === 'function') {
+                    console.error('VisiBloc – fallback blocks request failed', error);
+                }
+
+                if (typeof doAction === 'function') {
+                    doAction('visibloc_jlg.fallback_blocks_error', {
+                        error,
+                        endpoint,
+                        page,
+                        search: searchValue,
+                        status: httpStatus,
+                        code: restCode,
+                    });
+                }
             } finally {
                 if (isMounted) {
                     setIsLoading(false);
@@ -1102,7 +1165,7 @@ const FallbackBlockSelect = ({
             isMounted = false;
             controller.abort();
         };
-    }, [endpoint, page, searchValue, onOptionsLoaded]);
+    }, [endpoint, page, searchValue, onOptionsLoaded, reloadToken]);
 
     useEffect(() => {
         if (!value) {
@@ -1192,6 +1255,31 @@ const FallbackBlockSelect = ({
     const currentValue = value ? String(value) : '';
     const showEmptyNotice = !isLoading && !isEnsuringSelection && !errorMessage && !options.length;
 
+    const handleRetry = useCallback(() => {
+        setErrorMessage('');
+        setErrorDetails(null);
+        setPage(1);
+        setReloadToken((token) => token + 1);
+    }, []);
+
+    const errorMetaParts = [];
+
+    if (errorDetails) {
+        if (errorDetails.status) {
+            errorMetaParts.push(
+                sprintf(__('Statut HTTP : %s', 'visi-bloc-jlg'), errorDetails.status),
+            );
+        }
+
+        if (errorDetails.statusText) {
+            errorMetaParts.push(errorDetails.statusText);
+        }
+
+        if (errorDetails.code) {
+            errorMetaParts.push(sprintf(__('Code : %s', 'visi-bloc-jlg'), errorDetails.code));
+        }
+    }
+
     return (
         <div className="visibloc-fallback-selector">
             <ComboboxControl
@@ -1212,7 +1300,28 @@ const FallbackBlockSelect = ({
             )}
             {!isLoading && !isEnsuringSelection && errorMessage && (
                 <Notice status="error" isDismissible={false}>
-                    {errorMessage}
+                    <div className="visibloc-fallback-selector__error">
+                        <p className="visibloc-fallback-selector__error-summary">{errorMessage}</p>
+                        {errorMetaParts.length > 0 ? (
+                            <p className="visibloc-fallback-selector__error-meta">
+                                {errorMetaParts.join(' · ')}
+                            </p>
+                        ) : null}
+                        {errorDetails && errorDetails.message ? (
+                            <p className="visibloc-fallback-selector__error-message">
+                                {errorDetails.message}
+                            </p>
+                        ) : null}
+                        <div className="visibloc-fallback-selector__error-actions">
+                            <Button
+                                variant="secondary"
+                                onClick={handleRetry}
+                                disabled={isLoading || isEnsuringSelection}
+                            >
+                                {__('Réessayer', 'visi-bloc-jlg')}
+                            </Button>
+                        </div>
+                    </div>
                 </Notice>
             )}
             {showEmptyNotice && !searchValue.trim() && (
