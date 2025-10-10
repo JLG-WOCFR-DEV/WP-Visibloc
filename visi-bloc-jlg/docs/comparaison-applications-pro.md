@@ -29,6 +29,17 @@ Ce document positionne **Visi-Bloc – JLG** face à trois solutions premium du 
 5. **Gouvernance perfectible** – pas d'audit log, de workflow d'approbation ou de notifications proactives pour les règles critiques.
 6. **UI dense** – l'inspecteur Gutenberg empile de nombreux panneaux sans hiérarchie visuelle ni indicateurs de sévérité.
 
+### Focus UX / UI, ergonomie, fiabilité et design
+
+| Axe | Visi-Bloc – JLG | Applications pro (Block Visibility Pro, If-So, LogicHop) | Opportunités d'amélioration |
+| --- | --- | --- | --- |
+| **UX / UI** | Interface native Gutenberg, panneaux nombreux sans segmentation claire, messages contextuels techniques. | Assistants guidés, composants propriétaires hiérarchisés, iconographie explicite, labels marketing. | Introduire une navigation en étapes, icônes cohérentes, vocabulaire métier et badges de statut pour réduire la charge cognitive. |
+| **Ergonomie** | Paramétrage bloc par bloc, champs longs, absence de raccourcis, feedback limité lors de l'enregistrement. | Tableaux de bord centralisés, formulaires multi-colonnes, suggestions automatiques, auto-save et undo contextualisés. | Créer une vue centrale des règles, proposer des valeurs suggérées et sauvegarder en continu avec confirmation non intrusive. |
+| **Fiabilité** | Tests unitaires ciblés, peu d'automatisation end-to-end, validations dispersées, monitoring manuel. | Suites de tests couvrant scénarios clés, alertes automatisées, télémétrie d'erreur, SLA documentés. | Mutualiser la validation via un moteur unique, renforcer la couverture Playwright/PHPUnit et ajouter de la télémétrie (Sentry, traces API). |
+| **Design visuel** | Palette WordPress par défaut, densité élevée, contrastes variables entre panneaux, peu de repères visuels. | Systèmes de design propriétaires (tokens, pictogrammes), storytelling graphique, vues plein écran. | Définir une bibliothèque de composants avec tokens, thèmes clair/sombre et storytelling visuel (timelines, cartes d'audience). |
+
+Ces écarts révèlent les leviers prioritaires pour aligner l'expérience Visi-Bloc sur les standards premium : fluidifier la découverte des fonctionnalités, fournir des repères visuels stables et fiabiliser la chaîne de livraison.
+
 ## Améliorations recommandées
 
 ### P0 – Mode Simple / Expert et accessibilité immédiate
@@ -45,6 +56,14 @@ Ce document positionne **Visi-Bloc – JLG** face à trois solutions premium du 
   - Focus ring unifié documenté (`focus.tokens.json`), tests `axe-core` dans la CI via Playwright (`await expect(page).toHaveNoViolations()`), badges d'arbre de blocs avec icônes SVG + texte caché.
   - Préférence « haute visibilité » (contraste renforcé, animations réduites, zones cliquables élargies) persistée en `localStorage` + `user_meta`.
   - Alertes in-éditeur quand un bloc est masqué par une règle, messages d'erreur contextualisés avec description ARIA et ordre de tabulation vérifié.
+
+### P0 – Design system et repères visuels
+- Capitaliser sur un **design system léger** aligné sur Gutenberg tout en clarifiant l'identité de Visi-Bloc.
+  - Définir des tokens couleur/typo/espace (`design-tokens.json`) et générer automatiquement les styles (Sass/Emotion) pour garantir le contraste AA/AAA.
+  - Créer une grille de composants dédiés (cartes d'audience, badges de statut, timelines) documentée dans Storybook avec exemples de composition.
+- Améliorer la lisibilité des panneaux.
+  - Harmoniser les espacements et titres de sections, introduire des `SectionHeader` avec sous-titre et aide inline.
+  - Ajouter des visuels légers (illustrations vectorielles, pictogrammes) pour différencier les modes Simple/Expert et les types d'alertes.
 
 ### P0 – Fiabilité, performance et observabilité
 - Couvrir les scénarios critiques par des tests unitaires (PHPUnit) et end-to-end (Playwright) pour sécuriser les évolutions rapides.
@@ -76,6 +95,9 @@ Ce document positionne **Visi-Bloc – JLG** face à trois solutions premium du 
 - Remplacer les listes de taxonomies par des `ComboboxControl` filtrants/paginés pour les gros catalogues.
   - Chargement à la demande via REST, mémorisation des sélections récentes par utilisateur.
 - Étendre les badges de l'arbre de blocs pour refléter calendrier, segments et géociblage avec texte accessible.
+- Ajouter des **micro-interactions** inspirées des solutions pro pour clarifier l'état de chaque règle.
+  - Animations discrètes lors de l'activation/désactivation, toasts avec résumé d'impact (« Règle activée pour 18 % des visiteurs »), transitions cohérentes documentées dans le design system.
+  - Options de personnalisation du layout (densité compacte/standard) stockées côté utilisateur pour adapter l'ergonomie aux cas intensifs.
 
 ### P2 – Ciblage enrichi
 - Intégrer un module de géolocalisation (MaxMind, IP2Location) avec cache transitoire et respect du consentement. *(Version initiale livrée : ciblage par pays basé sur les codes ISO et cache transitoire.)*
@@ -92,6 +114,9 @@ Ce document positionne **Visi-Bloc – JLG** face à trois solutions premium du 
   - Page `Visi-Bloc → Insights` (Victory/Recharts), mode sombre/clair, export CSV/JSON, filtres par période, règle, audience, device.
 - Déployer un module d'A/B testing.
   - Custom post type `visibloc_test`, allocation aléatoire puis bandit (Thompson Sampling) possible, reporting intégré et notifications de signifiance.
+- Assurer la **fiabilité opérationnelle** de ces nouveaux flux.
+  - Ajouter des sondes de performance (latence REST, erreurs 4xx/5xx) et un tableau de bord SLO simple (temps de réponse, fraîcheur des données) accessible depuis l'écran Insights.
+  - Mettre en place des webhooks de supervision (Slack, Teams) et un plan de reprise (retry queue, alerte si >5 % d'erreurs sur 10 min).
 
 ### P3 – Gouvernance & collaboration
 - Enregistrer tous les changements de règles dans un audit log exportable (`wp_visibloc_audit`).
