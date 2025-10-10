@@ -99,6 +99,7 @@ Ce document positionne **Visi-Bloc – JLG** face à trois solutions premium du 
 - Mettre en place un workflow « Brouillon → Revue → Publié » avec commentaires @mention.
   - Statut `needs_review`, panneau latéral d'assignation, notifications WP admin + email + webhooks Slack/Teams.
 - Ajouter un centre de notifications proactif (règles expirées, absence de fallback, conflits de conditions).
+  - Une première itération est disponible dans l’interface d’aide (fallback global manquant, programmations expirées ou massivement servies en fallback).
   - Niveaux Info/Alerte/Critique avec CTA « Corriger » ouvrant la règle ; déclencheurs à l'enregistrement et via cron quotidien.
 
 ### Synthèse priorisée

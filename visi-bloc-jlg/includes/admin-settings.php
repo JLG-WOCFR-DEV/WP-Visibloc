@@ -114,6 +114,298 @@ function visibloc_jlg_calculate_onboarding_progress( array $items ) {
 }
 
 /**
+ * Normalize a schedule timestamp coming from block attributes.
+ *
+ * @param mixed $value Raw timestamp or date string.
+ * @return int|null
+ */
+function visibloc_jlg_normalize_schedule_timestamp( $value ) {
+    if ( null === $value || '' === $value ) {
+        return null;
+    }
+
+    if ( is_numeric( $value ) ) {
+        $timestamp = (int) $value;
+
+        return $timestamp > 0 ? $timestamp : null;
+    }
+
+    $timestamp = strtotime( (string) $value );
+
+    return false !== $timestamp ? $timestamp : null;
+}
+
+/**
+ * Collect proactive admin notifications from various data sources.
+ *
+ * @param array $context Optional contextual data to avoid duplicate queries.
+ * @return array<int,array<string,mixed>>
+ */
+function visibloc_jlg_collect_admin_notifications( array $context = [] ) {
+    $notifications = [];
+
+    $fallback_settings = isset( $context['fallback_settings'] )
+        ? (array) $context['fallback_settings']
+        : visibloc_jlg_get_fallback_settings();
+    $hidden_posts      = isset( $context['hidden_posts'] )
+        ? (array) $context['hidden_posts']
+        : visibloc_jlg_get_hidden_posts();
+    $scheduled_posts   = isset( $context['scheduled_posts'] )
+        ? (array) $context['scheduled_posts']
+        : visibloc_jlg_get_scheduled_posts();
+
+    $has_fallback_content = visibloc_jlg_fallback_has_content( $fallback_settings );
+    $hidden_block_total   = 0;
+
+    foreach ( $hidden_posts as $post_data ) {
+        if ( isset( $post_data['block_count'] ) ) {
+            $hidden_block_total += max( 0, (int) $post_data['block_count'] );
+        }
+    }
+
+    if ( ! $has_fallback_content ) {
+        $description = __( 'Aucun fallback global n’est défini. Configurez un message ou un bloc de repli pour éviter les zones vides lorsque du contenu est masqué.', 'visi-bloc-jlg' );
+
+        if ( $hidden_block_total > 0 ) {
+            /* translators: %d: Number of hidden blocks. */
+            $description = sprintf( __( '%d blocs sont masqués sans fallback global. Configurez un message ou un bloc de repli pour sécuriser le parcours visiteur.', 'visi-bloc-jlg' ), $hidden_block_total );
+        }
+
+        $notifications[] = [
+            'id'          => 'missing-fallback',
+            'level'       => 'critical',
+            'title'       => __( 'Fallback global absent', 'visi-bloc-jlg' ),
+            'description' => $description,
+            'actions'     => [
+                [
+                    'label'   => __( 'Configurer le fallback', 'visi-bloc-jlg' ),
+                    'url'     => admin_url( 'admin.php?page=visi-bloc-jlg-help#visibloc-section-fallback' ),
+                    'variant' => 'primary',
+                ],
+            ],
+        ];
+    }
+
+    $now = function_exists( 'current_time' ) ? (int) current_time( 'timestamp' ) : time();
+
+    $expired_map  = [];
+    $expiring_map = [];
+    $expiring_threshold = DAY_IN_SECONDS * 2;
+
+    foreach ( $scheduled_posts as $entry ) {
+        $post_id = isset( $entry['id'] ) ? (int) $entry['id'] : 0;
+
+        if ( $post_id <= 0 ) {
+            continue;
+        }
+
+        $end_timestamp = visibloc_jlg_normalize_schedule_timestamp( $entry['end'] ?? null );
+        $start_timestamp = visibloc_jlg_normalize_schedule_timestamp( $entry['start'] ?? null );
+
+        if ( null === $end_timestamp && null === $start_timestamp ) {
+            continue;
+        }
+
+        $title = isset( $entry['title'] ) && is_string( $entry['title'] )
+            ? $entry['title']
+            : '';
+        $link = isset( $entry['link'] ) && is_string( $entry['link'] )
+            ? $entry['link']
+            : '';
+
+        if ( null !== $end_timestamp && $end_timestamp < $now ) {
+            if ( ! isset( $expired_map[ $post_id ] ) ) {
+                $expired_map[ $post_id ] = [
+                    'id'          => $post_id,
+                    'title'       => $title,
+                    'link'        => $link,
+                    'occurrences' => 0,
+                    'closest'     => null,
+                ];
+            }
+
+            $expired_map[ $post_id ]['occurrences']++;
+
+            if ( null === $expired_map[ $post_id ]['closest'] || $end_timestamp < $expired_map[ $post_id ]['closest'] ) {
+                $expired_map[ $post_id ]['closest'] = $end_timestamp;
+            }
+
+            continue;
+        }
+
+        if ( null !== $end_timestamp && ( $end_timestamp - $now ) <= $expiring_threshold ) {
+            if ( ! isset( $expiring_map[ $post_id ] ) ) {
+                $expiring_map[ $post_id ] = [
+                    'id'          => $post_id,
+                    'title'       => $title,
+                    'link'        => $link,
+                    'occurrences' => 0,
+                    'closest'     => null,
+                ];
+            }
+
+            $expiring_map[ $post_id ]['occurrences']++;
+
+            if ( null === $expiring_map[ $post_id ]['closest'] || $end_timestamp < $expiring_map[ $post_id ]['closest'] ) {
+                $expiring_map[ $post_id ]['closest'] = $end_timestamp;
+            }
+        }
+    }
+
+    $datetime_format = visibloc_jlg_get_wp_datetime_format();
+
+    if ( ! empty( $expired_map ) ) {
+        $total_expired = 0;
+        $expired_items = array_values( $expired_map );
+
+        usort(
+            $expired_items,
+            static function ( $a, $b ) {
+                return ( $a['closest'] ?? PHP_INT_MAX ) <=> ( $b['closest'] ?? PHP_INT_MAX );
+            }
+        );
+
+        $rendered_items = [];
+
+        foreach ( array_slice( $expired_items, 0, 5 ) as $item ) {
+            $total_expired += isset( $item['occurrences'] ) ? (int) $item['occurrences'] : 0;
+            $label = $item['title'];
+
+            if ( $item['occurrences'] > 1 ) {
+                /* translators: %s: Post title. %d: Number of rules. */
+                $label = sprintf( __( '%1$s – %2$d programmations', 'visi-bloc-jlg' ), $label, (int) $item['occurrences'] );
+            }
+
+            if ( isset( $item['closest'] ) && null !== $item['closest'] ) {
+                $label .= ' · ' . date_i18n( $datetime_format, (int) $item['closest'] );
+            }
+
+            $rendered_items[] = [
+                'label' => $label,
+                'url'   => $item['link'],
+            ];
+        }
+
+        if ( $total_expired <= 0 ) {
+            $total_expired = array_sum( wp_list_pluck( $expired_items, 'occurrences' ) );
+        }
+
+        $notifications[] = [
+            'id'          => 'schedule-expired',
+            'level'       => 'critical',
+            'title'       => __( 'Programmations expirées', 'visi-bloc-jlg' ),
+            'description' => sprintf(
+                _n(
+                    'Une programmation est arrivée à expiration mais masque toujours un bloc.',
+                    '%d programmations sont arrivées à expiration et masquent toujours des blocs.',
+                    $total_expired,
+                    'visi-bloc-jlg'
+                ),
+                $total_expired
+            ),
+            'items'       => $rendered_items,
+            'actions'     => [
+                [
+                    'label' => __( 'Ouvrir le tableau des blocs programmés', 'visi-bloc-jlg' ),
+                    'url'   => admin_url( 'admin.php?page=visi-bloc-jlg-help#visibloc-section-scheduled' ),
+                ],
+            ],
+        ];
+    }
+
+    if ( ! empty( $expiring_map ) ) {
+        $total_expiring = 0;
+        $expiring_items = array_values( $expiring_map );
+
+        usort(
+            $expiring_items,
+            static function ( $a, $b ) {
+                return ( $a['closest'] ?? PHP_INT_MAX ) <=> ( $b['closest'] ?? PHP_INT_MAX );
+            }
+        );
+
+        $rendered_items = [];
+
+        foreach ( array_slice( $expiring_items, 0, 5 ) as $item ) {
+            $total_expiring += isset( $item['occurrences'] ) ? (int) $item['occurrences'] : 0;
+            $label = $item['title'];
+
+            if ( $item['occurrences'] > 1 ) {
+                /* translators: %s: Post title. %d: Number of rules. */
+                $label = sprintf( __( '%1$s – %2$d programmations', 'visi-bloc-jlg' ), $label, (int) $item['occurrences'] );
+            }
+
+            if ( isset( $item['closest'] ) && null !== $item['closest'] ) {
+                $label .= ' · ' . date_i18n( $datetime_format, (int) $item['closest'] );
+            }
+
+            $rendered_items[] = [
+                'label' => $label,
+                'url'   => $item['link'],
+            ];
+        }
+
+        if ( $total_expiring <= 0 ) {
+            $total_expiring = array_sum( wp_list_pluck( $expiring_items, 'occurrences' ) );
+        }
+
+        $notifications[] = [
+            'id'          => 'schedule-expiring-soon',
+            'level'       => 'warning',
+            'title'       => __( 'Programmations qui s’achèvent bientôt', 'visi-bloc-jlg' ),
+            'description' => sprintf(
+                _n(
+                    'Une programmation se termine dans les prochaines 48 heures.',
+                    '%d programmations se terminent dans les prochaines 48 heures.',
+                    $total_expiring,
+                    'visi-bloc-jlg'
+                ),
+                $total_expiring
+            ),
+            'items'       => $rendered_items,
+            'actions'     => [
+                [
+                    'label' => __( 'Vérifier les fenêtres temporelles', 'visi-bloc-jlg' ),
+                    'url'   => admin_url( 'admin.php?page=visi-bloc-jlg-help#visibloc-section-scheduled' ),
+                ],
+            ],
+        ];
+    }
+
+    if ( function_exists( 'visibloc_jlg_get_insight_dashboard_model' ) ) {
+        $insights = visibloc_jlg_get_insight_dashboard_model();
+
+        $exposures     = isset( $insights['totals']['exposures'] ) ? (int) $insights['totals']['exposures'] : 0;
+        $fallback_hits = isset( $insights['counters']['fallback'] ) ? (int) $insights['counters']['fallback'] : 0;
+        $fallback_rate = isset( $insights['rates']['fallback'] ) ? (float) $insights['rates']['fallback'] : 0.0;
+
+        if ( $exposures > 0 && $fallback_hits > 0 && $fallback_rate >= 25.0 ) {
+            $level = $fallback_rate >= 40.0 ? 'critical' : 'warning';
+
+            $notifications[] = [
+                'id'          => 'fallback-usage-alert',
+                'level'       => $level,
+                'title'       => __( 'Beaucoup de visiteurs voient le fallback', 'visi-bloc-jlg' ),
+                'description' => sprintf(
+                    /* translators: 1: Fallback rate. 2: Number of fallback impressions. */
+                    __( 'Le fallback a été servi dans %1$s des affichages suivis (%2$d occurrences). Vérifiez les règles pour éviter une perte de conversion.', 'visi-bloc-jlg' ),
+                    visibloc_jlg_format_insight_percentage( $fallback_rate ),
+                    $fallback_hits
+                ),
+                'actions'     => [
+                    [
+                        'label' => __( 'Analyser les règles actives', 'visi-bloc-jlg' ),
+                        'url'   => admin_url( 'admin.php?page=visi-bloc-jlg-help#visibloc-section-insights' ),
+                    ],
+                ],
+            ];
+        }
+    }
+
+    return $notifications;
+}
+
+/**
  * Provide a curated block template for a guided recipe.
  *
  * @param string $slug Recipe identifier.
@@ -1013,6 +1305,14 @@ function visibloc_jlg_render_help_page_content() {
 
     $guided_recipes = visibloc_jlg_get_guided_recipes();
 
+    $notifications = visibloc_jlg_collect_admin_notifications(
+        [
+            'fallback_settings' => $fallback_settings,
+            'hidden_posts'      => $hidden_posts,
+            'scheduled_posts'   => $scheduled_posts,
+        ]
+    );
+
     $breakpoints_requirement_message = visibloc_jlg_get_breakpoints_requirement_message();
 
     $onboarding_items = visibloc_jlg_build_onboarding_checklist_items(
@@ -1045,6 +1345,13 @@ function visibloc_jlg_render_help_page_content() {
             'args'    => [ $guided_recipes ],
         ];
     }
+
+    $section_map['visibloc-section-notifications'] = [
+        'id'     => 'visibloc-section-notifications',
+        'label'  => __( 'Centre de notifications', 'visi-bloc-jlg' ),
+        'render' => 'visibloc_jlg_render_notifications_section',
+        'args'   => [ $notifications ],
+    ];
 
     $section_map['visibloc-section-insights'] = [
         'id'     => 'visibloc-section-insights',
@@ -1119,7 +1426,7 @@ function visibloc_jlg_render_help_page_content() {
             'id'          => 'visibloc-group-dashboards',
             'label'       => __( 'Tableaux de bord', 'visi-bloc-jlg' ),
             'description' => __( 'Surveillez les blocs masqués, programmés ou ciblés par appareil pour détecter les anomalies en production.', 'visi-bloc-jlg' ),
-            'section_ids' => [ 'visibloc-section-insights', 'visibloc-section-hidden', 'visibloc-section-device', 'visibloc-section-scheduled' ],
+            'section_ids' => [ 'visibloc-section-notifications', 'visibloc-section-insights', 'visibloc-section-hidden', 'visibloc-section-device', 'visibloc-section-scheduled' ],
         ],
         [
             'id'          => 'visibloc-group-configuration',
@@ -2005,6 +2312,105 @@ function visibloc_jlg_render_permissions_section( $allowed_roles ) {
                 <?php wp_nonce_field( 'visibloc_save_permissions', 'visibloc_nonce' ); ?>
                 <?php submit_button( __( 'Enregistrer les Permissions', 'visi-bloc-jlg' ) ); ?>
             </form>
+        </div>
+    </div>
+    <?php
+}
+
+function visibloc_jlg_render_notifications_section( $notifications ) {
+    $section_id = 'visibloc-section-notifications';
+    $level_labels = [
+        'critical' => __( 'Critique', 'visi-bloc-jlg' ),
+        'warning'  => __( 'Alerte', 'visi-bloc-jlg' ),
+        'info'     => __( 'Information', 'visi-bloc-jlg' ),
+    ];
+
+    ?>
+    <div
+        id="<?php echo esc_attr( $section_id ); ?>"
+        class="postbox"
+        data-visibloc-section="<?php echo esc_attr( $section_id ); ?>"
+    >
+        <h2 class="hndle"><span><?php esc_html_e( 'Centre de notifications', 'visi-bloc-jlg' ); ?></span></h2>
+        <div class="inside">
+            <div class="visibloc-notifications">
+                <?php if ( empty( $notifications ) ) : ?>
+                    <p class="visibloc-notifications__empty">
+                        <?php esc_html_e( 'Aucune alerte critique détectée pour le moment.', 'visi-bloc-jlg' ); ?>
+                    </p>
+                <?php else : ?>
+                    <ul class="visibloc-notifications__list">
+                        <?php foreach ( $notifications as $notification ) :
+                            $level = isset( $notification['level'] ) && is_string( $notification['level'] )
+                                ? strtolower( $notification['level'] )
+                                : 'info';
+
+                            if ( ! isset( $level_labels[ $level ] ) ) {
+                                $level = 'info';
+                            }
+
+                            $items   = isset( $notification['items'] ) && is_array( $notification['items'] )
+                                ? $notification['items']
+                                : [];
+                            $actions = isset( $notification['actions'] ) && is_array( $notification['actions'] )
+                                ? $notification['actions']
+                                : [];
+                            ?>
+                            <li class="visibloc-notification visibloc-notification--<?php echo esc_attr( $level ); ?>">
+                                <div class="visibloc-notification__header">
+                                    <span class="visibloc-notification__badge">
+                                        <?php echo esc_html( $level_labels[ $level ] ); ?>
+                                    </span>
+                                    <h3 class="visibloc-notification__title">
+                                        <?php echo esc_html( $notification['title'] ?? '' ); ?>
+                                    </h3>
+                                </div>
+                                <?php if ( ! empty( $notification['description'] ) ) : ?>
+                                    <p class="visibloc-notification__description">
+                                        <?php echo esc_html( $notification['description'] ); ?>
+                                    </p>
+                                <?php endif; ?>
+
+                                <?php if ( ! empty( $items ) ) : ?>
+                                    <ul class="visibloc-notification__items">
+                                        <?php foreach ( array_slice( $items, 0, 5 ) as $item ) :
+                                            $item_label = isset( $item['label'] ) ? (string) $item['label'] : '';
+                                            $item_url   = isset( $item['url'] ) ? (string) $item['url'] : '';
+                                            ?>
+                                            <li>
+                                                <?php if ( '' !== $item_url ) : ?>
+                                                    <a href="<?php echo esc_url( $item_url ); ?>">
+                                                        <?php echo esc_html( $item_label ); ?>
+                                                    </a>
+                                                <?php else : ?>
+                                                    <span><?php echo esc_html( $item_label ); ?></span>
+                                                <?php endif; ?>
+                                            </li>
+                                        <?php endforeach; ?>
+                                    </ul>
+                                <?php endif; ?>
+
+                                <?php if ( ! empty( $actions ) ) : ?>
+                                    <div class="visibloc-notification__actions">
+                                        <?php foreach ( array_slice( $actions, 0, 2 ) as $action ) :
+                                            $variant = isset( $action['variant'] ) && 'primary' === $action['variant']
+                                                ? 'button-primary'
+                                                : 'button-secondary';
+                                            ?>
+                                            <a
+                                                class="button <?php echo esc_attr( $variant ); ?>"
+                                                href="<?php echo esc_url( $action['url'] ?? '' ); ?>"
+                                            >
+                                                <?php echo esc_html( $action['label'] ?? '' ); ?>
+                                            </a>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
     <?php

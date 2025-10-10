@@ -22,6 +22,7 @@ Visi-Bloc – JLG is a WordPress plugin that adds advanced visibility controls t
 - **Snapshots de configuration** – exportez/importez l’ensemble des réglages (blocs pris en charge, seuils responsive, fallback, rôles autorisés, mode debug) pour synchroniser plusieurs environnements.
 - **Panneau d’aide unifié** – gérez les blocs pris en charge, les seuils responsive, le fallback, les permissions d’aperçu et le mode debug depuis une unique page dans l’administration.
 - **Gestion du cache** – régénérez à la demande l’index des blocs groupés et videz les caches liés aux fallbacks, aux feuilles de style et aux aperçus lorsque la configuration change.
+- **Centre de notifications proactif** – visualisez les alertes critiques (fallback manquant, programmations expirées ou massivement servies en fallback) directement depuis la page d’aide.
 
 ### Intégrations et outils développeur
 - **Filtres extensibles** – ajustez la requête listant les blocs de fallback, la liste des rôles pouvant impersoner ou encore les blocs pris en charge via les hooks fournis.

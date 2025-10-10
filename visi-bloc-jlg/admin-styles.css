@@ -1471,3 +1471,118 @@ body.visibloc-recipes-modal-open {
     font-size: 12px;
     color: var(--visibloc-text-subtle);
 }
+
+.visibloc-notifications {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.visibloc-notifications__empty {
+    margin: 0;
+    color: var(--visibloc-text-subtle);
+}
+
+.visibloc-notifications__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.visibloc-notification {
+    border: 1px solid var(--visibloc-border-subtle);
+    border-radius: var(--visibloc-radius-base);
+    background: var(--visibloc-surface);
+    box-shadow: var(--visibloc-shadow-subtle);
+    padding: 20px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.visibloc-notification--critical {
+    border-color: rgba(220, 38, 38, 0.32);
+    box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.18), var(--visibloc-shadow-subtle);
+}
+
+.visibloc-notification--warning {
+    border-color: rgba(234, 179, 8, 0.32);
+    box-shadow: 0 0 0 1px rgba(234, 179, 8, 0.16), var(--visibloc-shadow-subtle);
+}
+
+.visibloc-notification__header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.visibloc-notification__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 10px;
+    border-radius: var(--visibloc-radius-pill);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: rgba(79, 70, 229, 0.12);
+    color: var(--visibloc-accent-strong);
+}
+
+.visibloc-notification--critical .visibloc-notification__badge {
+    background: rgba(220, 38, 38, 0.16);
+    color: #991b1b;
+}
+
+.visibloc-notification--warning .visibloc-notification__badge {
+    background: rgba(234, 179, 8, 0.18);
+    color: #92400e;
+}
+
+.visibloc-notification__title {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--visibloc-text-primary);
+}
+
+.visibloc-notification__description {
+    margin: 0;
+    color: var(--visibloc-text-subtle);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.visibloc-notification__items {
+    margin: 0;
+    padding-left: 18px;
+    color: var(--visibloc-text-primary);
+}
+
+.visibloc-notification__items li {
+    margin-bottom: 6px;
+}
+
+.visibloc-notification__items li:last-child {
+    margin-bottom: 0;
+}
+
+.visibloc-notification__items a {
+    text-decoration: none;
+}
+
+.visibloc-notification__items a:hover,
+.visibloc-notification__items a:focus {
+    text-decoration: underline;
+}
+
+.visibloc-notification__actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
