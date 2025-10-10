@@ -34,7 +34,7 @@ Visi-Bloc – JLG is a WordPress plugin that adds advanced visibility controls t
 
 ## Comparaison avec des solutions professionnelles et pistes d’amélioration
 
-Des extensions commerciales de personnalisation de contenu (p. ex. Block Visibility Pro, If-So, LogicHop) mettent souvent l’accent sur des segments marketing avancés, des connecteurs SaaS prêts à l’emploi et des tableaux de bord orientés performance. Le tableau ci-dessous synthétise les principales différences observées. Une analyse plus détaillée, incluant recommandations et roadmap priorisée, est disponible dans [`docs/comparaison-applications-pro.md`](visi-bloc-jlg/docs/comparaison-applications-pro.md).
+Des extensions commerciales de personnalisation de contenu (p. ex. Block Visibility Pro, If-So, LogicHop) mettent souvent l’accent sur des segments marketing avancés, des connecteurs SaaS prêts à l’emploi et des tableaux de bord orientés performance. Le tableau ci-dessous synthétise les principales différences observées. Une analyse plus détaillée, incluant recommandations et roadmap priorisée ainsi qu’un focus UX/UI, ergonomie, fiabilité et design, est disponible dans [`docs/comparaison-applications-pro.md`](visi-bloc-jlg/docs/comparaison-applications-pro.md).
 
 ### Synthèse comparative avec des applications professionnelles
 
