@@ -605,6 +605,8 @@ function visibloc_jlg_enqueue_editor_assets() {
             'fallbackBlocksEndpoint' => visibloc_jlg_get_fallback_blocks_rest_url(),
             'visualPresets'    => visibloc_jlg_get_editor_visual_presets(),
             'guidedRecipes'    => visibloc_jlg_get_editor_guided_recipes(),
+            'editorPreferences' => visibloc_jlg_get_editor_preferences_payload(),
+            'editorPreferencesEndpoint' => visibloc_jlg_get_editor_preferences_rest_url(),
         ]
     );
 }

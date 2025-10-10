@@ -31,35 +31,84 @@ Ce document positionne **Visi-Bloc – JLG** face à trois solutions premium du 
 
 ## Améliorations recommandées
 
-### 1. Parcours guidés & playbooks
+### P0 – Mode Simple / Expert et accessibilité immédiate
+- Repenser l'inspecteur avec un stepper clair, des badges de sévérité et des CTA contextualisés pour limiter la surcharge cognitive dès la première release.
+  - Utiliser un `Stepper` maison (ou `NavigationItem`) avec étapes collapsibles et sauvegarde automatique à chaque changement.
+  - Afficher des badges « Essentiel / Avancé » et un indicateur de complétude pour guider la progression.
+- Introduire un **mode Simple** (règles essentielles, recommandations guidées, vocabulaire marketing) et un **mode Expert** (conditions avancées, logique booléenne, paramètres techniques) avec bascule persistée.
+  - Option utilisateur `visibloc_editor_mode`, comparaison synthétique avant bascule, toggle accessible (`role="switch"`, libellé explicite et raccourci clavier).
+  - Mode Simple : blocs intelligents pré-configurés (timer, bannière, upsell), tutoriels inline, recommandations de segmentation en 1 clic.
+  - Mode Expert : onglets supplémentaires (logique imbriquée, hooks), historique des versions, import/export YAML.
+- Prévoir un récapitulatif synthétique (cartes « Objectif / Audience / Timing / Fallback ») commun aux deux modes pour garantir l'alignement marketing/technique.
+  - Cartes interactives imprimables, partageables via lien public (token) avec badge d'intégrité (vert/orange/rouge) calculé par le validateur central.
+- Renforcer immédiatement l'accessibilité et la cohérence visuelle.
+  - Focus ring unifié documenté (`focus.tokens.json`), tests `axe-core` dans la CI via Playwright (`await expect(page).toHaveNoViolations()`), badges d'arbre de blocs avec icônes SVG + texte caché.
+  - Préférence « haute visibilité » (contraste renforcé, animations réduites, zones cliquables élargies) persistée en `localStorage` + `user_meta`.
+  - Alertes in-éditeur quand un bloc est masqué par une règle, messages d'erreur contextualisés avec description ARIA et ordre de tabulation vérifié.
+
+### P0 – Fiabilité, performance et observabilité
+- Couvrir les scénarios critiques par des tests unitaires (PHPUnit) et end-to-end (Playwright) pour sécuriser les évolutions rapides.
+  - Fixtures Playwright pour bloc promo, segments combinés, géolocalisation ; tests `tests/Rules/ParserTest.php` sur le parsing booléen.
+- Ajouter des contrôles de cohérence automatiques à l'enregistrement.
+  - `RuleValidator` centralisé, corrections rapides en 1 clic et hooks d'extension pour l'écosystème.
+- Suivre la santé des intégrations et services tiers.
+  - Monitoring des API CRM, géolocalisation et file analytics avec widget « Santé des intégrations » rafraîchi toutes les 5 minutes.
+- Fournir un package diagnostic exportable pour accélérer le support.
+  - Bouton « Générer un package » rassemblant options, versions, logs anonymisés et derniers événements, avec hash de vérification.
+- Exécuter des tests de charge réguliers sur les endpoints REST critiques.
+  - Scripts k6/Gatling dans `tests/perf/`, seuil 95e percentile < 200 ms, alertes Slack en cas de dérive.
+
+### P1 – Parcours guidés & playbooks
 - Ajouter un assistant en 4 étapes (Objectif → Audience → Timing → Contenu) inspiré des solutions pro.
+  - **Objectif** : templates (conversion, engagement, personnalisation) alimentant des KPI par défaut.
+  - **Audience** : regroupement visuel des conditions avec chips éditables et prévisualisation « personnes concernées ».
+  - **Timing** : timeline horizontale avec contraintes de calendrier, fenêtre de fréquence et fallback automatique.
+  - **Contenu** : résumé du bloc ciblé, options de duplication, rappel des effets de la règle.
 - Proposer une bibliothèque de recettes contextualisées (upsell WooCommerce, nurturing B2B, relance panier) accessible depuis l'inspecteur.
-- Pré-remplir les réglages clés avec suggestions intelligentes basées sur les scénarios déjà configurés.
+  - Recettes stockées en JSON (`resources/recipes/`) avec métadonnées (usage, prérequis, difficulté) et recherche full-text.
+  - Présentation via `Modal` avec badges par persona et aperçu des KPI attendus.
+- Pré-remplir les réglages clés avec suggestions intelligentes basées sur les scénarios existants.
+  - Moteur de recommandations analysant fréquence et segments dominants, exposé via API REST `visibloc/v1/recommendations` utilisée par l'assistant et le mode Simple.
 
-### 2. Ciblage enrichi
-- Intégrer un module de géolocalisation (MaxMind, IP2Location) avec cache transitoire et respect du consentement utilisateur.
-- Détecter les appareils / systèmes (iOS, Android, desktop tactile) via une couche d'abstraction côté front.
-- Offrir des connecteurs natifs HubSpot, Brevo, Mailchimp, ActiveCampaign pour activer des segments marketing dynamiques.
+### P1 – Expérience éditeur avancée
+- Introduire un canvas « Parcours & règles » représentant les scénarios sous forme de cartes connectées colorées selon leur usage.
+  - Basé sur `@wordpress/components` + `react-flow`, regroupement par page ou objectif, vue timeline affichant la superposition des règles.
+- Remplacer les listes de taxonomies par des `ComboboxControl` filtrants/paginés pour les gros catalogues.
+  - Chargement à la demande via REST, mémorisation des sélections récentes par utilisateur.
+- Étendre les badges de l'arbre de blocs pour refléter calendrier, segments et géociblage avec texte accessible.
 
-### 3. Analytics et optimisation
-- Capturer impressions, vues effectives et conversions dans une table dédiée (`wp_visibloc_insights`).
-- Visualiser les données via un tableau de bord (cards KPI + heatmap de couverture + timeline des règles).
-- Déployer un module d'A/B testing sur les blocs, avec répartition automatique du trafic et mesures comparatives.
+### P2 – Ciblage enrichi
+- Intégrer un module de géolocalisation (MaxMind, IP2Location) avec cache transitoire et respect du consentement.
+  - `GeolocationService` dédié, fallback pays si consentement absent, réponses en `transient` 15 min invalidées par cron.
+- Détecter appareils/systèmes (iOS, Android, desktop tactile) via une couche front partagée.
+  - `DeviceContextProvider` commun éditeur/front basé sur `navigator.userAgentData` ou fallback UA, segments devices avec pictogrammes et aide accessibilité.
+- Offrir des connecteurs HubSpot, Brevo, Mailchimp, ActiveCampaign pour activer des segments dynamiques.
+  - Interface `MarketingConnectorInterface`, synchronisations différées via Action Scheduler, documentation de mapping de champs.
 
-### 4. Gouvernance & collaboration
-- Enregistrer les changements de règles (création, modification, suppression) dans un audit log exportable.
-- Mettre en place un workflow « Brouillon → Revue → Publié » avec commentaires @mention et notifications.
-- Ajouter un centre de notifications proactif (règles expirées, absence de fallback, conflits de conditions) avec priorisation.
+### P2 – Analytics et optimisation
+- Capturer impressions, vues effectives et conversions dans `wp_visibloc_insights`.
+  - Schéma : `rule_id`, `block_id`, `timestamp`, `event_type`, `audience_hash`, `context_metadata` (JSON), ingestion via REST + fallback `admin-ajax.php`, file d'attente optionnelle (WP Queue/Redis).
+- Visualiser les données via un tableau de bord dédié.
+  - Page `Visi-Bloc → Insights` (Victory/Recharts), mode sombre/clair, export CSV/JSON, filtres par période, règle, audience, device.
+- Déployer un module d'A/B testing.
+  - Custom post type `visibloc_test`, allocation aléatoire puis bandit (Thompson Sampling) possible, reporting intégré et notifications de signifiance.
 
-### 5. Expérience éditeur
-- Repenser l'inspecteur avec un stepper clair, badges de sévérité et CTA contextualisés.
-- Introduire un canvas « Parcours & règles » affichant les scénarios sous forme de cartes connectées et colorées selon leur usage.
-- Remplacer les listes de taxonomies par des `ComboboxControl` filtrants et paginés pour supporter les gros catalogues.
+### P3 – Gouvernance & collaboration
+- Enregistrer tous les changements de règles dans un audit log exportable (`wp_visibloc_audit`).
+  - Détails utilisateur, action, diff JSON, IP, contexte ; interface filtrable avec export CSV.
+- Mettre en place un workflow « Brouillon → Revue → Publié » avec commentaires @mention.
+  - Statut `needs_review`, panneau latéral d'assignation, notifications WP admin + email + webhooks Slack/Teams.
+- Ajouter un centre de notifications proactif (règles expirées, absence de fallback, conflits de conditions).
+  - Niveaux Info/Alerte/Critique avec CTA « Corriger » ouvrant la règle ; déclencheurs à l'enregistrement et via cron quotidien.
 
-### 6. Accessibilité et feedback
-- Définir systématiquement un focus ring visible et tester chaque composant avec `axe-core` dans la CI.
-- Étendre les badges de l'arbre de blocs pour refléter les règles dynamiques (calendrier, segments, géociblage).
-- Fournir des alertes in-éditeur quand un bloc est masqué par une règle conditionnelle.
+### Synthèse priorisée
+
+| Priorité | Objectif principal | Livrables clés | Indicateurs d'impact |
+| --- | --- | --- | --- |
+| **P0** | Stabiliser l'expérience et éviter les régressions | Mode Simple/Expert complet, accessibilité AA, stepper hiérarchisé, tests Playwright/PHPUnit, monitoring & perf tests | Adoption du mode Simple, taux de tests verts, absence de régressions critiques |
+| **P1** | Accélérer la création de scénarios et la visualisation | Assistant 4 étapes, recettes JSON, moteur de recommandations, canvas des parcours, combobox filtrantes | Temps moyen de création < 10 min, taux d'utilisation des recettes |
+| **P2** | Étendre la personnalisation et mesurer l'impact | Géolocalisation, DeviceContext, connecteurs marketing, tableau de bord Insights, A/B testing | Couverture segments, conversions mesurées, latence API < 200 ms |
+| **P3** | Structurer la gouvernance et la collaboration | Audit log, workflow de revue, centre de notifications intelligent | Délai de validation des règles, nombre d'alertes résolues |
 
 ## Roadmap suggérée
 

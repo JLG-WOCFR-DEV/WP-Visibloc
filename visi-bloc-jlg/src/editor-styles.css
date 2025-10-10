@@ -69,6 +69,45 @@
     gap: 16px;
 }
 
+.visibloc-editor-mode {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.visibloc-editor-mode__toggle .components-segmented-control__button {
+    gap: 6px;
+}
+
+.visibloc-editor-mode__meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.visibloc-editor-mode__spinner {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--wp-components-color-foreground-muted, #50575e);
+}
+
+.visibloc-editor-mode__spinner .components-spinner {
+    width: 16px;
+    height: 16px;
+}
+
+.visibloc-editor-mode__spinner-text {
+    display: inline-block;
+}
+
+.visibloc-editor-mode__status {
+    margin: 0;
+}
+
 .visibloc-diagnostic-card {
     border-radius: var(--visibloc-radius-base);
     border: 1px solid var(--visibloc-border-subtle);

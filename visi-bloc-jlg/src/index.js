@@ -216,6 +216,66 @@ const ClockAlertBadgeIcon = () => (
     </svg>
 );
 
+const SimpleModeIcon = () => (
+    <svg
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        role="presentation"
+        focusable="false"
+        aria-hidden="true"
+    >
+        <rect
+            x="4"
+            y="5"
+            width="16"
+            height="14"
+            rx="2.4"
+            fill="currentColor"
+            opacity="0.18"
+        />
+        <path
+            d="M7 9.5h10M7 12h6M7 14.5h4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        />
+    </svg>
+);
+
+const ExpertModeIcon = () => (
+    <svg
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        role="presentation"
+        focusable="false"
+        aria-hidden="true"
+    >
+        <rect
+            x="3"
+            y="4"
+            width="18"
+            height="16"
+            rx="2.6"
+            fill="currentColor"
+            opacity="0.18"
+        />
+        <path
+            d="M7 9.5h6l2-2.5 2 6 2-3.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        />
+        <circle cx="9" cy="15" r="1.3" fill="currentColor" />
+        <circle cx="15" cy="15" r="1.3" fill="currentColor" />
+    </svg>
+);
+
 const LayersBadgeIcon = () => (
     <svg
         width="16"
@@ -747,6 +807,21 @@ const DEFAULT_RECURRING_SCHEDULE = Object.freeze({
 
 const SITE_TIMEZONE_VALUE = 'site';
 const FALLBACK_BLOCKS_PER_PAGE = 20;
+
+const EDITOR_MODE_SIMPLE = 'simple';
+const EDITOR_MODE_EXPERT = 'expert';
+const DEFAULT_EDITOR_MODE = EDITOR_MODE_SIMPLE;
+const SIMPLE_MODE_STEP_IDS = ['device', 'schedule', 'roles', 'fallback'];
+
+const sanitizeEditorMode = (value) => {
+    if (typeof value !== 'string') {
+        return DEFAULT_EDITOR_MODE;
+    }
+
+    const normalized = value.trim().toLowerCase();
+
+    return normalized === EDITOR_MODE_EXPERT ? EDITOR_MODE_EXPERT : EDITOR_MODE_SIMPLE;
+};
 
 const getVisiBlocArray = (key) => {
     if (typeof VisiBlocData !== 'object' || VisiBlocData === null) {
@@ -2996,6 +3071,30 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             () => buildScenarioPresets(guidedRecipes, scenarioContext),
             [guidedRecipes, scenarioContext],
         );
+        const editorPreferences = useMemo(
+            () => getVisiBlocObject('editorPreferences') || {},
+            [],
+        );
+        const editorPreferencesEndpoint = useMemo(
+            () => normalizeRestPath(getVisiBlocString('editorPreferencesEndpoint')),
+            [],
+        );
+        const initialEditorMode = useMemo(
+            () => sanitizeEditorMode(editorPreferences ? editorPreferences.mode : undefined),
+            [editorPreferences],
+        );
+        const [editorMode, setEditorMode] = useState(initialEditorMode);
+        const [isSavingEditorMode, setSavingEditorMode] = useState(false);
+        const [editorModeError, setEditorModeError] = useState('');
+        const [editorModeSuccess, setEditorModeSuccess] = useState('');
+        const editorModeStatusRegionId = useInstanceId(
+            withVisibilityControls,
+            'visibloc-editor-mode-status',
+        );
+        const editorModeControlId = useInstanceId(
+            withVisibilityControls,
+            'visibloc-editor-mode',
+        );
         const [isFallbackPreviewVisible, setFallbackPreviewVisible] = useState(false);
         const [activeInspectorStep, setActiveInspectorStep] = useState('device');
         const [isRecipeModalOpen, setRecipeModalOpen] = useState(false);
@@ -3018,6 +3117,59 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             }),
             [],
         );
+        const isSimpleMode = editorMode !== EDITOR_MODE_EXPERT;
+        const editorModeDescription = isSimpleMode
+            ? __('Le mode Simple affiche les étapes essentielles : appareils, calendrier, rôles et repli.', 'visi-bloc-jlg')
+            : __('Le mode Expert ajoute les règles avancées et les diagnostics détaillés.', 'visi-bloc-jlg');
+        const handleEditorModeChange = useCallback(
+            (nextMode) => {
+                const sanitized = sanitizeEditorMode(nextMode);
+
+                if (sanitized === editorMode) {
+                    return;
+                }
+
+                const previousMode = editorMode;
+
+                setEditorMode(sanitized);
+                setEditorModeError('');
+                setEditorModeSuccess('');
+
+                if (!editorPreferencesEndpoint) {
+                    return;
+                }
+
+                setSavingEditorMode(true);
+
+                apiFetch({
+                    path: editorPreferencesEndpoint,
+                    method: 'POST',
+                    data: { mode: sanitized },
+                })
+                    .then(() => {
+                        setEditorModeSuccess(__('Préférence enregistrée.', 'visi-bloc-jlg'));
+                    })
+                    .catch(() => {
+                        setEditorMode(previousMode);
+                        setEditorModeError(
+                            __('Impossible d’enregistrer la préférence. Réessayez.', 'visi-bloc-jlg'),
+                        );
+                    })
+                    .finally(() => {
+                        setSavingEditorMode(false);
+                    });
+            },
+            [editorMode, editorPreferencesEndpoint],
+        );
+        useEffect(() => {
+            if (!editorModeSuccess) {
+                return undefined;
+            }
+
+            const timeout = setTimeout(() => setEditorModeSuccess(''), 4000);
+
+            return () => clearTimeout(timeout);
+        }, [editorModeSuccess]);
         const fallbackBlockLabel = useMemo(() => {
             if (!fallbackBlockId) {
                 return '';
@@ -4277,6 +4429,8 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
               (fallbackBehavior === 'block' && !fallbackBlockId) ||
               (fallbackBehavior === 'inherit' && !hasGlobalFallback)
             : false;
+        const shouldShowExpertNotice = isSimpleMode && hasAdvancedRules;
+        const expertNoticeStatus = hasAdvancedWarnings ? 'warning' : 'info';
         const visibilityDiagnostics = useMemo(
             () =>
                 getVisibilityDiagnostics({
@@ -4818,9 +4972,24 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                 ),
             },
         ];
+        const filteredInspectorSteps = isSimpleMode
+            ? inspectorSteps.filter((step) => SIMPLE_MODE_STEP_IDS.includes(step.id))
+            : inspectorSteps;
 
-        const defaultInspectorStep = inspectorSteps[0] || null;
-        const inspectorTabs = inspectorSteps.map((step, index) => {
+        useEffect(() => {
+            if (!filteredInspectorSteps.length) {
+                setActiveInspectorStep('');
+
+                return;
+            }
+
+            if (!filteredInspectorSteps.some((step) => step.id === activeInspectorStep)) {
+                setActiveInspectorStep(filteredInspectorSteps[0].id);
+            }
+        }, [filteredInspectorSteps, activeInspectorStep]);
+
+        const defaultInspectorStep = filteredInspectorSteps[0] || null;
+        const inspectorTabs = filteredInspectorSteps.map((step, index) => {
             const badge = stepBadges[step.id];
             const stepTitle = sprintf(__('Étape %1$d · %2$s', 'visi-bloc-jlg'), index + 1, step.label);
 
@@ -4872,6 +5041,68 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                 initialOpen={true}
                                 className="visibloc-panel--guided"
                             >
+                                <div className="visibloc-editor-mode">
+                                    <BaseControl id={editorModeControlId}>
+                                        <BaseControl.VisualLabel>
+                                            {__('Mode d’édition', 'visi-bloc-jlg')}
+                                        </BaseControl.VisualLabel>
+                                        <ToggleGroupControl
+                                            className="visibloc-editor-mode__toggle"
+                                            isBlock
+                                            value={editorMode}
+                                            onChange={(newValue) =>
+                                                handleEditorModeChange(newValue || DEFAULT_EDITOR_MODE)
+                                            }
+                                        >
+                                            <ToggleGroupControlOptionIcon
+                                                value={EDITOR_MODE_SIMPLE}
+                                                label={__('Simple', 'visi-bloc-jlg')}
+                                                icon={SimpleModeIcon}
+                                                disabled={isSavingEditorMode}
+                                            />
+                                            <ToggleGroupControlOptionIcon
+                                                value={EDITOR_MODE_EXPERT}
+                                                label={__('Expert', 'visi-bloc-jlg')}
+                                                icon={ExpertModeIcon}
+                                                disabled={isSavingEditorMode}
+                                            />
+                                        </ToggleGroupControl>
+                                        <div className="visibloc-editor-mode__meta">
+                                            {isSavingEditorMode ? (
+                                                <span className="visibloc-editor-mode__spinner">
+                                                    <Spinner />
+                                                    <span className="visibloc-editor-mode__spinner-text">
+                                                        {__('Enregistrement en cours…', 'visi-bloc-jlg')}
+                                                    </span>
+                                                </span>
+                                            ) : null}
+                                            {renderHelpText(editorModeDescription, 'is-subtle')}
+                                        </div>
+                                    </BaseControl>
+                                    <div
+                                        id={editorModeStatusRegionId}
+                                        className="visibloc-editor-mode__status screen-reader-text"
+                                        role="status"
+                                        aria-live="polite"
+                                    >
+                                        {editorModeError || editorModeSuccess}
+                                    </div>
+                                    {editorModeError ? (
+                                        <Notice
+                                            status="error"
+                                            onRemove={() => setEditorModeError('')}
+                                        >
+                                            {editorModeError}
+                                        </Notice>
+                                    ) : null}
+                                </div>
+                                {shouldShowExpertNotice ? (
+                                    <Notice status={expertNoticeStatus} isDismissible={false}>
+                                        {hasAdvancedWarnings
+                                            ? __('Des règles avancées sont incomplètes. Passez en mode Expert pour les corriger.', 'visi-bloc-jlg')
+                                            : __('Des règles avancées filtrent ce bloc. Passez en mode Expert pour les ajuster.', 'visi-bloc-jlg')}
+                                    </Notice>
+                                ) : null}
                                 {visibilityDiagnostics ? (
                                     <Fragment>
                                         <Card
@@ -4987,7 +5218,7 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                     >
                                         {(tab) => {
                                             const currentStep =
-                                                inspectorSteps.find((step) => step.id === tab.name) ||
+                                                filteredInspectorSteps.find((step) => step.id === tab.name) ||
                                                 defaultInspectorStep;
                                             const stepSummary = summaryOrInactive(
                                                 currentStep ? currentStep.summary : '',

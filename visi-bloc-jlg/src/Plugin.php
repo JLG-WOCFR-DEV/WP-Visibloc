@@ -61,6 +61,7 @@ class Plugin {
         $this->define_version_constant();
         $this->define_default_supported_blocks();
         $this->register_settings_hooks();
+        $this->register_editor_preferences_hooks();
         $this->register_assets_hooks();
         $this->register_visibility_hooks();
         $this->register_role_switcher_hooks();
@@ -79,6 +80,13 @@ class Plugin {
         require_once $this->plugin_dir . '/includes/admin-settings.php';
 
         add_action( 'init', [ $this, 'register_supported_blocks_setting' ] );
+    }
+
+    /**
+     * Register hooks used to persist editor preferences.
+     */
+    protected function register_editor_preferences_hooks() {
+        require_once $this->plugin_dir . '/includes/editor-preferences.php';
     }
 
     /**
