@@ -3,6 +3,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 require_once __DIR__ . '/datetime-utils.php';
 require_once __DIR__ . '/fallback.php';
+require_once __DIR__ . '/geolocation.php';
 require_once __DIR__ . '/utils.php';
 require_once __DIR__ . '/plugin-meta.php';
 require_once __DIR__ . '/insights.php';
@@ -462,11 +463,14 @@ function visibloc_jlg_should_display_for_advanced_rules( array $advanced_visibil
         return visibloc_jlg_visibility_decision( true, false, null, 'advanced-rules' );
     }
 
+    $runtime_context = [
+        'user'        => $user_visibility_context,
+        'geolocation' => visibloc_jlg_get_geolocation_context(),
+    ];
+
     $advanced_rules_match = visibloc_jlg_evaluate_advanced_visibility(
         $advanced_visibility,
-        [
-            'user' => $user_visibility_context,
-        ]
+        $runtime_context
     );
 
     if ( $advanced_rules_match ) {
@@ -672,6 +676,10 @@ function visibloc_jlg_get_user_visibility_context( $preview_context, &$can_previ
         $cached_user_roles           = null;
         $allowed_preview_roles_cache = null;
         $role_exists_cache           = [];
+
+        if ( function_exists( 'visibloc_jlg_get_geolocation_context' ) ) {
+            visibloc_jlg_get_geolocation_context( true );
+        }
     }
 
     $current_user = wp_get_current_user();
@@ -836,6 +844,7 @@ function visibloc_jlg_normalize_advanced_rule( $rule ) {
         'query_param',
         'cookie',
         'visit_count',
+        'geolocation',
     ];
 
     if ( ! in_array( $type, $supported_types, true ) ) {
@@ -939,6 +948,23 @@ function visibloc_jlg_normalize_advanced_rule( $rule ) {
             $normalized['name']       = isset( $rule['name'] ) && is_string( $rule['name'] ) ? $rule['name'] : '';
             $normalized['value']      = isset( $rule['value'] ) && is_string( $rule['value'] ) ? $rule['value'] : '';
             break;
+        case 'geolocation':
+            $operator = isset( $rule['operator'] ) && 'not_in' === $rule['operator'] ? 'not_in' : 'in';
+            $normalized['operator']  = $operator;
+            $normalized['countries'] = [];
+
+            if ( isset( $rule['countries'] ) && is_array( $rule['countries'] ) ) {
+                foreach ( $rule['countries'] as $country ) {
+                    $code = visibloc_jlg_normalize_country_code( $country );
+
+                    if ( '' !== $code ) {
+                        $normalized['countries'][] = $code;
+                    }
+                }
+            }
+
+            $normalized['countries'] = array_values( array_unique( $normalized['countries'] ) );
+            break;
         case 'visit_count':
             $allowed_visit_operators  = [ 'at_least', 'at_most', 'equals', 'not_equals' ];
             $operator                 = isset( $rule['operator'] ) && in_array( $rule['operator'], $allowed_visit_operators, true )
@@ -1027,6 +1053,8 @@ function visibloc_jlg_evaluate_advanced_rule( $rule, $post, $runtime_context = [
             return visibloc_jlg_match_cookie_rule( $rule );
         case 'user_segment':
             return visibloc_jlg_match_user_segment_rule( $rule, $runtime_context );
+        case 'geolocation':
+            return visibloc_jlg_match_geolocation_rule( $rule, $runtime_context );
         case 'visit_count':
             return visibloc_jlg_match_visit_count_rule( $rule );
     }
@@ -1269,6 +1297,41 @@ function visibloc_jlg_match_user_segment_rule( $rule, $runtime_context ) {
     }
 
     return 'does_not_match' === $operator ? ! $matched : $matched;
+}
+
+function visibloc_jlg_match_geolocation_rule( $rule, $runtime_context ) {
+    $operator  = isset( $rule['operator'] ) && 'not_in' === $rule['operator'] ? 'not_in' : 'in';
+    $countries = isset( $rule['countries'] ) && is_array( $rule['countries'] )
+        ? array_values( array_filter( array_map( 'visibloc_jlg_normalize_country_code', $rule['countries'] ) ) )
+        : [];
+
+    if ( empty( $countries ) ) {
+        return true;
+    }
+
+    $geolocation = isset( $runtime_context['geolocation'] ) && is_array( $runtime_context['geolocation'] )
+        ? $runtime_context['geolocation']
+        : visibloc_jlg_get_geolocation_context();
+
+    $country_code = isset( $geolocation['country_code'] )
+        ? visibloc_jlg_normalize_country_code( $geolocation['country_code'] )
+        : '';
+
+    if ( '' === $country_code ) {
+        $default_visibility = ( 'not_in' === $operator );
+
+        return (bool) apply_filters(
+            'visibloc_jlg_geolocation_default_match',
+            $default_visibility,
+            $rule,
+            $runtime_context,
+            $geolocation
+        );
+    }
+
+    $is_match = in_array( $country_code, $countries, true );
+
+    return 'not_in' === $operator ? ! $is_match : $is_match;
 }
 
 function visibloc_jlg_match_woocommerce_cart_rule( $rule ) {

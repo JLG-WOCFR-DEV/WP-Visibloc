@@ -43,6 +43,7 @@ import {
     CardBody,
     CardFooter,
     Spinner,
+    FormTokenField,
 } from '@wordpress/components';
 import { __, sprintf, _n } from '@wordpress/i18n';
 import { __experimentalGetSettings, dateI18n, format as formatDate } from '@wordpress/date';
@@ -776,6 +777,7 @@ const SUPPORTED_ADVANCED_RULE_TYPES = [
     'query_param',
     'cookie',
     'visit_count',
+    'geolocation',
 ];
 
 const ADVANCED_RULE_TYPE_OPTIONS = [
@@ -790,6 +792,7 @@ const ADVANCED_RULE_TYPE_OPTIONS = [
     { value: 'query_param', label: __('Paramètre d’URL', 'visi-bloc-jlg') },
     { value: 'cookie', label: __('Cookie', 'visi-bloc-jlg') },
     { value: 'visit_count', label: __('Compteur de visites', 'visi-bloc-jlg') },
+    { value: 'geolocation', label: __('Pays (géolocalisation)', 'visi-bloc-jlg') },
 ];
 
 const DEFAULT_ADVANCED_VISIBILITY = Object.freeze({
@@ -1324,6 +1327,16 @@ const getFirstOptionValue = (options) => {
     return String(firstValue);
 };
 
+const normalizeCountryCode = (value) => {
+    if (typeof value !== 'string') {
+        return '';
+    }
+
+    const sanitized = value.replace(/[^a-z0-9]/gi, '').toUpperCase();
+
+    return sanitized.length === 2 ? sanitized : '';
+};
+
 const getDefaultPostTypeRule = () => {
     const options = getVisiBlocArray('postTypes');
 
@@ -1444,6 +1457,21 @@ const getDefaultVisitCountRule = () => ({
     threshold: 3,
 });
 
+const getDefaultGeolocationRule = () => {
+    const countries = getVisiBlocArray('geolocationCountries');
+    const firstCountry = countries.find(
+        (item) => item && typeof item.value === 'string' && normalizeCountryCode(item.value),
+    );
+    const defaultCountry = firstCountry ? normalizeCountryCode(firstCountry.value) : '';
+
+    return {
+        id: createRuleId(),
+        type: 'geolocation',
+        operator: 'in',
+        countries: defaultCountry ? [defaultCountry] : [],
+    };
+};
+
 const createDefaultRuleForType = (type) => {
     switch (type) {
         case 'taxonomy':
@@ -1466,6 +1494,8 @@ const createDefaultRuleForType = (type) => {
             return getDefaultCookieRule();
         case 'visit_count':
             return getDefaultVisitCountRule();
+        case 'geolocation':
+            return getDefaultGeolocationRule();
         case 'post_type':
         default:
             return getDefaultPostTypeRule();
@@ -1612,6 +1642,24 @@ const normalizeRule = (rule) => {
             : 'equals';
         normalized.name = typeof rule.name === 'string' ? rule.name : '';
         normalized.value = typeof rule.value === 'string' ? rule.value : '';
+
+        return normalized;
+    }
+
+    if (type === 'geolocation') {
+        const operator = rule.operator === 'not_in' ? 'not_in' : 'in';
+        const countries = Array.isArray(rule.countries)
+            ? Array.from(
+                  new Set(
+                      rule.countries
+                          .map(normalizeCountryCode)
+                          .filter(Boolean),
+                  ),
+              )
+            : [];
+
+        normalized.operator = operator;
+        normalized.countries = countries;
 
         return normalized;
     }
@@ -3049,6 +3097,10 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             [],
         );
         const editorTaxonomies = useMemo(() => getVisiBlocArray('taxonomies'), []);
+        const geolocationCountries = useMemo(
+            () => getVisiBlocArray('geolocationCountries'),
+            [],
+        );
         const scenarioContext = useMemo(
             () => ({
                 availableRoles: availableRoleKeys,
@@ -3057,6 +3109,7 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                 userSegments,
                 woocommerceTaxonomies,
                 taxonomies: editorTaxonomies,
+                geolocationCountries,
             }),
             [
                 availableRoleKeys,
@@ -3065,6 +3118,7 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                 userSegments,
                 woocommerceTaxonomies,
                 editorTaxonomies,
+                geolocationCountries,
             ],
         );
         const scenarioPresets = useMemo(
@@ -4063,6 +4117,111 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                 onChange={(newValue) => onUpdateRule({ value: newValue })}
                             />
                         )}
+                    </div>
+                );
+            }
+
+            if (rule.type === 'geolocation') {
+                const countries = geolocationCountries
+                    .map((item) => {
+                        if (!item || typeof item !== 'object') {
+                            return null;
+                        }
+
+                        const value = normalizeCountryCode(item.value);
+
+                        if (!value) {
+                            return null;
+                        }
+
+                        const label =
+                            typeof item.label === 'string' && item.label.trim()
+                                ? item.label
+                                : value;
+
+                        return { value, label };
+                    })
+                    .filter(Boolean);
+
+                const codeToToken = new Map();
+                const tokenToCode = new Map();
+                const suggestions = countries.map((country) => {
+                    const token = `${country.label} (${country.value})`;
+
+                    codeToToken.set(country.value, token);
+                    tokenToCode.set(token, country.value);
+
+                    return token;
+                });
+
+                const selectedCountries = Array.isArray(rule.countries) ? rule.countries : [];
+                const tokens = selectedCountries
+                    .map((code) => {
+                        const normalized = normalizeCountryCode(code);
+
+                        return codeToToken.get(normalized) || normalized;
+                    })
+                    .filter(Boolean);
+
+                const handleTokensChange = (newTokens) => {
+                    const normalizedCodes = Array.from(
+                        new Set(
+                            newTokens
+                                .map((token) => {
+                                    if (typeof token !== 'string') {
+                                        return '';
+                                    }
+
+                                    if (tokenToCode.has(token)) {
+                                        return tokenToCode.get(token);
+                                    }
+
+                                    return normalizeCountryCode(token);
+                                })
+                                .filter(Boolean),
+                        ),
+                    );
+
+                    onUpdateRule({ countries: normalizedCodes });
+                };
+
+                const operatorOptions = [
+                    { value: 'in', label: __('Comprend ces pays', 'visi-bloc-jlg') },
+                    { value: 'not_in', label: __('Exclut ces pays', 'visi-bloc-jlg') },
+                ];
+
+                return (
+                    <div key={rule.id} className="visibloc-advanced-rule">
+                        {commonHeader}
+                        <SelectControl
+                            label={__('Condition', 'visi-bloc-jlg')}
+                            value={rule.operator}
+                            options={operatorOptions}
+                            onChange={(newOperator) =>
+                                onUpdateRule({ operator: newOperator === 'not_in' ? 'not_in' : 'in' })
+                            }
+                        />
+                        <FormTokenField
+                            label={__('Pays ciblés', 'visi-bloc-jlg')}
+                            value={tokens}
+                            suggestions={suggestions}
+                            onChange={handleTokensChange}
+                            placeholder={__('Ajouter un pays (FR, CA, US…)…', 'visi-bloc-jlg')}
+                        />
+                        {!countries.length && (
+                            <p className="components-help-text">
+                                {__(
+                                    'Aucun pays n’est préconfiguré. Les intégrations peuvent compléter cette liste via le filtre « visibloc_jlg_editor_geolocation_countries ».',
+                                    'visi-bloc-jlg',
+                                )}
+                            </p>
+                        )}
+                        <p className="components-help-text">
+                            {__(
+                                'Utilisez les codes ISO 3166-1 alpha-2 (ex. FR, BE, US). Les suggestions garantissent une orthographe cohérente.',
+                                'visi-bloc-jlg',
+                            )}
+                        </p>
                     </div>
                 );
             }

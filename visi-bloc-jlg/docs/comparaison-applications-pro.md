@@ -78,7 +78,7 @@ Ce document positionne **Visi-Bloc – JLG** face à trois solutions premium du 
 - Étendre les badges de l'arbre de blocs pour refléter calendrier, segments et géociblage avec texte accessible.
 
 ### P2 – Ciblage enrichi
-- Intégrer un module de géolocalisation (MaxMind, IP2Location) avec cache transitoire et respect du consentement.
+- Intégrer un module de géolocalisation (MaxMind, IP2Location) avec cache transitoire et respect du consentement. *(Version initiale livrée : ciblage par pays basé sur les codes ISO et cache transitoire.)*
   - `GeolocationService` dédié, fallback pays si consentement absent, réponses en `transient` 15 min invalidées par cron.
 - Détecter appareils/systèmes (iOS, Android, desktop tactile) via une couche front partagée.
   - `DeviceContextProvider` commun éditeur/front basé sur `navigator.userAgentData` ou fallback UA, segments devices avec pictogrammes et aide accessibilité.
