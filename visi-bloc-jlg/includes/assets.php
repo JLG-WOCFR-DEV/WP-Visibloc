@@ -8,6 +8,7 @@ if ( ! defined( 'VISIBLOC_JLG_MISSING_EDITOR_ASSETS_TRANSIENT' ) ) {
 require_once __DIR__ . '/cache-constants.php';
 require_once __DIR__ . '/datetime-utils.php';
 require_once __DIR__ . '/fallback.php';
+require_once __DIR__ . '/geolocation.php';
 require_once __DIR__ . '/presets.php';
 require_once __DIR__ . '/plugin-meta.php';
 
@@ -596,6 +597,7 @@ function visibloc_jlg_enqueue_editor_assets() {
             'timezones'        => visibloc_jlg_get_editor_timezones(),
             'roleGroups'       => visibloc_jlg_get_editor_role_groups(),
             'userSegments'     => visibloc_jlg_get_editor_user_segments(),
+            'geolocationCountries' => visibloc_jlg_get_editor_geolocation_countries(),
             'loginStatuses'    => visibloc_jlg_get_editor_login_statuses(),
             'woocommerceTaxonomies' => visibloc_jlg_get_editor_woocommerce_taxonomies(),
             'commonQueryParams' => visibloc_jlg_get_editor_common_query_params(),
@@ -1077,6 +1079,55 @@ function visibloc_jlg_get_editor_user_segments() {
     );
 
     return $items;
+}
+
+/**
+ * Retrieve the list of countries available for geolocation rules.
+ *
+ * @return array<int, array<string, string>>
+ */
+function visibloc_jlg_get_editor_geolocation_countries() {
+    return visibloc_jlg_get_cached_editor_data(
+        'geolocation_countries',
+        static function () {
+            $countries = visibloc_jlg_get_geolocation_countries_map();
+
+            if ( empty( $countries ) ) {
+                return [];
+            }
+
+            $items = [];
+
+            foreach ( $countries as $code => $label ) {
+                $normalized_code = visibloc_jlg_normalize_country_code( $code );
+
+                if ( '' === $normalized_code ) {
+                    continue;
+                }
+
+                $items[] = [
+                    'value' => $normalized_code,
+                    'label' => is_string( $label ) && '' !== trim( $label ) ? $label : $normalized_code,
+                ];
+            }
+
+            usort(
+                $items,
+                static function ( $first, $second ) {
+                    return strcasecmp( (string) ( $first['label'] ?? '' ), (string) ( $second['label'] ?? '' ) );
+                }
+            );
+
+            /**
+             * Filter the list of countries exposed to the block editor.
+             *
+             * @param array<int, array<string, string>> $items Country entries.
+             */
+            return function_exists( 'apply_filters' )
+                ? apply_filters( 'visibloc_jlg_editor_geolocation_countries', $items )
+                : $items;
+        }
+    );
 }
 
 /**
