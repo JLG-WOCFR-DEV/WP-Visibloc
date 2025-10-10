@@ -259,6 +259,13 @@ function visibloc_jlg_maybe_impersonate_guest( $user_id ) {
         return $user_id;
     }
 
+    if ( 'guest' !== $preview_role && ! get_role( $preview_role ) ) {
+        visibloc_jlg_purge_preview_cookie();
+        visibloc_jlg_store_real_user_id( null );
+
+        return $user_id;
+    }
+
     $stored_real_user_id = visibloc_jlg_get_stored_real_user_id();
     $real_user_id        = $user_id ? absint( $user_id ) : $stored_real_user_id;
 

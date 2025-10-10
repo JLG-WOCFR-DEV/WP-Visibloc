@@ -341,6 +341,51 @@ class RoleSwitcherRequestTest extends TestCase {
      * @runInSeparateProcess
      * @preserveGlobalState disabled
      */
+    public function test_preview_cookie_is_purged_when_role_is_removed(): void {
+        global $visibloc_test_state;
+
+        $user_id = 37;
+
+        $visibloc_test_state['effective_user_id']                 = $user_id;
+        $visibloc_test_state['current_user']                      = new Visibloc_Test_User( $user_id, [ 'administrator' ] );
+        $visibloc_test_state['can_preview_users'][ $user_id ]     = true;
+        $visibloc_test_state['can_impersonate_users'][ $user_id ] = true;
+        $visibloc_test_state['allowed_preview_roles']             = [ 'administrator', 'custom_role' ];
+        $visibloc_test_state['roles']['administrator']            = (object) [ 'name' => 'Administrator', 'capabilities' => [] ];
+        $visibloc_test_state['roles']['custom_role']              = (object) [ 'name' => 'Custom role', 'capabilities' => [] ];
+
+        $_COOKIE['visibloc_preview_role'] = 'custom_role';
+
+        $initial_context = visibloc_jlg_get_preview_runtime_context( true );
+
+        $this->assertSame( 'custom_role', $initial_context['preview_role'], 'Runtime context should acknowledge the custom role before it is removed.' );
+        $this->assertTrue( $initial_context['should_apply_preview_role'], 'Custom role preview should apply while the role exists.' );
+
+        unset( $visibloc_test_state['roles']['custom_role'] );
+
+        $maybe_user_id = visibloc_jlg_maybe_impersonate_guest( $user_id );
+
+        $this->assertSame( $user_id, $maybe_user_id, 'User ID should remain unchanged when impersonation is cancelled.' );
+        $this->assertArrayNotHasKey( 'visibloc_preview_role', $_COOKIE, 'Preview cookie should be cleared when the role disappears.' );
+        $this->assertNull( visibloc_jlg_get_preview_role_from_cookie(), 'Preview cookie helper should no longer expose a removed role.' );
+        $this->assertSame( 0, visibloc_jlg_get_stored_real_user_id(), 'Stored real user ID should be reset after purging the preview role.' );
+
+        $cookie = $this->getLatestCookieLog();
+
+        $this->assertNotNull( $cookie, 'Purging a removed role should trigger a cookie update.' );
+        $this->assertSame( '', $cookie['value'] ?? null, 'Purged preview cookie should store an empty role value.' );
+        $this->assertLessThan( time(), $cookie['expires'] ?? PHP_INT_MAX, 'Purged preview cookie should expire in the past.' );
+
+        $refreshed_context = visibloc_jlg_get_preview_runtime_context( true );
+
+        $this->assertSame( '', $refreshed_context['preview_role'], 'Runtime context should not expose a preview role once it is removed.' );
+        $this->assertFalse( $refreshed_context['should_apply_preview_role'], 'Runtime context should not apply preview logic after the role is purged.' );
+    }
+
+    /**
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
     public function test_valid_preview_role_request_sets_cookie_and_updates_admin_bar(): void {
         global $visibloc_test_state, $visibloc_test_redirect_state;
 
