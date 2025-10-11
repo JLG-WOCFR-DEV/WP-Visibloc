@@ -11,6 +11,7 @@ delete_option( 'visibloc_preview_roles' );
 delete_option( 'visibloc_group_block_summary' );
 delete_option( 'visibloc_supported_blocks' );
 delete_option( 'visibloc_fallback_settings' );
+delete_option( 'visibloc_insights' );
 wp_cache_delete( 'visibloc_fallback_settings', 'visibloc_jlg' );
 
 $fallback_transients = get_option( 'visibloc_fallback_blocks_transients', [] );

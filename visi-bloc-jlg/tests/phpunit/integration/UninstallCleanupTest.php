@@ -26,6 +26,30 @@ class UninstallCleanupTest extends TestCase {
      * @runInSeparateProcess
      * @preserveGlobalState disabled
      */
+    public function test_uninstall_removes_insights_option(): void {
+        update_option( 'visibloc_insights', [ 'enabled' => true ] );
+
+        $this->assertSame(
+            [ 'enabled' => true ],
+            get_option( 'visibloc_insights' )
+        );
+
+        if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
+            define( 'WP_UNINSTALL_PLUGIN', true );
+        }
+
+        require dirname( __DIR__, 3 ) . '/uninstall.php';
+
+        $this->assertSame(
+            '__default__',
+            get_option( 'visibloc_insights', '__default__' )
+        );
+    }
+
+    /**
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
     public function test_supported_blocks_option_is_removed_on_uninstall(): void {
         update_option( 'visibloc_supported_blocks', [ 'core/paragraph' ] );
 
