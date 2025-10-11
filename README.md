@@ -9,6 +9,7 @@ Visi-Bloc – JLG is a WordPress plugin that adds advanced visibility controls t
 - **Planification temporelle** – activez l’option « Programmer l’affichage » pour définir des dates de début et de fin respectant le fuseau de WordPress et expliquer en aperçu pourquoi le bloc est masqué en dehors de la fenêtre.
 - **Masquage manuel** – retirez immédiatement un bloc du front-end tout en gardant un contour et une explication en mode prévisualisation pour les rôles autorisés.
 - **Règles avancées** – combinez plusieurs conditions (type de publication, taxonomie, modèle, créneaux récurrents, statut de connexion, groupes de rôles, segments marketing exposés par vos intégrations, compteur de visites ou cookies, contenu du panier WooCommerce, paramètres d’URL) avec une logique AND/OR pour affiner l’affichage.
+- **Synthèse qualité interactive** – exploitez la carte de diagnostic pour suivre un score de fiabilité et déclencher des raccourcis vers les onglets Appareils, Calendrier, Rôles ou Règles avancées lorsque des restrictions conditionnelles masquent le bloc.
 - **Ciblage par pays** – sélectionnez des audiences en fonction de la géolocalisation (codes ISO, listes filtrables) pour calquer vos messages sur les marchés prioritaires ou respecter les obligations locales.
 - **Compatibilité blocs personnalisés** – sélectionnez précisément quels types de blocs héritent des contrôles Visibloc via la page d’options.
 
@@ -274,6 +275,63 @@ little longer while the plugin analyses the content library.
 
 ## Filters
 
+### `visibloc_jlg_asset_url_base_candidates`
+
+When `plugins_url()` is not available (for example during CLI tasks or very early in the bootstrap sequence), the plugin
+reconstructs asset URLs by matching the plugin directory against known base paths (`WP_PLUGIN_DIR`, `WPMU_PLUGIN_DIR`,
+`WP_CONTENT_DIR`). Use this filter to extend or adjust the list of candidates before the base URL is resolved:
+
+```php
+add_filter(
+    'visibloc_jlg_asset_url_base_candidates',
+    static function ( array $candidates ) {
+        $candidates[] = [
+            'dir' => '/srv/www/shared-plugins',
+            'url' => 'https://cdn.example.com/shared-plugins',
+        ];
+
+        return $candidates;
+    }
+);
+```
+
+The first matching entry wins. Invalid candidates (missing `dir`/`url` or empty strings) are ignored automatically.
+
+### `visibloc_jlg_resolved_asset_base_url`
+
+Once a base URL has been determined you can override it to point to an alternate host (for example a CDN) while keeping the
+relative asset paths intact:
+
+```php
+add_filter(
+    'visibloc_jlg_resolved_asset_base_url',
+    static function ( $base_url ) {
+        return 'https://cdn.example.com/plugins/visi-bloc-jlg';
+    }
+);
+```
+
+The filter receives the resolved base URL and the relative asset path as arguments. Returning an empty value falls back to the
+default URL computed by the plugin.
+
+### `visibloc_jlg_asset_url_fallback`
+
+If no base URL can be determined you can still return a fully-qualified URL with this legacy fallback filter. The second
+argument exposes the relative asset path for convenience:
+
+```php
+add_filter(
+    'visibloc_jlg_asset_url_fallback',
+    static function ( $fallback, $relative_path ) {
+        return 'https://intranet.example.com/' . $relative_path;
+    },
+    10,
+    2
+);
+```
+
+When no filter provides a value the plugin emits the `visibloc_jlg_missing_asset_url` action to help with diagnostics.
+
 ### `visibloc_jlg_available_fallback_blocks_query_args`
 
 Reusable blocks exposed in the fallback selector are now loaded without a hard limit (the plugin passes `numberposts => -1`,
@@ -397,3 +455,19 @@ add_action(
 
 The action fires after both the runtime and persistent caches have been flushed, ensuring that subsequent calls to
 `visibloc_jlg_get_supported_blocks()` recompute the list using the latest option value and filters.
+
+### `visibloc_jlg_missing_asset_url`
+
+Fires when the plugin cannot build an asset URL even after applying the fallback filters. Use it to log missing assets or alert
+operations teams that the WordPress constants need to be configured:
+
+```php
+add_action(
+    'visibloc_jlg_missing_asset_url',
+    static function ( $relative_path ) {
+        error_log( sprintf( 'Visibloc asset unreachable: %s', $relative_path ) );
+    }
+);
+```
+
+The action passes the relative asset path that failed to resolve.
