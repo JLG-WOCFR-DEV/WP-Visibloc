@@ -2212,6 +2212,62 @@ const getVisibilityDiagnostics = (context) => {
             variant: 'conditional',
             severity: 'info',
         });
+
+        if (context.hasDeviceRestrictions) {
+            pushAction(
+                {
+                    id: 'action-review-device-visibility',
+                    type: 'step',
+                    targetStep: 'device',
+                    label: __('Ajuster les appareils ciblés', 'visi-bloc-jlg'),
+                    description: __('Ouvrez l’onglet Appareils pour confirmer les restrictions par type d’appareil.', 'visi-bloc-jlg'),
+                },
+                'info',
+                'conditional-filtering',
+            );
+        }
+
+        if (context.scheduling && context.scheduling.isSchedulingEnabled) {
+            pushAction(
+                {
+                    id: 'action-review-schedule-basics',
+                    type: 'step',
+                    targetStep: 'schedule',
+                    label: __('Vérifier le calendrier', 'visi-bloc-jlg'),
+                    description: __('Rejoignez l’onglet Calendrier pour ajuster la fenêtre de diffusion.', 'visi-bloc-jlg'),
+                },
+                'info',
+                'conditional-filtering',
+            );
+        }
+
+        if (context.rolesCount > 0) {
+            pushAction(
+                {
+                    id: 'action-review-roles-targeting',
+                    type: 'step',
+                    targetStep: 'roles',
+                    label: __('Examiner les rôles ciblés', 'visi-bloc-jlg'),
+                    description: __('Accédez à l’onglet Rôles pour valider l’audience sélectionnée.', 'visi-bloc-jlg'),
+                },
+                'info',
+                'conditional-filtering',
+            );
+        }
+
+        if (context.hasAdvancedRules) {
+            pushAction(
+                {
+                    id: 'action-review-advanced-filtering',
+                    type: 'step',
+                    targetStep: 'advanced',
+                    label: __('Réviser les règles avancées', 'visi-bloc-jlg'),
+                    description: __('Ouvrez l’onglet Règles avancées pour inspecter les conditions appliquées.', 'visi-bloc-jlg'),
+                },
+                'info',
+                'conditional-filtering',
+            );
+        }
     }
 
     const scheduling = context.scheduling || {};
@@ -3273,6 +3329,8 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
         } = attributes;
 
         const advancedVisibility = normalizeAdvancedVisibility(rawAdvancedVisibility);
+        const hasDeviceRestrictions =
+            typeof deviceVisibility === 'string' && deviceVisibility !== DEVICE_VISIBILITY_DEFAULT_OPTION.id;
         const fallbackSettings = useMemo(
             () => getVisiBlocObject('fallbackSettings') || {},
             [],
@@ -4835,6 +4893,7 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                     hasConditionalVisibility,
                     conditionalDescription,
                     deviceVisibilitySummary,
+                    hasDeviceRestrictions,
                     scheduling: {
                         isSchedulingEnabled,
                         publishStartDate,
@@ -4859,6 +4918,7 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                 hasConditionalVisibility,
                 conditionalDescription,
                 deviceVisibilitySummary,
+                hasDeviceRestrictions,
                 isSchedulingEnabled,
                 publishStartDate,
                 publishEndDate,

@@ -9,6 +9,7 @@ Visi-Bloc – JLG is a WordPress plugin that adds advanced visibility controls t
 - **Planification temporelle** – activez l’option « Programmer l’affichage » pour définir des dates de début et de fin respectant le fuseau de WordPress et expliquer en aperçu pourquoi le bloc est masqué en dehors de la fenêtre.
 - **Masquage manuel** – retirez immédiatement un bloc du front-end tout en gardant un contour et une explication en mode prévisualisation pour les rôles autorisés.
 - **Règles avancées** – combinez plusieurs conditions (type de publication, taxonomie, modèle, créneaux récurrents, statut de connexion, groupes de rôles, segments marketing exposés par vos intégrations, compteur de visites ou cookies, contenu du panier WooCommerce, paramètres d’URL) avec une logique AND/OR pour affiner l’affichage.
+- **Synthèse qualité interactive** – exploitez la carte de diagnostic pour suivre un score de fiabilité et déclencher des raccourcis vers les onglets Appareils, Calendrier, Rôles ou Règles avancées lorsque des restrictions conditionnelles masquent le bloc.
 - **Ciblage par pays** – sélectionnez des audiences en fonction de la géolocalisation (codes ISO, listes filtrables) pour calquer vos messages sur les marchés prioritaires ou respecter les obligations locales.
 - **Compatibilité blocs personnalisés** – sélectionnez précisément quels types de blocs héritent des contrôles Visibloc via la page d’options.
 
