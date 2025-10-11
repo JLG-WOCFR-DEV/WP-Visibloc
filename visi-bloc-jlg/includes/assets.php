@@ -35,6 +35,116 @@ if ( ! function_exists( 'visibloc_jlg_get_asset_path' ) ) {
     }
 }
 
+if ( ! function_exists( 'visibloc_jlg_normalize_path_for_comparison' ) ) {
+    /**
+     * Normalize a filesystem path for consistent comparisons.
+     *
+     * @param string $path Raw filesystem path.
+     * @return string
+     */
+    function visibloc_jlg_normalize_path_for_comparison( $path ) {
+        $path = (string) $path;
+
+        if ( '' === $path ) {
+            return '';
+        }
+
+        if ( function_exists( 'wp_normalize_path' ) ) {
+            $path = wp_normalize_path( $path );
+        } else {
+            $path = str_replace( '\\', '/', $path );
+            $path = preg_replace( '#/+#', '/', $path );
+        }
+
+        return rtrim( $path, '/' );
+    }
+}
+
+if ( ! function_exists( 'visibloc_jlg_resolve_asset_base_url' ) ) {
+    /**
+     * Resolve the base URL used to serve plugin assets.
+     *
+     * @return string
+     */
+    function visibloc_jlg_resolve_asset_base_url() {
+        if ( defined( 'VISIBLOC_JLG_PLUGIN_URL' ) && '' !== VISIBLOC_JLG_PLUGIN_URL ) {
+            return (string) VISIBLOC_JLG_PLUGIN_URL;
+        }
+
+        $plugin_dir = visibloc_jlg_get_plugin_dir_path();
+        $candidates = [];
+
+        $potential_sources = [
+            [
+                'dir' => defined( 'WP_PLUGIN_DIR' ) ? (string) WP_PLUGIN_DIR : '',
+                'url' => defined( 'WP_PLUGIN_URL' ) ? (string) WP_PLUGIN_URL : '',
+            ],
+            [
+                'dir' => defined( 'WPMU_PLUGIN_DIR' ) ? (string) WPMU_PLUGIN_DIR : '',
+                'url' => defined( 'WPMU_PLUGIN_URL' ) ? (string) WPMU_PLUGIN_URL : '',
+            ],
+            [
+                'dir' => defined( 'WP_CONTENT_DIR' ) ? (string) WP_CONTENT_DIR : '',
+                'url' => defined( 'WP_CONTENT_URL' ) ? (string) WP_CONTENT_URL : '',
+            ],
+        ];
+
+        foreach ( $potential_sources as $source ) {
+            if ( '' === $source['dir'] || '' === $source['url'] ) {
+                continue;
+            }
+
+            $candidates[] = [
+                'dir' => $source['dir'],
+                'url' => $source['url'],
+            ];
+        }
+
+        if ( function_exists( 'apply_filters' ) ) {
+            $filtered_candidates = apply_filters( 'visibloc_jlg_asset_url_base_candidates', $candidates, $plugin_dir );
+
+            if ( is_array( $filtered_candidates ) ) {
+                $candidates = $filtered_candidates;
+            }
+        }
+
+        $normalized_plugin_dir = visibloc_jlg_normalize_path_for_comparison( $plugin_dir );
+
+        foreach ( $candidates as $candidate ) {
+            if ( ! is_array( $candidate ) ) {
+                continue;
+            }
+
+            $candidate_dir = isset( $candidate['dir'] ) ? visibloc_jlg_normalize_path_for_comparison( $candidate['dir'] ) : '';
+            $candidate_url = isset( $candidate['url'] ) ? (string) $candidate['url'] : '';
+
+            if ( '' === $candidate_dir || '' === $candidate_url ) {
+                continue;
+            }
+
+            $normalized_plugin_dir_with_sep = $normalized_plugin_dir . '/';
+            $candidate_dir_with_sep         = $candidate_dir . '/';
+
+            if ( 0 !== strpos( $normalized_plugin_dir_with_sep, $candidate_dir_with_sep ) ) {
+                continue;
+            }
+
+            $relative_path = substr( $normalized_plugin_dir, strlen( $candidate_dir ) );
+            $relative_path = trim( $relative_path, '/' );
+
+            $normalized_url = rtrim( $candidate_url, '/\\' );
+
+            if ( '' !== $relative_path ) {
+                $normalized_url .= '/' . str_replace( '\\', '/', $relative_path );
+            }
+
+            return $normalized_url;
+        }
+
+        return '';
+    }
+}
+
 if ( ! function_exists( 'visibloc_jlg_get_asset_url' ) ) {
     /**
      * Build an asset URL relative to the plugin directory.
@@ -50,9 +160,17 @@ if ( ! function_exists( 'visibloc_jlg_get_asset_url' ) ) {
             return plugins_url( $relative_path, $plugin_main_file );
         }
 
-        $base_url = defined( 'VISIBLOC_JLG_PLUGIN_URL' ) ? (string) VISIBLOC_JLG_PLUGIN_URL : '';
+        $base_url = visibloc_jlg_resolve_asset_base_url();
 
         if ( '' !== $base_url ) {
+            if ( function_exists( 'apply_filters' ) ) {
+                $filtered_base_url = apply_filters( 'visibloc_jlg_resolved_asset_base_url', $base_url, $relative_path );
+
+                if ( is_string( $filtered_base_url ) && '' !== $filtered_base_url ) {
+                    $base_url = $filtered_base_url;
+                }
+            }
+
             if ( function_exists( 'trailingslashit' ) ) {
                 $base_url = trailingslashit( $base_url );
             } else {

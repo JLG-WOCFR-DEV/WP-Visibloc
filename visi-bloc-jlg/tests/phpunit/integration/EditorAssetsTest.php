@@ -9,6 +9,19 @@ class EditorAssetsTest extends TestCase {
     private string $assetFile;
     private string $assetBackup;
 
+    private function ensurePluginDirectoryConstants(): void {
+        $plugin_dir = visibloc_jlg_get_plugin_dir_path();
+
+        if ( ! defined( 'WP_PLUGIN_DIR' ) ) {
+            $base_dir = rtrim( dirname( rtrim( $plugin_dir, '/\\' ) ), '/\\' );
+            define( 'WP_PLUGIN_DIR', $base_dir );
+        }
+
+        if ( ! defined( 'WP_PLUGIN_URL' ) ) {
+            define( 'WP_PLUGIN_URL', 'https://example.test/wp-content/plugins' );
+        }
+    }
+
     protected function setUp(): void {
         parent::setUp();
 
@@ -80,6 +93,55 @@ class EditorAssetsTest extends TestCase {
             touch( $absolute_path, $original_mtime );
             clearstatcache( true, $absolute_path );
             visibloc_jlg_flush_asset_versions_cache();
+        }
+    }
+
+    public function test_asset_url_fallback_uses_plugin_directory_constants(): void {
+        $this->ensurePluginDirectoryConstants();
+
+        $relative_path = 'build/index.js';
+        $expected_base = rtrim( WP_PLUGIN_URL, '/\\' );
+
+        $plugin_dir            = visibloc_jlg_get_plugin_dir_path();
+        $plugin_dir_base       = rtrim( WP_PLUGIN_DIR, '/\\' );
+        $normalized_plugin_dir = visibloc_jlg_normalize_path_for_comparison( $plugin_dir );
+        $normalized_base_dir   = visibloc_jlg_normalize_path_for_comparison( $plugin_dir_base );
+
+        $relative_dir = '';
+
+        if ( 0 === strpos( $normalized_plugin_dir . '/', $normalized_base_dir . '/' ) ) {
+            $relative_dir = trim( substr( $normalized_plugin_dir, strlen( $normalized_base_dir ) ), '/' );
+        }
+
+        if ( '' !== $relative_dir ) {
+            $expected_base .= '/' . $relative_dir;
+        }
+
+        $this->assertSame(
+            $expected_base . '/' . $relative_path,
+            visibloc_jlg_get_asset_url( $relative_path )
+        );
+    }
+
+    public function test_resolved_asset_base_url_filter_allows_custom_cdn(): void {
+        $this->ensurePluginDirectoryConstants();
+
+        add_filter(
+            'visibloc_jlg_resolved_asset_base_url',
+            static function ( $base_url, $relative_path ) {
+                return 'https://cdn.example.test/visibloc';
+            },
+            10,
+            2
+        );
+
+        try {
+            $this->assertSame(
+                'https://cdn.example.test/visibloc/build/index.js',
+                visibloc_jlg_get_asset_url( 'build/index.js' )
+            );
+        } finally {
+            remove_all_filters( 'visibloc_jlg_resolved_asset_base_url' );
         }
     }
 
