@@ -210,6 +210,50 @@
     transition: width 0.25s ease;
 }
 
+.visibloc-diagnostic-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--visibloc-border-subtle);
+}
+
+.visibloc-diagnostic-actions__title {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--wp-components-color-foreground-muted, #50575e);
+}
+
+.visibloc-diagnostic-actions__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.visibloc-diagnostic-actions__item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.visibloc-diagnostic-actions__item .components-button {
+    align-self: flex-start;
+}
+
+.visibloc-diagnostic-actions__description {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--wp-components-color-foreground-muted, #50575e);
+}
+
 .visibloc-diagnostic-card--warning .visibloc-diagnostic-card__score-meter-fill {
     background: linear-gradient(90deg, #f97316, #f59e0b);
 }
