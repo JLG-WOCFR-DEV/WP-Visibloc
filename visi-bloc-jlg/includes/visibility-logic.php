@@ -7,6 +7,7 @@ require_once __DIR__ . '/geolocation.php';
 require_once __DIR__ . '/utils.php';
 require_once __DIR__ . '/plugin-meta.php';
 require_once __DIR__ . '/insights.php';
+require_once __DIR__ . '/audit-log.php';
 
 visibloc_jlg_define_default_supported_blocks();
 
@@ -199,7 +200,51 @@ function visibloc_jlg_render_block_visibility_router( $block_content, $block ) {
         return $block_content;
     }
 
-    return visibloc_jlg_render_block_filter( $block_content, $block );
+    $rendered_content = visibloc_jlg_render_block_filter( $block_content, $block );
+
+    if ( function_exists( 'visibloc_jlg_record_audit_event' ) ) {
+        $post_id = function_exists( 'get_the_ID' ) ? (int) get_the_ID() : 0;
+
+        $state = 'visible';
+
+        if ( '' === $rendered_content ) {
+            $state = 'hidden';
+        } elseif ( $rendered_content !== $block_content ) {
+            $state = 'modified';
+        }
+
+        $block_label = '' !== $block_name ? $block_name : 'generic';
+
+        if ( function_exists( 'sanitize_text_field' ) ) {
+            $block_label = sanitize_text_field( $block_label );
+        }
+
+        $message = sprintf(
+            function_exists( '__' ) ? __( 'Bloc %s évalué : %s.', 'visi-bloc-jlg' ) : 'Block %s evaluated: %s.',
+            $block_label,
+            $state
+        );
+
+        $context = [
+            'block_name' => $block_label,
+            'state'      => $state,
+        ];
+
+        if ( $post_id > 0 ) {
+            $context['post_id'] = $post_id;
+        }
+
+        visibloc_jlg_record_audit_event(
+            'block_visibility_checked',
+            [
+                'message' => $message,
+                'context' => $context,
+                'post_id' => $post_id,
+            ]
+        );
+    }
+
+    return $rendered_content;
 }
 
 add_filter( 'render_block', 'visibloc_jlg_render_block_visibility_router', 10, 2 );
