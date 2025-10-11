@@ -1,0 +1,26 @@
+{
+  "id": "b2b-nurturing",
+  "title": "Lead nurturing B2B",
+  "summary": "Renforce la relation avec les comptes stratégiques en phase d'évaluation.",
+  "objective": {
+    "goal": "Obtenir une prise de rendez-vous sur 30 % des leads qualifiés.",
+    "description": "Propose un parcours de contenu expert sur 21 jours.",
+    "successMetric": "Nombre de démos réservées par semaine."
+  },
+  "audience": {
+    "primary": "Responsables marketing ayant téléchargé un livre blanc dans le dernier mois.",
+    "secondary": "Prospects CRM scorés \"MQL\" par l'équipe commerciale.",
+    "notes": "Synchronise la liste HubSpot \"MQL actifs\" et exclut les clients existants.",
+    "roles": "Editor, Author"
+  },
+  "timing": {
+    "start": "Dès la qualification MQL confirmée.",
+    "end": "Clôture à J+21.",
+    "cadence": "4 contenus étalés sur 3 semaines."
+  },
+  "content": {
+    "promise": "Mettre en avant une étude de cas sectorielle.",
+    "callToAction": "Inviter à planifier une session conseil avec un expert.",
+    "fallback": "Orienter vers la bibliothèque de cas clients en libre accès."
+  }
+}

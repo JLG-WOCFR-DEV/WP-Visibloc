@@ -55,6 +55,7 @@ import { decodeEntities } from '@wordpress/html-entities';
 import { addQueryArgs } from '@wordpress/url';
 
 import './editor-styles.css';
+import { OnboardingWizard, useOnboardingWizard } from './onboarding';
 
 const DEFAULT_SUPPORTED_BLOCKS = ['core/group'];
 
@@ -5011,71 +5012,161 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             },
             [setAttributes, setActiveInspectorStep],
         );
-        const stepBadges = {};
+        const stepBadges = useMemo(() => {
+            const badges = {};
 
-        if (isHidden) {
-            stepBadges.device = {
-                variant: 'hidden',
-                label: __('Masqué', 'visi-bloc-jlg'),
-                description: __('Ce bloc est masqué manuellement.', 'visi-bloc-jlg'),
-            };
-        }
+            if (isHidden) {
+                badges.device = {
+                    variant: 'hidden',
+                    label: __('Masqué', 'visi-bloc-jlg'),
+                    description: __('Ce bloc est masqué manuellement.', 'visi-bloc-jlg'),
+                };
+            }
 
-        if (isSchedulingEnabled) {
-            stepBadges.schedule = hasScheduleRangeError
-                ? {
-                      variant: 'warning',
-                      label: __('Dates invalides', 'visi-bloc-jlg'),
-                      description: __('Vérifiez la cohérence des dates de début et de fin.', 'visi-bloc-jlg'),
-                  }
-                : {
-                      variant: 'schedule',
-                      label: __('Programmation active', 'visi-bloc-jlg'),
-                      description: scheduleSummary,
-                  };
-        }
+            if (isSchedulingEnabled) {
+                badges.schedule = hasScheduleRangeError
+                    ? {
+                          variant: 'warning',
+                          label: __('Dates invalides', 'visi-bloc-jlg'),
+                          description: __('Vérifiez la cohérence des dates de début et de fin.', 'visi-bloc-jlg'),
+                      }
+                    : {
+                          variant: 'schedule',
+                          label: __('Programmation active', 'visi-bloc-jlg'),
+                          description: scheduleSummary,
+                      };
+            }
 
-        if (rolesCount > 0) {
-            stepBadges.roles = {
-                variant: 'success',
-                label: __('Audience ciblée', 'visi-bloc-jlg'),
-                description: rolesSummary || __('Des rôles spécifiques sont sélectionnés.', 'visi-bloc-jlg'),
-            };
-        }
+            if (rolesCount > 0) {
+                badges.roles = {
+                    variant: 'success',
+                    label: __('Audience ciblée', 'visi-bloc-jlg'),
+                    description: rolesSummary || __('Des rôles spécifiques sont sélectionnés.', 'visi-bloc-jlg'),
+                };
+            }
 
-        if (hasAdvancedRules) {
-            stepBadges.advanced = hasAdvancedWarnings
-                ? {
-                      variant: 'warning',
-                      label: __('Règles incomplètes', 'visi-bloc-jlg'),
-                      description: __(
-                          'Complétez les taxonomies, segments ou conditions manquantes.',
-                          'visi-bloc-jlg',
-                      ),
-                  }
-                : {
-                      variant: 'advanced',
-                      label: __('Règles actives', 'visi-bloc-jlg'),
-                      description: advancedRulesSummary || __('Des règles avancées filtrent ce bloc.', 'visi-bloc-jlg'),
-                  };
-        }
+            if (hasAdvancedRules) {
+                badges.advanced = hasAdvancedWarnings
+                    ? {
+                          variant: 'warning',
+                          label: __('Règles incomplètes', 'visi-bloc-jlg'),
+                          description: __(
+                              'Complétez les taxonomies, segments ou conditions manquantes.',
+                              'visi-bloc-jlg',
+                          ),
+                      }
+                    : {
+                          variant: 'advanced',
+                          label: __('Règles actives', 'visi-bloc-jlg'),
+                          description:
+                              advancedRulesSummary || __('Des règles avancées filtrent ce bloc.', 'visi-bloc-jlg'),
+                      };
+            }
 
-        if (fallbackEnabled) {
-            stepBadges.fallback = fallbackIssues
-                ? {
-                      variant: 'warning',
-                      label: __('Repli à compléter', 'visi-bloc-jlg'),
-                      description: __(
-                          'Ajoutez un texte, un bloc ou définissez un repli global pour éviter une impasse.',
-                          'visi-bloc-jlg',
-                      ),
-                  }
-                : {
-                      variant: 'fallback',
-                      label: __('Repli prêt', 'visi-bloc-jlg'),
-                      description: fallbackSummary || __('Un repli est prêt pour ce bloc.', 'visi-bloc-jlg'),
-                  };
-        }
+            if (fallbackEnabled) {
+                badges.fallback = fallbackIssues
+                    ? {
+                          variant: 'warning',
+                          label: __('Repli à compléter', 'visi-bloc-jlg'),
+                          description: __(
+                              'Ajoutez un texte, un bloc ou définissez un repli global pour éviter une impasse.',
+                              'visi-bloc-jlg',
+                          ),
+                      }
+                    : {
+                          variant: 'fallback',
+                          label: __('Repli prêt', 'visi-bloc-jlg'),
+                          description: fallbackSummary || __('Un repli est prêt pour ce bloc.', 'visi-bloc-jlg'),
+                      };
+            }
+
+            return badges;
+        }, [
+            isHidden,
+            isSchedulingEnabled,
+            hasScheduleRangeError,
+            scheduleSummary,
+            rolesCount,
+            rolesSummary,
+            hasAdvancedRules,
+            hasAdvancedWarnings,
+            advancedRulesSummary,
+            fallbackEnabled,
+            fallbackIssues,
+            fallbackSummary,
+        ]);
+
+        const {
+            actions: onboardingActions,
+            badges: onboardingBadges,
+            selectedRecipeId: onboardingRecipeId,
+            recipes: onboardingRecipes,
+            draftUpdatedAt: onboardingDraftUpdatedAt,
+            isOpen: isOnboardingOpen,
+            isSavingDraft: onboardingIsSaving,
+            isLoadingDraft: onboardingIsLoading,
+            mode: onboardingMode,
+        } = useOnboardingWizard((store) => ({
+            badges: store.getBadges(),
+            selectedRecipeId: store.getSelectedRecipeId(),
+            recipes: store.getRecipes(),
+            draftUpdatedAt: store.getDraftUpdatedAt(),
+            isOpen: store.isOpen(),
+            isSavingDraft: store.isSavingDraft(),
+            isLoadingDraft: store.isLoadingDraft(),
+            mode: store.getMode(),
+        }));
+
+        useEffect(() => {
+            onboardingActions.setBadges(stepBadges);
+        }, [onboardingActions, stepBadges]);
+
+        useEffect(() => {
+            if (!isSelected && isOnboardingOpen) {
+                onboardingActions.closeWizard();
+            }
+        }, [isSelected, isOnboardingOpen, onboardingActions]);
+
+        const onboardingRecipeLabel = useMemo(() => {
+            if (!onboardingRecipeId) {
+                return '';
+            }
+
+            const match = onboardingRecipes.find((recipe) => recipe.id === onboardingRecipeId);
+
+            if (!match) {
+                return '';
+            }
+
+            return typeof match.title === 'string' && match.title ? match.title : onboardingRecipeId;
+        }, [onboardingRecipeId, onboardingRecipes]);
+
+        const onboardingLastSaved = useMemo(() => {
+            if (!onboardingDraftUpdatedAt) {
+                return '';
+            }
+
+            try {
+                return new Date(onboardingDraftUpdatedAt * 1000).toLocaleString();
+            } catch (error) {
+                return '';
+            }
+        }, [onboardingDraftUpdatedAt]);
+
+        const onboardingBadgeEntries = useMemo(
+            () => Object.entries(onboardingBadges || {}),
+            [onboardingBadges],
+        );
+
+        const onboardingModeLabel = useMemo(() => {
+            if (typeof onboardingMode !== 'string') {
+                return __('Mode simple', 'visi-bloc-jlg');
+            }
+
+            return 'expert' === onboardingMode.toLowerCase()
+                ? __('Mode expert', 'visi-bloc-jlg')
+                : __('Mode simple', 'visi-bloc-jlg');
+        }, [onboardingMode]);
 
         const inspectorSteps = [
             {
@@ -5512,6 +5603,7 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
         return (
             <Fragment>
                 <BlockEdit {...props} />
+                <OnboardingWizard />
                 {isSelected && (
                     <Fragment>
                         <BlockControls>
@@ -5531,6 +5623,64 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                             </ToolbarGroup>
                         </BlockControls>
                         <InspectorControls>
+                            <PanelBody
+                                title={__('Assistant Onboarding', 'visi-bloc-jlg')}
+                                initialOpen={false}
+                                className="visibloc-panel--onboarding"
+                            >
+                                <p>
+                                    {__(
+                                        'Centralisez vos objectifs et votre audience avant d’ajuster les réglages de visibilité.',
+                                        'visi-bloc-jlg',
+                                    )}
+                                </p>
+                                <div className="visibloc-onboarding-panel__meta">
+                                    <span className="visibloc-onboarding-panel__meta-item">{onboardingModeLabel}</span>
+                                    {onboardingRecipeLabel ? (
+                                        <span className="visibloc-onboarding-panel__meta-item">
+                                            {sprintf(
+                                                __('Recette sélectionnée : %s', 'visi-bloc-jlg'),
+                                                onboardingRecipeLabel,
+                                            )}
+                                        </span>
+                                    ) : null}
+                                    {onboardingLastSaved ? (
+                                        <span className="visibloc-onboarding-panel__meta-item">
+                                            {sprintf(
+                                                __('Brouillon mis à jour : %s', 'visi-bloc-jlg'),
+                                                onboardingLastSaved,
+                                            )}
+                                        </span>
+                                    ) : null}
+                                </div>
+                                <div className="visibloc-onboarding-panel__badges">
+                                    {onboardingBadgeEntries.length > 0 ? (
+                                        onboardingBadgeEntries.map(([key, badge]) => (
+                                            <StatusBadge
+                                                key={`onboarding-badge-${key}`}
+                                                label={badge.label}
+                                                variant={badge.variant}
+                                                description={badge.description}
+                                            />
+                                        ))
+                                    ) : (
+                                        <p className="visibloc-onboarding-panel__placeholder">
+                                            {__('Les badges apparaîtront après configuration de la visibilité.', 'visi-bloc-jlg')}
+                                        </p>
+                                    )}
+                                </div>
+                                <Button
+                                    variant="primary"
+                                    onClick={() => onboardingActions.openWizard()}
+                                    isBusy={onboardingIsLoading || onboardingIsSaving}
+                                >
+                                    {onboardingIsLoading
+                                        ? __('Chargement…', 'visi-bloc-jlg')
+                                        : isOnboardingOpen
+                                        ? __('Reprendre l’assistant', 'visi-bloc-jlg')
+                                        : __('Ouvrir l’assistant', 'visi-bloc-jlg')}
+                                </Button>
+                            </PanelBody>
                             <PanelBody
                                 title={__('Parcours de visibilité', 'visi-bloc-jlg')}
                                 initialOpen={true}

@@ -69,6 +69,104 @@
     gap: 16px;
 }
 
+.visibloc-panel--onboarding {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.visibloc-onboarding-panel__meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--wp-components-color-foreground-muted, #50575e);
+}
+
+.visibloc-onboarding-panel__meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.visibloc-onboarding-panel__badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.visibloc-onboarding-panel__placeholder {
+    margin: 0;
+    font-size: 12px;
+    color: var(--wp-components-color-foreground-muted, #50575e);
+}
+
+.visibloc-onboarding-modal {
+    max-width: 760px;
+}
+
+.visibloc-onboarding-modal__header {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.visibloc-onboarding-modal__content {
+    margin-top: 16px;
+}
+
+.visibloc-onboarding-modal__meta {
+    font-size: 12px;
+    color: var(--wp-components-color-foreground-muted, #50575e);
+}
+
+.visibloc-onboarding-nav {
+    margin-bottom: 12px;
+    gap: 8px;
+}
+
+.visibloc-onboarding-step {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.visibloc-onboarding-badges {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.visibloc-onboarding-badges__item {
+    background: var(--visibloc-surface-subtle);
+    border: 1px solid var(--visibloc-border-subtle);
+    border-radius: var(--visibloc-radius-base);
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.visibloc-onboarding-badges__label {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.visibloc-onboarding-badges__description {
+    font-size: 12px;
+    color: var(--wp-components-color-foreground-muted, #50575e);
+}
+
+.visibloc-onboarding-loading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+}
+
 .visibloc-editor-mode {
     display: flex;
     flex-direction: column;

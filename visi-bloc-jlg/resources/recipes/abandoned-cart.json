@@ -1,0 +1,26 @@
+{
+  "id": "abandoned-cart",
+  "title": "Relance panier",
+  "summary": "Convertit les paniers abandonnés avec une offre à durée limitée.",
+  "objective": {
+    "goal": "Récupérer 20 % des paniers abandonnés.",
+    "description": "Met en avant l'avantage concurrentiel et rassure sur la livraison.",
+    "successMetric": "Taux de conversion post-relance supérieur à 8 %."
+  },
+  "audience": {
+    "primary": "Clients identifiés avec un panier actif depuis 45 minutes.",
+    "secondary": "Visiteurs authentifiés ayant consulté plus de 3 produits premium.",
+    "notes": "Exclut les commandes déjà payées ou en cours de préparation.",
+    "roles": "Customer"
+  },
+  "timing": {
+    "start": "Après 45 minutes d'inactivité.",
+    "end": "Expiration à J+2 avec rappel à J+1.",
+    "cadence": "2 rappels maximum."
+  },
+  "content": {
+    "promise": "Mettre en avant la garantie satisfait ou remboursé.",
+    "callToAction": "Encourager à valider la commande avec un avantage fidélité.",
+    "fallback": "Proposer les meilleures ventes de la catégorie visitée."
+  }
+}

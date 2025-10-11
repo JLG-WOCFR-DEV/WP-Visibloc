@@ -405,6 +405,166 @@ function visibloc_jlg_collect_admin_notifications( array $context = [] ) {
     return $notifications;
 }
 
+function visibloc_jlg_get_onboarding_mode() {
+    $stored = get_option( 'visibloc_onboarding_mode', 'simple' );
+
+    if ( ! is_string( $stored ) ) {
+        return 'simple';
+    }
+
+    return 'expert' === strtolower( $stored ) ? 'expert' : 'simple';
+}
+
+function visibloc_jlg_update_onboarding_mode( $mode ) {
+    $normalized = 'expert' === strtolower( (string) $mode ) ? 'expert' : 'simple';
+
+    update_option( 'visibloc_onboarding_mode', $normalized );
+}
+
+function visibloc_jlg_sanitize_onboarding_text( $value ) {
+    $value = (string) $value;
+
+    if ( function_exists( 'sanitize_textarea_field' ) ) {
+        return sanitize_textarea_field( $value );
+    }
+
+    $value = strip_tags( $value );
+
+    return trim( preg_replace( '/\s+/', ' ', $value ) );
+}
+
+function visibloc_jlg_sanitize_onboarding_recipe_value( $value ) {
+    if ( is_array( $value ) ) {
+        $sanitized = [];
+
+        foreach ( $value as $key => $child ) {
+            if ( is_int( $key ) ) {
+                $sanitized[] = visibloc_jlg_sanitize_onboarding_recipe_value( $child );
+
+                continue;
+            }
+
+            $normalized_key = is_string( $key ) ? preg_replace( '/[^a-zA-Z0-9_-]/', '_', $key ) : '';
+
+            if ( '' === $normalized_key ) {
+                continue;
+            }
+
+            $sanitized[ $normalized_key ] = visibloc_jlg_sanitize_onboarding_recipe_value( $child );
+        }
+
+        return $sanitized;
+    }
+
+    if ( is_scalar( $value ) ) {
+        return visibloc_jlg_sanitize_onboarding_text( $value );
+    }
+
+    return '';
+}
+
+function visibloc_jlg_normalize_onboarding_recipe_section( $section ) {
+    if ( ! is_array( $section ) ) {
+        return [];
+    }
+
+    $normalized = [];
+
+    foreach ( $section as $key => $value ) {
+        $normalized_key = is_string( $key ) ? preg_replace( '/[^a-zA-Z0-9_-]/', '_', $key ) : '';
+
+        if ( '' === $normalized_key ) {
+            continue;
+        }
+
+        $normalized[ $normalized_key ] = visibloc_jlg_sanitize_onboarding_recipe_value( $value );
+    }
+
+    return $normalized;
+}
+
+function visibloc_jlg_read_onboarding_recipe_file( $file_path ) {
+    if ( ! is_string( $file_path ) || '' === $file_path || ! is_readable( $file_path ) ) {
+        return null;
+    }
+
+    $contents = file_get_contents( $file_path );
+
+    if ( false === $contents ) {
+        return null;
+    }
+
+    $decoded = json_decode( $contents, true );
+
+    if ( null === $decoded || ! is_array( $decoded ) ) {
+        return null;
+    }
+
+    $recipe_id = '';
+
+    if ( isset( $decoded['id'] ) && is_string( $decoded['id'] ) && '' !== $decoded['id'] ) {
+        $recipe_id = sanitize_key( $decoded['id'] );
+    }
+
+    if ( '' === $recipe_id ) {
+        $recipe_id = sanitize_key( basename( $file_path, '.json' ) );
+    }
+
+    if ( '' === $recipe_id ) {
+        return null;
+    }
+
+    $recipe = [
+        'id'        => $recipe_id,
+        'title'     => isset( $decoded['title'] ) && is_string( $decoded['title'] )
+            ? sanitize_text_field( $decoded['title'] )
+            : $recipe_id,
+        'summary'   => isset( $decoded['summary'] ) && is_string( $decoded['summary'] )
+            ? sanitize_textarea_field( $decoded['summary'] )
+            : '',
+        'objective' => visibloc_jlg_normalize_onboarding_recipe_section( $decoded['objective'] ?? [] ),
+        'audience'  => visibloc_jlg_normalize_onboarding_recipe_section( $decoded['audience'] ?? [] ),
+        'timing'    => visibloc_jlg_normalize_onboarding_recipe_section( $decoded['timing'] ?? [] ),
+        'content'   => visibloc_jlg_normalize_onboarding_recipe_section( $decoded['content'] ?? [] ),
+    ];
+
+    return $recipe;
+}
+
+function visibloc_jlg_get_onboarding_recipes_library() {
+    $base_dir = visibloc_jlg_get_plugin_dir_path();
+    $recipes_dir = trailingslashit( $base_dir ) . 'resources/recipes';
+
+    if ( ! is_dir( $recipes_dir ) ) {
+        return [];
+    }
+
+    $files = glob( trailingslashit( $recipes_dir ) . '*.json' );
+
+    if ( ! is_array( $files ) ) {
+        $files = [];
+    }
+
+    $recipes = [];
+
+    foreach ( $files as $file_path ) {
+        $recipe = visibloc_jlg_read_onboarding_recipe_file( $file_path );
+
+        if ( null === $recipe ) {
+            continue;
+        }
+
+        $recipes[] = $recipe;
+    }
+
+    /**
+     * Filter the onboarding recipes exposed in the admin and editor.
+     *
+     * @param array $recipes Recipes definitions.
+     */
+    return apply_filters( 'visibloc_jlg_onboarding_recipes', $recipes );
+}
+
 /**
  * Provide a curated block template for a guided recipe.
  *
@@ -827,6 +987,7 @@ function visibloc_jlg_get_settings_request_handlers() {
         'visibloc_save_breakpoints'      => 'visibloc_jlg_handle_breakpoints_request',
         'visibloc_save_fallback'         => 'visibloc_jlg_handle_fallback_request',
         'visibloc_save_permissions'      => 'visibloc_jlg_handle_permissions_request',
+        'visibloc_save_onboarding_mode'  => 'visibloc_jlg_handle_onboarding_mode_request',
     ];
 }
 
@@ -885,6 +1046,15 @@ function visibloc_jlg_prepare_settings_request_data( $action ) {
 
             return [
                 'roles' => array_values( array_unique( $submitted_roles ) ),
+            ];
+
+        case 'visibloc_save_onboarding_mode':
+            $raw_mode = isset( $_POST['visibloc_onboarding_mode'] )
+                ? sanitize_text_field( wp_unslash( $_POST['visibloc_onboarding_mode'] ) )
+                : 'simple';
+
+            return [
+                'mode' => 'expert' === strtolower( $raw_mode ) ? 'expert' : 'simple',
             ];
     }
 
@@ -1023,6 +1193,14 @@ function visibloc_jlg_handle_permissions_request( array $data ) {
     return visibloc_jlg_create_settings_redirect_result( 'updated' );
 }
 
+function visibloc_jlg_handle_onboarding_mode_request( array $data ) {
+    $mode = isset( $data['mode'] ) ? $data['mode'] : 'simple';
+
+    visibloc_jlg_update_onboarding_mode( $mode );
+
+    return visibloc_jlg_create_settings_redirect_result( 'updated' );
+}
+
 function visibloc_jlg_create_settings_redirect_result( $status = null, array $query_args = [] ) {
     $base_url = admin_url( 'admin.php?page=visi-bloc-jlg-help' );
 
@@ -1087,6 +1265,7 @@ function visibloc_jlg_get_settings_snapshot() {
         'preview_roles'    => $preview_roles,
         'debug_mode'       => ( 'on' === $debug_mode ) ? 'on' : 'off',
         'fallback'         => visibloc_jlg_get_fallback_settings(),
+        'onboarding_mode'  => visibloc_jlg_get_onboarding_mode(),
         'exported_at'      => gmdate( 'c' ),
         'version'          => visibloc_jlg_get_plugin_version(),
     ];
@@ -1154,6 +1333,10 @@ function visibloc_jlg_import_settings_snapshot( $payload ) {
         update_option( 'visibloc_fallback_settings', $sanitized['fallback'] );
     }
 
+    if ( isset( $sanitized['onboarding_mode'] ) ) {
+        visibloc_jlg_update_onboarding_mode( $sanitized['onboarding_mode'] );
+    }
+
     visibloc_jlg_clear_caches();
 
     return true;
@@ -1213,6 +1396,10 @@ function visibloc_jlg_sanitize_import_settings( $data ) {
         }
 
         $sanitized['fallback'] = visibloc_jlg_normalize_fallback_settings( $data['fallback'] );
+    }
+
+    if ( array_key_exists( 'onboarding_mode', $data ) ) {
+        $sanitized['onboarding_mode'] = 'expert' === strtolower( (string) $data['onboarding_mode'] ) ? 'expert' : 'simple';
     }
 
     return $sanitized;
@@ -1325,6 +1512,8 @@ function visibloc_jlg_render_help_page_content() {
         ]
     );
     $onboarding_progress = visibloc_jlg_calculate_onboarding_progress( $onboarding_items );
+    $onboarding_mode     = visibloc_jlg_get_onboarding_mode();
+    $onboarding_recipes  = visibloc_jlg_get_onboarding_recipes_library();
 
     $section_map = [];
 
@@ -1333,7 +1522,7 @@ function visibloc_jlg_render_help_page_content() {
             'id'      => 'visibloc-section-onboarding',
             'label'   => __( 'Checklist de mise en route', 'visi-bloc-jlg' ),
             'render'  => 'visibloc_jlg_render_onboarding_section',
-            'args'    => [ $onboarding_items, $onboarding_progress ],
+            'args'    => [ $onboarding_items, $onboarding_progress, $onboarding_mode, $onboarding_recipes ],
         ];
     }
 
@@ -1569,9 +1758,11 @@ function visibloc_jlg_render_help_page_content() {
     <?php
 }
 
-function visibloc_jlg_render_onboarding_section( $items, $progress ) {
+function visibloc_jlg_render_onboarding_section( $items, $progress, $mode = 'simple', $recipes = [] ) {
     $items    = is_array( $items ) ? array_values( array_filter( $items ) ) : [];
     $progress = is_array( $progress ) ? $progress : [ 'completed' => 0, 'total' => 0, 'percent' => 0 ];
+    $mode     = 'expert' === strtolower( (string) $mode ) ? 'expert' : 'simple';
+    $recipes  = is_array( $recipes ) ? array_values( array_filter( $recipes ) ) : [];
 
     if ( empty( $items ) ) {
         return;
@@ -1609,6 +1800,25 @@ function visibloc_jlg_render_onboarding_section( $items, $progress ) {
                     <span class="visibloc-onboarding__progress-bar-fill" style="width: <?php echo esc_attr( $percent_value ); ?>%;"></span>
                 </div>
             </div>
+            <div class="visibloc-onboarding__mode">
+                <form method="post" class="visibloc-onboarding__mode-form">
+                    <?php wp_nonce_field( 'visibloc_save_onboarding_mode', 'visibloc_nonce' ); ?>
+                    <label class="screen-reader-text" for="visibloc-onboarding-mode">
+                        <?php esc_html_e( 'Mode par défaut de l’assistant', 'visi-bloc-jlg' ); ?>
+                    </label>
+                    <select name="visibloc_onboarding_mode" id="visibloc-onboarding-mode">
+                        <option value="simple" <?php selected( 'simple', $mode ); ?>>
+                            <?php esc_html_e( 'Simple', 'visi-bloc-jlg' ); ?>
+                        </option>
+                        <option value="expert" <?php selected( 'expert', $mode ); ?>>
+                            <?php esc_html_e( 'Expert', 'visi-bloc-jlg' ); ?>
+                        </option>
+                    </select>
+                    <button type="submit" class="button button-secondary">
+                        <?php esc_html_e( 'Enregistrer', 'visi-bloc-jlg' ); ?>
+                    </button>
+                </form>
+            </div>
         </div>
         <details class="visibloc-contextual-guide" data-visibloc-guide>
             <summary class="visibloc-contextual-guide__summary">
@@ -1618,6 +1828,24 @@ function visibloc_jlg_render_onboarding_section( $items, $progress ) {
                 <p><?php esc_html_e( 'Chaque carte renvoie vers la section correspondante de la page. Pensez à valider l’accessibilité (labels, contrastes) avant de marquer l’étape comme terminée.', 'visi-bloc-jlg' ); ?></p>
             </div>
         </details>
+        <?php if ( ! empty( $recipes ) ) : ?>
+            <div class="visibloc-onboarding__recipes">
+                <h4 class="visibloc-onboarding__recipes-title"><?php esc_html_e( 'Recettes disponibles', 'visi-bloc-jlg' ); ?></h4>
+                <ul class="visibloc-onboarding__recipes-list">
+                    <?php foreach ( $recipes as $recipe ) :
+                        $recipe_title   = isset( $recipe['title'] ) ? (string) $recipe['title'] : '';
+                        $recipe_summary = isset( $recipe['summary'] ) ? (string) $recipe['summary'] : '';
+                        ?>
+                        <li class="visibloc-onboarding__recipes-item">
+                            <strong><?php echo esc_html( $recipe_title ); ?></strong>
+                            <?php if ( '' !== $recipe_summary ) : ?>
+                                <span class="visibloc-onboarding__recipes-summary"><?php echo esc_html( $recipe_summary ); ?></span>
+                            <?php endif; ?>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        <?php endif; ?>
         <ul class="visibloc-onboarding__checklist" id="<?php echo esc_attr( $list_id ); ?>" role="list">
             <?php foreach ( $items as $item ) :
                 $is_complete  = ! empty( $item['complete'] );

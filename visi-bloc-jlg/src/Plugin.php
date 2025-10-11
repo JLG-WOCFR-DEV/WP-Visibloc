@@ -62,6 +62,7 @@ class Plugin {
         $this->define_default_supported_blocks();
         $this->register_settings_hooks();
         $this->register_editor_preferences_hooks();
+        $this->register_onboarding_hooks();
         $this->register_assets_hooks();
         $this->register_visibility_hooks();
         $this->register_role_switcher_hooks();
@@ -87,6 +88,10 @@ class Plugin {
      */
     protected function register_editor_preferences_hooks() {
         require_once $this->plugin_dir . '/includes/editor-preferences.php';
+    }
+
+    protected function register_onboarding_hooks() {
+        require_once $this->plugin_dir . '/includes/rest/class-visibloc-onboarding-controller.php';
     }
 
     /**

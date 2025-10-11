@@ -1,0 +1,26 @@
+{
+  "id": "welcome-series",
+  "title": "Série de bienvenue",
+  "summary": "Accompagne les nouveaux inscrits avec une progression sur deux semaines.",
+  "objective": {
+    "goal": "Activer les nouveaux membres dans les 14 premiers jours.",
+    "description": "Séquence en trois temps pour présenter l'offre et orienter vers les contenus essentiels.",
+    "successMetric": "Taux d'ouverture supérieur à 45 % sur la série."
+  },
+  "audience": {
+    "primary": "Visiteurs qui se sont inscrits ou ont créé un compte depuis moins de 10 jours.",
+    "secondary": "Utilisateurs newsletter qui n'ont pas encore confirmé leurs préférences.",
+    "notes": "Synchronise le segment CRM \"Nouveaux clients\" et exclut les profils B2B.",
+    "roles": "Subscriber, Customer"
+  },
+  "timing": {
+    "start": "Dès l'inscription confirmée.",
+    "end": "J+14 après l'inscription.",
+    "cadence": "3 interactions (J0, J+5, J+12)."
+  },
+  "content": {
+    "promise": "Bienvenue personnalisé mettant en avant les bénéfices clés.",
+    "callToAction": "Inviter à compléter le profil et découvrir la bibliothèque de ressources.",
+    "fallback": "Afficher un message standard renvoyant vers la page d'accueil personnalisée."
+  }
+}
