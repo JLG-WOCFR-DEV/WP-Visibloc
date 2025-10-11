@@ -4,6 +4,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 require_once __DIR__ . '/cache-constants.php';
 
 require_once __DIR__ . '/block-utils.php';
+require_once __DIR__ . '/audit-log.php';
 require_once __DIR__ . '/fallback.php';
 require_once __DIR__ . '/utils.php';
 require_once __DIR__ . '/plugin-meta.php';
@@ -946,8 +947,8 @@ function visibloc_jlg_update_supported_blocks( $block_names ) {
     return $normalized_blocks;
 }
 
-add_action( 'admin_init', 'visibloc_jlg_handle_options_save' );
-function visibloc_jlg_handle_options_save() {
+add_action( 'admin_init', 'visibloc_jlg_save_settings' );
+function visibloc_jlg_save_settings() {
     if ( ! current_user_can( 'manage_options' ) ) return;
 
     $request_method = isset( $_SERVER['REQUEST_METHOD'] ) ? strtoupper( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : '';
@@ -973,9 +974,52 @@ function visibloc_jlg_handle_options_save() {
         $data   = visibloc_jlg_prepare_settings_request_data( $action );
         $result = call_user_func( $handler, $data );
 
+        if ( function_exists( 'visibloc_jlg_record_audit_event' ) ) {
+            $status = '';
+
+            if ( is_array( $result ) && isset( $result['status'] ) && is_string( $result['status'] ) ) {
+                $status = function_exists( 'sanitize_key' ) ? sanitize_key( $result['status'] ) : $result['status'];
+            }
+
+            $redirect_to = '';
+
+            if ( is_array( $result ) && isset( $result['redirect_to'] ) && is_string( $result['redirect_to'] ) ) {
+                $redirect_to = function_exists( 'esc_url_raw' ) ? esc_url_raw( $result['redirect_to'] ) : $result['redirect_to'];
+            }
+
+            $message = sprintf(
+                function_exists( '__' ) ? __( 'Paramètres mis à jour via l’action %s.', 'visi-bloc-jlg' ) : 'Settings updated via action %s.',
+                $action
+            );
+
+            $context = [
+                'action'      => function_exists( 'sanitize_key' ) ? sanitize_key( $action ) : $action,
+                'status'      => $status,
+            ];
+
+            if ( '' !== $redirect_to ) {
+                $context['redirect_to'] = $redirect_to;
+            }
+
+            $user_id = function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0;
+
+            visibloc_jlg_record_audit_event(
+                'settings_updated',
+                [
+                    'message' => $message,
+                    'context' => $context,
+                    'user_id' => $user_id,
+                ]
+            );
+        }
+
         visibloc_jlg_finalize_settings_request( $result );
         return;
     }
+}
+
+function visibloc_jlg_handle_options_save() {
+    visibloc_jlg_save_settings();
 }
 
 function visibloc_jlg_get_settings_request_handlers() {
