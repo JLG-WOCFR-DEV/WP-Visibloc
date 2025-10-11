@@ -128,6 +128,52 @@ body.is-dark-theme {
     transition: width 0.4s ease;
 }
 
+.visibloc-onboarding__mode {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.visibloc-onboarding__mode-form {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.visibloc-onboarding__mode-form select {
+    min-width: 140px;
+}
+
+.visibloc-onboarding__recipes {
+    border-top: 1px solid var(--visibloc-border-subtle);
+    padding-top: 16px;
+    margin-top: 4px;
+}
+
+.visibloc-onboarding__recipes-title {
+    margin: 0 0 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--visibloc-text-subtle);
+}
+
+.visibloc-onboarding__recipes-list {
+    margin: 0;
+    padding-left: 18px;
+    color: var(--visibloc-text-subtle);
+}
+
+.visibloc-onboarding__recipes-item {
+    margin-bottom: 6px;
+}
+
+.visibloc-onboarding__recipes-summary {
+    display: block;
+    font-size: 12px;
+    margin-top: 2px;
+}
+
 .visibloc-onboarding__checklist {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));

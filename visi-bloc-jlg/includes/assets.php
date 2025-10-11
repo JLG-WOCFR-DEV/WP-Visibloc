@@ -727,6 +727,7 @@ function visibloc_jlg_enqueue_editor_assets() {
             'guidedRecipes'    => visibloc_jlg_get_editor_guided_recipes(),
             'editorPreferences' => visibloc_jlg_get_editor_preferences_payload(),
             'editorPreferencesEndpoint' => visibloc_jlg_get_editor_preferences_rest_url(),
+            'onboarding'       => visibloc_jlg_get_editor_onboarding_settings(),
         ]
     );
 }
@@ -976,6 +977,14 @@ function visibloc_jlg_get_editor_guided_recipes() {
      * @param array $recipes Recipes definitions.
      */
     return apply_filters( 'visibloc_jlg_editor_guided_recipes', $recipes );
+}
+
+function visibloc_jlg_get_editor_onboarding_settings() {
+    return [
+        'mode'         => visibloc_jlg_get_onboarding_mode(),
+        'recipes'      => visibloc_jlg_get_onboarding_recipes_library(),
+        'restEndpoint' => visibloc_jlg_get_onboarding_rest_url(),
+    ];
 }
 
 function visibloc_jlg_get_editor_templates() {
