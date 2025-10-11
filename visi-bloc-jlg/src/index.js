@@ -2127,8 +2127,41 @@ const getVisibilityDiagnostics = (context) => {
     let computedScore = 100;
     let highestSeverityWeight = 0;
     const notices = [];
+    const actions = [];
 
-    const pushNotice = ({ id, label, description = '', variant = 'default', severity = 'info' }) => {
+    const pushAction = (action, normalizedSeverity, fallbackId) => {
+        if (!action || typeof action !== 'object') {
+            return;
+        }
+
+        const { label } = action;
+
+        if (!label) {
+            return;
+        }
+
+        const normalizedAction = {
+            id: action.id || fallbackId,
+            label,
+            description: action.description || '',
+            type: action.type || 'step',
+            targetStep: action.targetStep || '',
+            command: action.command || '',
+            severity: action.severity || normalizedSeverity,
+        };
+
+        if (!normalizedAction.id) {
+            normalizedAction.id = `${fallbackId}-action`;
+        }
+
+        if (actions.some((existing) => existing.id === normalizedAction.id)) {
+            return;
+        }
+
+        actions.push(normalizedAction);
+    };
+
+    const pushNotice = ({ id, label, description = '', variant = 'default', severity = 'info', action = null }) => {
         if (!label) {
             return;
         }
@@ -2148,6 +2181,10 @@ const getVisibilityDiagnostics = (context) => {
             severity: normalizedSeverity,
             screenReaderText: SCREEN_READER_SEVERITY_LABELS[normalizedSeverity] || '',
         });
+
+        if (action) {
+            pushAction(action, normalizedSeverity, id || `notice-${notices.length}`);
+        }
     };
 
     if (context.isHidden) {
@@ -2157,6 +2194,13 @@ const getVisibilityDiagnostics = (context) => {
             description: __('Ce bloc restera invisible sur le front tant que le masquage manuel sera activé.', 'visi-bloc-jlg'),
             variant: 'hidden',
             severity: 'info',
+            action: {
+                id: 'action-reveal-block',
+                type: 'command',
+                command: 'reveal-block',
+                label: __('Afficher ce bloc', 'visi-bloc-jlg'),
+                description: __('Désactivez le masquage manuel pour rendre le contenu immédiatement visible.', 'visi-bloc-jlg'),
+            },
         });
     } else if (context.hasConditionalVisibility) {
         pushNotice({
@@ -2185,85 +2229,134 @@ const getVisibilityDiagnostics = (context) => {
         pushNotice(notice);
     };
 
-    if (scheduling.isSchedulingEnabled) {
-        if (scheduling.hasScheduleRangeError) {
-            pushScheduleNotice({
-                id: 'schedule-invalid',
-                label: __('Programmation incohérente', 'visi-bloc-jlg'),
-                description: __('La date de fin doit être postérieure à la date de début pour éviter une coupure prématurée.', 'visi-bloc-jlg'),
-                variant: 'critical',
-                severity: 'critical',
-            });
-        }
+        if (scheduling.isSchedulingEnabled) {
+            if (scheduling.hasScheduleRangeError) {
+                pushScheduleNotice({
+                    id: 'schedule-invalid',
+                    label: __('Programmation incohérente', 'visi-bloc-jlg'),
+                    description: __('La date de fin doit être postérieure à la date de début pour éviter une coupure prématurée.', 'visi-bloc-jlg'),
+                    variant: 'critical',
+                    severity: 'critical',
+                    action: {
+                        id: 'action-fix-schedule-range',
+                        type: 'step',
+                        targetStep: 'schedule',
+                        label: __('Corriger les dates de programmation', 'visi-bloc-jlg'),
+                        description: __('Ajustez les dates de début et de fin dans l’onglet Calendrier.', 'visi-bloc-jlg'),
+                    },
+                });
+            }
 
-        const now = Date.now();
-        const startDate = parseDateValue(scheduling.publishStartDate);
+            const now = Date.now();
+            const startDate = parseDateValue(scheduling.publishStartDate);
         const endDate = parseDateValue(scheduling.publishEndDate);
 
-        if (endDate && endDate.getTime() < now) {
-            pushScheduleNotice({
-                id: 'schedule-expired',
-                label: __('Programmation expirée', 'visi-bloc-jlg'),
-                description: sprintf(__('Le bloc est masqué depuis %s.', 'visi-bloc-jlg'), formatRelativeHours(endDate, now)),
-                variant: 'critical',
-                severity: 'critical',
-            });
-        } else if (endDate) {
-            const diffMs = endDate.getTime() - now;
-
-            if (diffMs <= RELIABILITY_CRITICAL_THRESHOLD_HOURS * HOUR_IN_MS) {
+            if (endDate && endDate.getTime() < now) {
                 pushScheduleNotice({
-                    id: 'schedule-end-critical',
-                    label: __('Expiration imminente', 'visi-bloc-jlg'),
-                    description: sprintf(__('Le bloc sera masqué %s.', 'visi-bloc-jlg'), formatRelativeHours(endDate, now)),
-                    variant: 'schedule',
+                    id: 'schedule-expired',
+                    label: __('Programmation expirée', 'visi-bloc-jlg'),
+                    description: sprintf(__('Le bloc est masqué depuis %s.', 'visi-bloc-jlg'), formatRelativeHours(endDate, now)),
+                    variant: 'critical',
                     severity: 'critical',
+                    action: {
+                        id: 'action-refresh-schedule',
+                        type: 'step',
+                        targetStep: 'schedule',
+                        label: __('Mettre à jour le calendrier', 'visi-bloc-jlg'),
+                        description: __('Définissez une nouvelle période de diffusion pour réactiver le bloc.', 'visi-bloc-jlg'),
+                    },
                 });
-            } else if (diffMs <= RELIABILITY_WARNING_THRESHOLD_HOURS * HOUR_IN_MS) {
-                pushScheduleNotice({
-                    id: 'schedule-end-warning',
-                    label: __('Expiration prochaine', 'visi-bloc-jlg'),
-                    description: sprintf(__('Préparez une alternative : expiration %s.', 'visi-bloc-jlg'), formatRelativeHours(endDate, now)),
-                    variant: 'schedule',
-                    severity: 'warning',
-                });
-            }
-        }
+            } else if (endDate) {
+                const diffMs = endDate.getTime() - now;
 
-        if (startDate && startDate.getTime() > now) {
+                if (diffMs <= RELIABILITY_CRITICAL_THRESHOLD_HOURS * HOUR_IN_MS) {
+                    pushScheduleNotice({
+                        id: 'schedule-end-critical',
+                        label: __('Expiration imminente', 'visi-bloc-jlg'),
+                        description: sprintf(__('Le bloc sera masqué %s.', 'visi-bloc-jlg'), formatRelativeHours(endDate, now)),
+                        variant: 'schedule',
+                        severity: 'critical',
+                        action: {
+                            id: 'action-prepare-expiration',
+                            type: 'step',
+                            targetStep: 'schedule',
+                            label: __('Planifier la suite', 'visi-bloc-jlg'),
+                            description: __('Confirmez ou modifiez la date de fin pour éviter une coupure inattendue.', 'visi-bloc-jlg'),
+                        },
+                    });
+                } else if (diffMs <= RELIABILITY_WARNING_THRESHOLD_HOURS * HOUR_IN_MS) {
+                    pushScheduleNotice({
+                        id: 'schedule-end-warning',
+                        label: __('Expiration prochaine', 'visi-bloc-jlg'),
+                        description: sprintf(__('Préparez une alternative : expiration %s.', 'visi-bloc-jlg'), formatRelativeHours(endDate, now)),
+                        variant: 'schedule',
+                        severity: 'warning',
+                        action: {
+                            id: 'action-review-schedule-end',
+                            type: 'step',
+                            targetStep: 'schedule',
+                            label: __('Réviser la date de fin', 'visi-bloc-jlg'),
+                            description: __('Vérifiez si le bloc doit rester actif plus longtemps.', 'visi-bloc-jlg'),
+                        },
+                    });
+                }
+            }
+
+            if (startDate && startDate.getTime() > now) {
             const diffMs = startDate.getTime() - now;
 
-            if (diffMs <= RELIABILITY_CRITICAL_THRESHOLD_HOURS * HOUR_IN_MS) {
+                if (diffMs <= RELIABILITY_CRITICAL_THRESHOLD_HOURS * HOUR_IN_MS) {
+                    pushScheduleNotice({
+                        id: 'schedule-start-critical',
+                        label: __('Activation imminente', 'visi-bloc-jlg'),
+                        description: sprintf(__('Le bloc deviendra visible %s.', 'visi-bloc-jlg'), formatRelativeHours(startDate, now)),
+                        variant: 'schedule',
+                        severity: 'warning',
+                        action: {
+                            id: 'action-confirm-start-date',
+                            type: 'step',
+                            targetStep: 'schedule',
+                            label: __('Confirmer la date de publication', 'visi-bloc-jlg'),
+                            description: __('Vérifiez que la date d’activation correspond bien à votre campagne.', 'visi-bloc-jlg'),
+                        },
+                    });
+                } else if (diffMs <= RELIABILITY_WARNING_THRESHOLD_HOURS * HOUR_IN_MS) {
+                    pushScheduleNotice({
+                        id: 'schedule-start-warning',
+                        label: __('Activation programmée', 'visi-bloc-jlg'),
+                        description: sprintf(__('Le bloc sera publié %s.', 'visi-bloc-jlg'), formatRelativeHours(startDate, now)),
+                        variant: 'schedule',
+                        severity: 'info',
+                        action: {
+                            id: 'action-review-start-window',
+                            type: 'step',
+                            targetStep: 'schedule',
+                            label: __('Vérifier la date de début', 'visi-bloc-jlg'),
+                            description: __('Assurez-vous que la fenêtre d’activation est alignée avec vos objectifs.', 'visi-bloc-jlg'),
+                        },
+                    });
+                }
+            }
+
+            if (!startDate && !endDate) {
                 pushScheduleNotice({
-                    id: 'schedule-start-critical',
-                    label: __('Activation imminente', 'visi-bloc-jlg'),
-                    description: sprintf(__('Le bloc deviendra visible %s.', 'visi-bloc-jlg'), formatRelativeHours(startDate, now)),
-                    variant: 'schedule',
-                    severity: 'warning',
-                });
-            } else if (diffMs <= RELIABILITY_WARNING_THRESHOLD_HOURS * HOUR_IN_MS) {
-                pushScheduleNotice({
-                    id: 'schedule-start-warning',
-                    label: __('Activation programmée', 'visi-bloc-jlg'),
-                    description: sprintf(__('Le bloc sera publié %s.', 'visi-bloc-jlg'), formatRelativeHours(startDate, now)),
+                    id: 'schedule-open',
+                    label: __('Programmation sans date', 'visi-bloc-jlg'),
+                    description: __('Aucune date n’est définie malgré la programmation activée. Les solutions pro recommandent une fenêtre claire.', 'visi-bloc-jlg'),
                     variant: 'schedule',
                     severity: 'info',
+                    action: {
+                        id: 'action-define-schedule-window',
+                        type: 'step',
+                        targetStep: 'schedule',
+                        label: __('Définir une fenêtre de diffusion', 'visi-bloc-jlg'),
+                        description: __('Ajoutez une date de début ou de fin pour clarifier l’affichage.', 'visi-bloc-jlg'),
+                    },
                 });
             }
-        }
 
-        if (!startDate && !endDate) {
-            pushScheduleNotice({
-                id: 'schedule-open',
-                label: __('Programmation sans date', 'visi-bloc-jlg'),
-                description: __('Aucune date n’est définie malgré la programmation activée. Les solutions pro recommandent une fenêtre claire.', 'visi-bloc-jlg'),
-                variant: 'schedule',
-                severity: 'info',
-            });
-        }
-
-        if (!hasScheduleAlert) {
-            pushScheduleNotice({
+            if (!hasScheduleAlert) {
+                pushScheduleNotice({
                 id: 'schedule-ready',
                 label: __('Programmation opérationnelle', 'visi-bloc-jlg'),
                 description:
@@ -2285,6 +2378,13 @@ const getVisibilityDiagnostics = (context) => {
             description: __('Désactiver le contenu de substitution peut générer une expérience vide. Les extensions pro affichent toujours un repli.', 'visi-bloc-jlg'),
             variant: 'warning',
             severity: 'warning',
+            action: {
+                id: 'action-enable-fallback',
+                type: 'step',
+                targetStep: 'fallback',
+                label: __('Activer un repli', 'visi-bloc-jlg'),
+                description: __('Choisissez un contenu de substitution pour garantir une expérience complète.', 'visi-bloc-jlg'),
+            },
         });
     } else if (fallbackBehavior === 'text' && !fallbackCustomText) {
         pushNotice({
@@ -2293,6 +2393,13 @@ const getVisibilityDiagnostics = (context) => {
             description: __('Ajoutez un message de substitution pour éviter une rupture de parcours.', 'visi-bloc-jlg'),
             variant: 'critical',
             severity: 'critical',
+            action: {
+                id: 'action-write-fallback-text',
+                type: 'step',
+                targetStep: 'fallback',
+                label: __('Rédiger le texte de repli', 'visi-bloc-jlg'),
+                description: __('Complétez le champ de repli pour informer les visiteurs exclus.', 'visi-bloc-jlg'),
+            },
         });
     } else if (fallbackBehavior === 'block' && !context.fallbackBlockId) {
         pushNotice({
@@ -2301,6 +2408,13 @@ const getVisibilityDiagnostics = (context) => {
             description: __('Choisissez un bloc réutilisable afin de sécuriser le parcours utilisateur.', 'visi-bloc-jlg'),
             variant: 'critical',
             severity: 'critical',
+            action: {
+                id: 'action-select-fallback-block',
+                type: 'step',
+                targetStep: 'fallback',
+                label: __('Sélectionner un bloc de repli', 'visi-bloc-jlg'),
+                description: __('Associez un bloc réutilisable pour couvrir les cas d’exclusion.', 'visi-bloc-jlg'),
+            },
         });
     } else if (fallbackBehavior === 'inherit' && !context.hasGlobalFallback) {
         pushNotice({
@@ -2309,6 +2423,13 @@ const getVisibilityDiagnostics = (context) => {
             description: __('Définissez un repli global dans les options pour éviter une impasse de contenu.', 'visi-bloc-jlg'),
             variant: 'warning',
             severity: 'warning',
+            action: {
+                id: 'action-open-global-fallback-settings',
+                type: 'step',
+                targetStep: 'fallback',
+                label: __('Configurer le repli global', 'visi-bloc-jlg'),
+                description: __('Ouvrez l’onglet Repli pour choisir ou créer un repli global.', 'visi-bloc-jlg'),
+            },
         });
     } else {
         pushNotice({
@@ -2330,6 +2451,13 @@ const getVisibilityDiagnostics = (context) => {
                 description: __('Certaines règles sont incomplètes (taxonomie sans termes, segment non sélectionné).', 'visi-bloc-jlg'),
                 variant: 'warning',
                 severity: 'warning',
+                action: {
+                    id: 'action-review-advanced-rules',
+                    type: 'step',
+                    targetStep: 'advanced',
+                    label: __('Compléter les règles avancées', 'visi-bloc-jlg'),
+                    description: __('Ouvrez l’onglet Règles avancées pour finaliser les conditions incomplètes.', 'visi-bloc-jlg'),
+                },
             });
         } else {
             pushNotice({
@@ -2382,6 +2510,7 @@ const getVisibilityDiagnostics = (context) => {
         summary: summaryMap[level] || summaryMap.good,
         subline: sprintf(__('Score de fiabilité : %d/100.', 'visi-bloc-jlg'), Math.round(finalScore)),
         notices,
+        actions,
     };
 };
 
@@ -4784,6 +4913,44 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
         const diagnosticSummaryText = visibilityDiagnostics
             ? `${visibilityDiagnostics.summary}\n${visibilityDiagnostics.subline}`
             : '';
+        const diagnosticActions = visibilityDiagnostics && Array.isArray(visibilityDiagnostics.actions)
+            ? visibilityDiagnostics.actions
+            : [];
+
+        const getDiagnosticActionVariant = (severity) => {
+            switch (severity) {
+                case 'critical':
+                    return 'primary';
+                case 'warning':
+                    return 'secondary';
+                case 'info':
+                default:
+                    return 'tertiary';
+            }
+        };
+
+        const handleDiagnosticAction = useCallback(
+            (action) => {
+                if (!action || typeof action !== 'object') {
+                    return;
+                }
+
+                if (action.type === 'command') {
+                    switch (action.command) {
+                        case 'reveal-block':
+                            setAttributes({ isHidden: false });
+                            break;
+                        default:
+                            break;
+                    }
+                }
+
+                if (action.type === 'step' && action.targetStep) {
+                    setActiveInspectorStep(action.targetStep);
+                }
+            },
+            [setAttributes, setActiveInspectorStep],
+        );
         const stepBadges = {};
 
         if (isHidden) {
@@ -5425,6 +5592,45 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                                         {__('Aucun diagnostic particulier pour ce bloc.', 'visi-bloc-jlg')}
                                                     </p>
                                                 )}
+                                                {diagnosticActions.length > 0 ? (
+                                                    <div className="visibloc-diagnostic-actions">
+                                                        <p className="visibloc-diagnostic-actions__title">
+                                                            {__('Actions recommandées', 'visi-bloc-jlg')}
+                                                        </p>
+                                                        <ul className="visibloc-diagnostic-actions__list">
+                                                            {diagnosticActions.map((action) => {
+                                                                const descriptionId = action.description
+                                                                    ? `${action.id}-description`
+                                                                    : undefined;
+
+                                                                return (
+                                                                    <li
+                                                                        key={action.id}
+                                                                        className={`visibloc-diagnostic-actions__item visibloc-diagnostic-actions__item--${action.type}`}
+                                                                    >
+                                                                        <Button
+                                                                            variant={getDiagnosticActionVariant(
+                                                                                action.severity,
+                                                                            )}
+                                                                            onClick={() => handleDiagnosticAction(action)}
+                                                                            aria-describedby={descriptionId}
+                                                                        >
+                                                                            {action.label}
+                                                                        </Button>
+                                                                        {action.description ? (
+                                                                            <p
+                                                                                id={descriptionId}
+                                                                                className="visibloc-diagnostic-actions__description"
+                                                                            >
+                                                                                {action.description}
+                                                                            </p>
+                                                                        ) : null}
+                                                                    </li>
+                                                                );
+                                                            })}
+                                                        </ul>
+                                                    </div>
+                                                ) : null}
                                             </CardBody>
                                         </Card>
                                         <div className="screen-reader-text" role="status" aria-live="polite">
