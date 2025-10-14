@@ -1198,12 +1198,47 @@ function visibloc_jlg_get_editor_user_segments() {
 
     $items = [];
 
-    foreach ( $segments as $segment ) {
-        if ( ! class_exists( 'Visibloc_CRM_Sync' ) ) {
-            break;
-        }
+    $sanitize_segment = null;
 
-        $normalized = Visibloc_CRM_Sync::sanitize_segment_for_storage( $segment );
+    if ( class_exists( 'Visibloc_CRM_Sync' ) && method_exists( 'Visibloc_CRM_Sync', 'sanitize_segment_for_storage' ) ) {
+        $sanitize_segment = [ 'Visibloc_CRM_Sync', 'sanitize_segment_for_storage' ];
+    } else {
+        $sanitize_segment = static function ( $segment ) {
+            if ( is_object( $segment ) ) {
+                $segment = (array) $segment;
+            }
+
+            if ( ! is_array( $segment ) ) {
+                return null;
+            }
+
+            $value = isset( $segment['value'] ) ? trim( (string) $segment['value'] ) : '';
+
+            if ( '' === $value ) {
+                return null;
+            }
+
+            $sanitize_text = static function ( $value ) {
+                $value = (string) $value;
+
+                if ( function_exists( 'wp_strip_all_tags' ) ) {
+                    $value = wp_strip_all_tags( $value );
+                }
+
+                return trim( $value );
+            };
+
+            return [
+                'value'       => $value,
+                'label'       => isset( $segment['label'] ) ? $sanitize_text( $segment['label'] ) : $value,
+                'description' => isset( $segment['description'] ) ? $sanitize_text( $segment['description'] ) : '',
+                'source'      => isset( $segment['source'] ) ? $sanitize_text( $segment['source'] ) : '',
+            ];
+        };
+    }
+
+    foreach ( $segments as $segment ) {
+        $normalized = call_user_func( $sanitize_segment, $segment );
 
         if ( null === $normalized ) {
             continue;
