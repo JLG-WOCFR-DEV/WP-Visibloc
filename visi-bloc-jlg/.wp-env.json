@@ -1,0 +1,13 @@
+{
+    "core": null,
+    "plugins": [
+        "./"
+    ],
+    "themes": [
+        "https://downloads.wordpress.org/theme/twentytwentyfour.latest.zip"
+    ],
+    "config": {
+        "WP_DEBUG": true,
+        "SCRIPT_DEBUG": true
+    }
+}
