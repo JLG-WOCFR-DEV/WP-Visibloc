@@ -499,6 +499,8 @@ class EditorAssetsTest extends TestCase {
     }
 
     public function test_user_segments_filter_populates_editor_data(): void {
+        require_once dirname( __DIR__, 3 ) . '/includes/integrations/class-visibloc-crm-sync.php';
+
         $callback = static function () {
             return [
                 [

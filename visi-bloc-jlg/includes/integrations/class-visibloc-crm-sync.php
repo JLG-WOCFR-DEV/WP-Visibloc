@@ -653,7 +653,12 @@ class Visibloc_CRM_Sync {
      */
     private static function sanitize_plain_text( $value ) {
         $value = (string) $value;
-        $value = wp_strip_all_tags( $value );
+
+        if ( function_exists( 'wp_strip_all_tags' ) ) {
+            $value = wp_strip_all_tags( $value );
+        } else {
+            $value = strip_tags( $value );
+        }
 
         return trim( $value );
     }
