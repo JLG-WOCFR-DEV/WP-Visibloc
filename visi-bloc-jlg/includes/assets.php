@@ -1198,18 +1198,70 @@ function visibloc_jlg_get_editor_user_segments() {
 
     $items = [];
 
-    foreach ( $segments as $segment ) {
-        if ( ! class_exists( 'Visibloc_CRM_Sync' ) ) {
-            break;
+    $normalize_plain_text = static function ( $value ) {
+        $value = (string) $value;
+
+        if ( function_exists( 'wp_strip_all_tags' ) ) {
+            $value = wp_strip_all_tags( $value );
+        } else {
+            $value = strip_tags( $value );
         }
 
-        $normalized = Visibloc_CRM_Sync::sanitize_segment_for_storage( $segment );
+        return trim( $value );
+    };
+
+    $normalize_segment = class_exists( 'Visibloc_CRM_Sync' )
+        ? static function ( $segment ) {
+            return Visibloc_CRM_Sync::sanitize_segment_for_storage( $segment );
+        }
+        : static function ( $segment ) use ( $normalize_plain_text ) {
+            if ( is_object( $segment ) ) {
+                $segment = (array) $segment;
+            }
+
+            if ( ! is_array( $segment ) ) {
+                return null;
+            }
+
+            $value = isset( $segment['value'] ) ? trim( (string) $segment['value'] ) : '';
+
+            if ( '' === $value ) {
+                return null;
+            }
+
+            $label = isset( $segment['label'] ) ? $normalize_plain_text( $segment['label'] ) : '';
+
+            if ( '' === $label ) {
+                $label = $value;
+            }
+
+            return [
+                'value'       => $value,
+                'label'       => $label,
+                'description' => isset( $segment['description'] ) ? $normalize_plain_text( $segment['description'] ) : '',
+                'source'      => isset( $segment['source'] ) ? $normalize_plain_text( $segment['source'] ) : '',
+            ];
+        };
+
+    foreach ( $segments as $segment ) {
+        $normalized = $normalize_segment( $segment );
 
         if ( null === $normalized ) {
             continue;
         }
 
-        $items[ $normalized['value'] ] = $normalized;
+        $normalized['label']       = isset( $normalized['label'] ) && '' !== trim( (string) $normalized['label'] )
+            ? (string) $normalized['label']
+            : (string) $normalized['value'];
+        $normalized['description'] = isset( $normalized['description'] ) ? (string) $normalized['description'] : '';
+        $normalized['source']      = isset( $normalized['source'] ) ? (string) $normalized['source'] : '';
+
+        $items[ (string) $normalized['value'] ] = [
+            'value'       => (string) $normalized['value'],
+            'label'       => $normalized['label'],
+            'description' => $normalized['description'],
+            'source'      => $normalized['source'],
+        ];
     }
 
     $items = array_values( $items );
