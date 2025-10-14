@@ -80,8 +80,25 @@ async function main() {
         process.exit( 1 );
     } );
 
-    wpEnv.on( 'exit', ( code ) => {
-        process.exit( code ?? 1 );
+    let readinessResolved = false;
+    let pendingExit = { code: null, signal: null };
+
+    wpEnv.on( 'exit', ( code, signal ) => {
+        pendingExit = { code, signal };
+
+        if ( signal ) {
+            process.kill( process.pid, signal );
+            return;
+        }
+
+        if ( readinessResolved ) {
+            process.exit( code ?? 0 );
+            return;
+        }
+
+        if ( typeof code === 'number' && code !== 0 ) {
+            process.exit( code );
+        }
     } );
 
     const shutdown = () => {
@@ -98,6 +115,17 @@ async function main() {
 
     try {
         await waitForServerReady( baseUrl, timeout );
+        readinessResolved = true;
+
+        if ( pendingExit.signal ) {
+            process.kill( process.pid, pendingExit.signal );
+            return;
+        }
+
+        if ( typeof pendingExit.code === 'number' ) {
+            process.exit( pendingExit.code );
+        }
+
         // eslint-disable-next-line no-console
         console.log( `WordPress environment available at ${ baseUrl }` );
     } catch ( error ) {
