@@ -1518,10 +1518,30 @@ body.visibloc-recipes-modal-open {
     color: var(--visibloc-text-subtle);
 }
 
-.visibloc-notifications {
+.visibloc-notifications { 
     display: flex;
     flex-direction: column;
     gap: 18px;
+}
+
+.visibloc-notifications__toolbar {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.visibloc-notifications__filter-form {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.visibloc-notifications__filter-label {
+    font-weight: 600;
+    color: var(--visibloc-text-subtle);
+}
+
+.visibloc-notifications__filter-select {
+    min-width: 180px;
 }
 
 .visibloc-notifications__empty {
@@ -1564,6 +1584,58 @@ body.visibloc-recipes-modal-open {
     align-items: center;
     gap: 12px;
     flex-wrap: wrap;
+}
+
+.visibloc-notification__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    font-size: 13px;
+    color: var(--visibloc-text-subtle);
+}
+
+.visibloc-notification__status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 10px;
+    border-radius: var(--visibloc-radius-pill);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 11px;
+}
+
+.visibloc-notification__status--open {
+    background: rgba(34, 197, 94, 0.18);
+    color: #166534;
+}
+
+.visibloc-notification__status--resolved {
+    background: rgba(59, 130, 246, 0.16);
+    color: #1d4ed8;
+}
+
+.visibloc-notification__status--dismissed {
+    background: rgba(148, 163, 184, 0.18);
+    color: #475569;
+}
+
+.visibloc-notification__status--runtime {
+    background: rgba(250, 204, 21, 0.18);
+    color: #b45309;
+}
+
+.visibloc-notification__source {
+    font-weight: 600;
+    color: var(--visibloc-text-primary);
+}
+
+.visibloc-notification__history {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .visibloc-notification__badge {
@@ -1616,6 +1688,16 @@ body.visibloc-recipes-modal-open {
 
 .visibloc-notification__items li:last-child {
     margin-bottom: 0;
+}
+
+.visibloc-notification__management {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.visibloc-notification__form {
+    margin: 0;
 }
 
 .visibloc-notification__items a {
