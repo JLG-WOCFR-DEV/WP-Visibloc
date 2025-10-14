@@ -1244,8 +1244,8 @@ function visibloc_jlg_get_editor_user_segments() {
 
             $value = isset( $normalized['value'] ) ? trim( (string) $normalized['value'] ) : '';
 
-            if ( '' === $value ) {
-                return null;
+            if ( function_exists( 'wp_strip_all_tags' ) ) {
+                $value = wp_strip_all_tags( $value );
             }
 
             $normalized['value'] = $value;
