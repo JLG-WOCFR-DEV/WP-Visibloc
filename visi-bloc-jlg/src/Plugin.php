@@ -59,6 +59,7 @@ class Plugin {
      */
     public function register() {
         $this->define_version_constant();
+        $this->register_alerts_hooks();
         $this->define_default_supported_blocks();
         $this->register_settings_hooks();
         $this->register_editor_preferences_hooks();
@@ -70,6 +71,18 @@ class Plugin {
 
         if ( function_exists( 'add_action' ) ) {
             add_action( 'init', [ $this, 'load_textdomain' ] );
+        }
+    }
+
+    /**
+     * Register hooks that manage persistent alerts and cron tasks.
+     */
+    protected function register_alerts_hooks() {
+        require_once $this->plugin_dir . '/includes/class-visibloc-alerts.php';
+
+        // Ensure the manager is instantiated to hook actions declared in the file.
+        if ( function_exists( 'visibloc_jlg_alerts' ) ) {
+            visibloc_jlg_alerts();
         }
     }
 

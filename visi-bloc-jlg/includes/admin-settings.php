@@ -136,13 +136,184 @@ function visibloc_jlg_normalize_schedule_timestamp( $value ) {
     return false !== $timestamp ? $timestamp : null;
 }
 
+// Notifications logic replaced below.
+
 /**
- * Collect proactive admin notifications from various data sources.
+ * Normalize an array for hashing when the alerts manager is not available.
+ *
+ * @param mixed $context Context payload.
+ * @return mixed
+ */
+function visibloc_jlg_alerts_normalize_context_fallback( $context ) {
+    if ( is_array( $context ) ) {
+        $keys      = array_keys( $context );
+        $is_assoc  = array_keys( $keys ) !== $keys;
+
+        if ( $is_assoc ) {
+            ksort( $context );
+        }
+
+        foreach ( $context as $key => $value ) {
+            $context[ $key ] = visibloc_jlg_alerts_normalize_context_fallback( $value );
+        }
+
+        return $context;
+    }
+
+    if ( is_scalar( $context ) || null === $context ) {
+        return $context;
+    }
+
+    return (string) $context;
+}
+
+/**
+ * Merge alert action definitions while avoiding duplicates.
+ *
+ * @param array $primary   Primary actions.
+ * @param array $secondary Secondary actions.
+ * @return array
+ */
+function visibloc_jlg_merge_alert_actions( array $primary, array $secondary ) {
+    $merged = [];
+    $seen   = [];
+
+    foreach ( [ $primary, $secondary ] as $list ) {
+        foreach ( $list as $action ) {
+            if ( ! is_array( $action ) ) {
+                continue;
+            }
+
+            $label = isset( $action['label'] ) ? (string) $action['label'] : '';
+            $url   = isset( $action['url'] ) ? (string) $action['url'] : '';
+            $key   = strtolower( $label ) . '|' . $url;
+
+            if ( isset( $seen[ $key ] ) ) {
+                continue;
+            }
+
+            $seen[ $key ] = true;
+            $merged[]     = $action;
+        }
+    }
+
+    return $merged;
+}
+
+/**
+ * Detect overlapping scheduling windows for the same content.
+ *
+ * @param array $scheduled_posts Raw scheduled posts map.
+ * @return array[]
+ */
+function visibloc_jlg_detect_schedule_conflicts( array $scheduled_posts ) {
+    $grouped = [];
+
+    foreach ( $scheduled_posts as $entry ) {
+        $post_id = isset( $entry['id'] ) ? (int) $entry['id'] : 0;
+
+        if ( $post_id <= 0 ) {
+            continue;
+        }
+
+        if ( ! isset( $grouped[ $post_id ] ) ) {
+            $grouped[ $post_id ] = [
+                'title'     => isset( $entry['title'] ) ? (string) $entry['title'] : '',
+                'link'      => isset( $entry['link'] ) ? (string) $entry['link'] : '',
+                'intervals' => [],
+            ];
+        }
+
+        $grouped[ $post_id ]['intervals'][] = [
+            'start' => visibloc_jlg_normalize_schedule_timestamp( $entry['start'] ?? null ),
+            'end'   => visibloc_jlg_normalize_schedule_timestamp( $entry['end'] ?? null ),
+        ];
+    }
+
+    $conflicts = [];
+
+    foreach ( $grouped as $post_id => $data ) {
+        $intervals = isset( $data['intervals'] ) ? (array) $data['intervals'] : [];
+
+        if ( count( $intervals ) <= 1 ) {
+            continue;
+        }
+
+        usort(
+            $intervals,
+            static function ( $a, $b ) {
+                $a_start = $a['start'] ?? PHP_INT_MIN;
+                $b_start = $b['start'] ?? PHP_INT_MIN;
+
+                if ( $a_start === $b_start ) {
+                    $a_end = $a['end'] ?? PHP_INT_MAX;
+                    $b_end = $b['end'] ?? PHP_INT_MAX;
+
+                    return $a_end <=> $b_end;
+                }
+
+                return $a_start <=> $b_start;
+            }
+        );
+
+        $active         = [];
+        $conflict_count = 0;
+        $first_conflict = null;
+
+        foreach ( $intervals as $interval ) {
+            $start = $interval['start'] ?? PHP_INT_MIN;
+            $end   = $interval['end'] ?? PHP_INT_MAX;
+
+            foreach ( $active as $key => $active_interval ) {
+                $active_end = $active_interval['end'] ?? PHP_INT_MAX;
+
+                if ( $start >= $active_end ) {
+                    unset( $active[ $key ] );
+                }
+            }
+
+            if ( ! empty( $active ) ) {
+                $conflict_count++;
+
+                $candidate     = $start;
+                $active_values = array_values( $active );
+
+                if ( null === $candidate && isset( $active_values[0] ) ) {
+                    $candidate = $active_values[0]['start'] ?? null;
+                }
+
+                if ( null === $first_conflict || ( $candidate ?? PHP_INT_MIN ) < $first_conflict ) {
+                    $first_conflict = $candidate ?? $first_conflict;
+                }
+            }
+
+            $active[] = [
+                'start' => $start,
+                'end'   => $end,
+            ];
+        }
+
+        if ( $conflict_count > 0 ) {
+            $conflicts[] = [
+                'id'          => $post_id,
+                'title'       => $data['title'],
+                'link'        => $data['link'],
+                'occurrences' => count( $intervals ),
+                'closest'     => $first_conflict,
+            ];
+        }
+    }
+
+    return $conflicts;
+}
+
+/**
+ * Generate proactive alerts computed from live data.
  *
  * @param array $context Optional contextual data to avoid duplicate queries.
  * @return array<int,array<string,mixed>>
  */
-function visibloc_jlg_collect_admin_notifications( array $context = [] ) {
+function visibloc_jlg_generate_runtime_alerts( array $context = [] ) {
     $notifications = [];
 
     $fallback_settings = isset( $context['fallback_settings'] )
@@ -173,24 +344,28 @@ function visibloc_jlg_collect_admin_notifications( array $context = [] ) {
         }
 
         $notifications[] = [
-            'id'          => 'missing-fallback',
-            'level'       => 'critical',
-            'title'       => __( 'Fallback global absent', 'visi-bloc-jlg' ),
-            'description' => $description,
-            'actions'     => [
+            'id'           => 'missing-fallback',
+            'type'         => 'missing-fallback',
+            'level'        => 'critical',
+            'title'        => __( 'Fallback global absent', 'visi-bloc-jlg' ),
+            'description'  => $description,
+            'actions'      => [
                 [
                     'label'   => __( 'Configurer le fallback', 'visi-bloc-jlg' ),
                     'url'     => admin_url( 'admin.php?page=visi-bloc-jlg-help#visibloc-section-fallback' ),
                     'variant' => 'primary',
                 ],
             ],
+            'items'        => [],
+            'hash_context' => [ 'scope' => 'global' ],
+            'meta'         => [ 'hidden_block_total' => $hidden_block_total ],
+            'persistent'   => true,
         ];
     }
 
-    $now = function_exists( 'current_time' ) ? (int) current_time( 'timestamp' ) : time();
-
-    $expired_map  = [];
-    $expiring_map = [];
+    $now               = function_exists( 'current_time' ) ? (int) current_time( 'timestamp' ) : time();
+    $expired_map       = [];
+    $expiring_map      = [];
     $expiring_threshold = DAY_IN_SECONDS * 2;
 
     foreach ( $scheduled_posts as $entry ) {
@@ -200,19 +375,15 @@ function visibloc_jlg_collect_admin_notifications( array $context = [] ) {
             continue;
         }
 
-        $end_timestamp = visibloc_jlg_normalize_schedule_timestamp( $entry['end'] ?? null );
+        $end_timestamp   = visibloc_jlg_normalize_schedule_timestamp( $entry['end'] ?? null );
         $start_timestamp = visibloc_jlg_normalize_schedule_timestamp( $entry['start'] ?? null );
 
         if ( null === $end_timestamp && null === $start_timestamp ) {
             continue;
         }
 
-        $title = isset( $entry['title'] ) && is_string( $entry['title'] )
-            ? $entry['title']
-            : '';
-        $link = isset( $entry['link'] ) && is_string( $entry['link'] )
-            ? $entry['link']
-            : '';
+        $title = isset( $entry['title'] ) && is_string( $entry['title'] ) ? $entry['title'] : '';
+        $link  = isset( $entry['link'] ) && is_string( $entry['link'] ) ? $entry['link'] : '';
 
         if ( null !== $end_timestamp && $end_timestamp < $now ) {
             if ( ! isset( $expired_map[ $post_id ] ) ) {
@@ -291,11 +462,15 @@ function visibloc_jlg_collect_admin_notifications( array $context = [] ) {
             $total_expired = array_sum( wp_list_pluck( $expired_items, 'occurrences' ) );
         }
 
+        $post_ids = array_map( 'intval', array_keys( $expired_map ) );
+        sort( $post_ids );
+
         $notifications[] = [
-            'id'          => 'schedule-expired',
-            'level'       => 'critical',
-            'title'       => __( 'Programmations expirées', 'visi-bloc-jlg' ),
-            'description' => sprintf(
+            'id'           => 'schedule-expired',
+            'type'         => 'schedule-expired',
+            'level'        => 'critical',
+            'title'        => __( 'Programmations expirées', 'visi-bloc-jlg' ),
+            'description'  => sprintf(
                 _n(
                     'Une programmation est arrivée à expiration mais masque toujours un bloc.',
                     '%d programmations sont arrivées à expiration et masquent toujours des blocs.',
@@ -304,13 +479,16 @@ function visibloc_jlg_collect_admin_notifications( array $context = [] ) {
                 ),
                 $total_expired
             ),
-            'items'       => $rendered_items,
-            'actions'     => [
+            'items'        => $rendered_items,
+            'actions'      => [
                 [
                     'label' => __( 'Ouvrir le tableau des blocs programmés', 'visi-bloc-jlg' ),
                     'url'   => admin_url( 'admin.php?page=visi-bloc-jlg-help#visibloc-section-scheduled' ),
                 ],
             ],
+            'hash_context' => [ 'post_ids' => $post_ids ],
+            'meta'         => [ 'total' => $total_expired ],
+            'persistent'   => true,
         ];
     }
 
@@ -350,11 +528,15 @@ function visibloc_jlg_collect_admin_notifications( array $context = [] ) {
             $total_expiring = array_sum( wp_list_pluck( $expiring_items, 'occurrences' ) );
         }
 
+        $post_ids = array_map( 'intval', array_keys( $expiring_map ) );
+        sort( $post_ids );
+
         $notifications[] = [
-            'id'          => 'schedule-expiring-soon',
-            'level'       => 'warning',
-            'title'       => __( 'Programmations qui s’achèvent bientôt', 'visi-bloc-jlg' ),
-            'description' => sprintf(
+            'id'           => 'schedule-expiring-soon',
+            'type'         => 'schedule-expiring-soon',
+            'level'        => 'warning',
+            'title'        => __( 'Programmations qui s’achèvent bientôt', 'visi-bloc-jlg' ),
+            'description'  => sprintf(
                 _n(
                     'Une programmation se termine dans les prochaines 48 heures.',
                     '%d programmations se terminent dans les prochaines 48 heures.',
@@ -363,13 +545,83 @@ function visibloc_jlg_collect_admin_notifications( array $context = [] ) {
                 ),
                 $total_expiring
             ),
-            'items'       => $rendered_items,
-            'actions'     => [
+            'items'        => $rendered_items,
+            'actions'      => [
                 [
                     'label' => __( 'Vérifier les fenêtres temporelles', 'visi-bloc-jlg' ),
                     'url'   => admin_url( 'admin.php?page=visi-bloc-jlg-help#visibloc-section-scheduled' ),
                 ],
             ],
+            'hash_context' => [
+                'post_ids'  => $post_ids,
+                'threshold' => $expiring_threshold,
+            ],
+            'meta'       => [
+                'total'     => $total_expiring,
+                'threshold' => $expiring_threshold,
+            ],
+            'persistent' => true,
+        ];
+    }
+
+    $conflicts = visibloc_jlg_detect_schedule_conflicts( $scheduled_posts );
+
+    if ( ! empty( $conflicts ) ) {
+        $rendered_items = [];
+        $conflict_total = count( $conflicts );
+
+        usort(
+            $conflicts,
+            static function ( $a, $b ) {
+                return ( $a['closest'] ?? PHP_INT_MAX ) <=> ( $b['closest'] ?? PHP_INT_MAX );
+            }
+        );
+
+        foreach ( array_slice( $conflicts, 0, 5 ) as $conflict ) {
+            $label = $conflict['title'];
+
+            if ( isset( $conflict['occurrences'] ) && $conflict['occurrences'] > 1 ) {
+                /* translators: %s: Post title. %d: Number of schedules. */
+                $label = sprintf( __( '%1$s – %2$d fenêtres', 'visi-bloc-jlg' ), $label, (int) $conflict['occurrences'] );
+            }
+
+            if ( isset( $conflict['closest'] ) && null !== $conflict['closest'] ) {
+                $label .= ' · ' . date_i18n( $datetime_format, (int) $conflict['closest'] );
+            }
+
+            $rendered_items[] = [
+                'label' => $label,
+                'url'   => isset( $conflict['link'] ) ? (string) $conflict['link'] : '',
+            ];
+        }
+
+        $post_ids = array_map( 'intval', wp_list_pluck( $conflicts, 'id' ) );
+        sort( $post_ids );
+
+        $notifications[] = [
+            'id'           => 'schedule-conflict',
+            'type'         => 'schedule-conflict',
+            'level'        => 'warning',
+            'title'        => __( 'Programmations en conflit', 'visi-bloc-jlg' ),
+            'description'  => sprintf(
+                _n(
+                    'Des programmations se chevauchent sur %d contenu.',
+                    'Des programmations se chevauchent sur %d contenus.',
+                    $conflict_total,
+                    'visi-bloc-jlg'
+                ),
+                $conflict_total
+            ),
+            'items'        => $rendered_items,
+            'actions'      => [
+                [
+                    'label' => __( 'Inspecter les programmations', 'visi-bloc-jlg' ),
+                    'url'   => admin_url( 'admin.php?page=visi-bloc-jlg-help#visibloc-section-scheduled' ),
+                ],
+            ],
+            'hash_context' => [ 'post_ids' => $post_ids ],
+            'meta'         => [ 'total' => $conflict_total ],
+            'persistent'   => true,
         ];
     }
 
@@ -384,26 +636,232 @@ function visibloc_jlg_collect_admin_notifications( array $context = [] ) {
             $level = $fallback_rate >= 40.0 ? 'critical' : 'warning';
 
             $notifications[] = [
-                'id'          => 'fallback-usage-alert',
-                'level'       => $level,
-                'title'       => __( 'Beaucoup de visiteurs voient le fallback', 'visi-bloc-jlg' ),
-                'description' => sprintf(
+                'id'           => 'fallback-usage-alert',
+                'type'         => 'fallback-usage-alert',
+                'level'        => $level,
+                'title'        => __( 'Beaucoup de visiteurs voient le fallback', 'visi-bloc-jlg' ),
+                'description'  => sprintf(
                     /* translators: 1: Fallback rate. 2: Number of fallback impressions. */
                     __( 'Le fallback a été servi dans %1$s des affichages suivis (%2$d occurrences). Vérifiez les règles pour éviter une perte de conversion.', 'visi-bloc-jlg' ),
                     visibloc_jlg_format_insight_percentage( $fallback_rate ),
                     $fallback_hits
                 ),
-                'actions'     => [
+                'actions'      => [
                     [
                         'label' => __( 'Analyser les règles actives', 'visi-bloc-jlg' ),
                         'url'   => admin_url( 'admin.php?page=visi-bloc-jlg-help#visibloc-section-insights' ),
                     ],
                 ],
+                'items'        => [],
+                'hash_context' => [ 'bucket' => 'fallback-usage' ],
+                'meta'         => [
+                    'exposures'     => $exposures,
+                    'fallback_hits' => $fallback_hits,
+                    'fallback_rate' => $fallback_rate,
+                ],
+                'persistent'   => false,
             ];
         }
     }
 
     return $notifications;
+}
+
+/**
+ * Collect proactive admin notifications combining runtime and persisted data.
+ *
+ * @param array $context Optional contextual data to avoid duplicate queries.
+ * @return array<int,array<string,mixed>>
+ */
+function visibloc_jlg_collect_admin_notifications( array $context = [] ) {
+    $runtime_alerts = visibloc_jlg_generate_runtime_alerts( $context );
+    $manager        = function_exists( 'visibloc_jlg_alerts' ) ? visibloc_jlg_alerts() : null;
+    $persisted      = $manager ? $manager->get_alerts() : [];
+
+    $filter_level = '';
+
+    if ( isset( $context['filter_level'] ) && is_string( $context['filter_level'] ) ) {
+        $filter_level = strtolower( $context['filter_level'] );
+    } else {
+        $filter_level = strtolower( visibloc_jlg_get_sanitized_query_arg( 'visibloc_alert_level' ) );
+    }
+
+    if ( ! in_array( $filter_level, [ 'critical', 'warning', 'info' ], true ) ) {
+        $filter_level = '';
+    }
+
+    $now_timestamp = function_exists( 'current_time' ) ? (int) current_time( 'timestamp' ) : time();
+    $status_open      = class_exists( 'Visibloc_JLG_Alerts_Manager' ) ? Visibloc_JLG_Alerts_Manager::STATUS_OPEN : 'open';
+    $status_resolved  = class_exists( 'Visibloc_JLG_Alerts_Manager' ) ? Visibloc_JLG_Alerts_Manager::STATUS_RESOLVED : 'resolved';
+    $status_dismissed = class_exists( 'Visibloc_JLG_Alerts_Manager' ) ? Visibloc_JLG_Alerts_Manager::STATUS_DISMISSED : 'dismissed';
+
+    $alerts_by_key = [];
+
+    foreach ( $persisted as $row ) {
+        $hash_context = [];
+
+        if ( isset( $row['context']['hash_context'] ) && is_array( $row['context']['hash_context'] ) ) {
+            $hash_context = $row['context']['hash_context'];
+        }
+
+        $items   = isset( $row['context']['items'] ) && is_array( $row['context']['items'] ) ? $row['context']['items'] : [];
+        $actions = isset( $row['context']['actions'] ) && is_array( $row['context']['actions'] ) ? $row['context']['actions'] : [];
+        $meta    = isset( $row['context']['meta'] ) && is_array( $row['context']['meta'] ) ? $row['context']['meta'] : [];
+
+        $context_hash = isset( $row['context_hash'] ) ? (string) $row['context_hash'] : '';
+        $key          = ( $row['type'] ?? '' ) . ':' . $context_hash;
+        $last_time    = ! empty( $row['last_occurrence_at'] ) ? strtotime( $row['last_occurrence_at'] ) : null;
+
+        $alerts_by_key[ $key ] = [
+            'key'                        => $key,
+            'id'                         => isset( $row['id'] ) ? (int) $row['id'] : 0,
+            'type'                       => isset( $row['type'] ) ? (string) $row['type'] : '',
+            'level'                      => isset( $row['level'] ) ? (string) $row['level'] : 'info',
+            'title'                      => isset( $row['title'] ) ? (string) $row['title'] : '',
+            'description'                => isset( $row['description'] ) ? (string) $row['description'] : '',
+            'items'                      => $items,
+            'actions'                    => $actions,
+            'hash_context'               => $hash_context,
+            'meta'                       => $meta,
+            'persistent'                 => true,
+            'source'                     => 'persistent',
+            'status'                     => isset( $row['status'] ) ? (string) $row['status'] : $status_open,
+            'context_hash'               => $context_hash,
+            'occurrence_count'           => max( 1, (int) $row['occurrence_count'] ),
+            'created_at'                 => isset( $row['created_at'] ) ? (string) $row['created_at'] : '',
+            'last_occurrence_at'         => isset( $row['last_occurrence_at'] ) ? (string) $row['last_occurrence_at'] : '',
+            'last_occurrence_timestamp'  => $last_time ?: null,
+            'resolved_at'                => isset( $row['resolved_at'] ) ? (string) $row['resolved_at'] : '',
+            'runtime_active'             => false,
+        ];
+    }
+
+    foreach ( $runtime_alerts as $alert ) {
+        $type = isset( $alert['type'] ) ? (string) $alert['type'] : '';
+
+        if ( '' === $type ) {
+            continue;
+        }
+
+        $hash_context = isset( $alert['hash_context'] ) && is_array( $alert['hash_context'] )
+            ? $alert['hash_context']
+            : [];
+
+        $context_hash = $manager
+            ? $manager->get_context_hash( $hash_context )
+            : sha1( wp_json_encode( visibloc_jlg_alerts_normalize_context_fallback( $hash_context ) ) );
+        $key = $type . ':' . $context_hash;
+
+        $items   = isset( $alert['items'] ) && is_array( $alert['items'] ) ? $alert['items'] : [];
+        $actions = isset( $alert['actions'] ) && is_array( $alert['actions'] ) ? $alert['actions'] : [];
+        $meta    = isset( $alert['meta'] ) && is_array( $alert['meta'] ) ? $alert['meta'] : [];
+
+        if ( isset( $alerts_by_key[ $key ] ) ) {
+            $alerts_by_key[ $key ]['items']   = $items;
+            $alerts_by_key[ $key ]['actions'] = visibloc_jlg_merge_alert_actions( $alerts_by_key[ $key ]['actions'], $actions );
+            $alerts_by_key[ $key ]['title']   = $alert['title'] ?? $alerts_by_key[ $key ]['title'];
+            $alerts_by_key[ $key ]['description'] = $alert['description'] ?? $alerts_by_key[ $key ]['description'];
+            $alerts_by_key[ $key ]['level']   = $alert['level'] ?? $alerts_by_key[ $key ]['level'];
+            $alerts_by_key[ $key ]['runtime_active'] = true;
+
+            if ( empty( $alerts_by_key[ $key ]['hash_context'] ) ) {
+                $alerts_by_key[ $key ]['hash_context'] = $hash_context;
+            }
+
+            continue;
+        }
+
+        $alerts_by_key[ $key ] = [
+            'key'                        => $key,
+            'id'                         => 0,
+            'type'                       => $type,
+            'level'                      => isset( $alert['level'] ) ? (string) $alert['level'] : 'info',
+            'title'                      => isset( $alert['title'] ) ? (string) $alert['title'] : '',
+            'description'                => isset( $alert['description'] ) ? (string) $alert['description'] : '',
+            'items'                      => $items,
+            'actions'                    => $actions,
+            'hash_context'               => $hash_context,
+            'meta'                       => $meta,
+            'persistent'                 => ! empty( $alert['persistent'] ),
+            'source'                     => 'runtime',
+            'status'                     => ! empty( $alert['persistent'] ) ? $status_open : 'runtime',
+            'context_hash'               => $context_hash,
+            'occurrence_count'           => 1,
+            'created_at'                 => '',
+            'last_occurrence_at'         => '',
+            'last_occurrence_timestamp'  => $now_timestamp,
+            'resolved_at'                => '',
+            'runtime_active'             => true,
+        ];
+    }
+
+    $severity_order = [ 'critical' => 0, 'warning' => 1, 'info' => 2 ];
+    $status_order   = [
+        $status_open      => 0,
+        'runtime'         => 0,
+        $status_resolved  => 1,
+        $status_dismissed => 2,
+    ];
+
+    $normalized = [];
+
+    foreach ( $alerts_by_key as $alert ) {
+        $level = isset( $alert['level'] ) ? strtolower( (string) $alert['level'] ) : 'info';
+
+        if ( ! isset( $severity_order[ $level ] ) ) {
+            $level = 'info';
+        }
+
+        if ( '' !== $filter_level && $filter_level !== $level ) {
+            continue;
+        }
+
+        $alert['level'] = $level;
+
+        if ( empty( $alert['last_occurrence_timestamp'] ) && ! empty( $alert['last_occurrence_at'] ) ) {
+            $alert['last_occurrence_timestamp'] = strtotime( $alert['last_occurrence_at'] );
+        }
+
+        if ( empty( $alert['last_occurrence_timestamp'] ) && $alert['status'] === $status_open ) {
+            $alert['last_occurrence_timestamp'] = $now_timestamp;
+        }
+
+        $effective_status = $alert['status'];
+
+        if ( ! empty( $alert['runtime_active'] ) ) {
+            $effective_status = $status_open;
+        }
+
+        $alert['effective_status'] = $effective_status;
+        $alert['status_order']     = $status_order[ $effective_status ] ?? 3;
+        $alert['severity_order']   = $severity_order[ $level ] ?? 3;
+
+        $normalized[] = $alert;
+    }
+
+    usort(
+        $normalized,
+        static function ( $a, $b ) {
+            if ( $a['status_order'] !== $b['status_order'] ) {
+                return $a['status_order'] <=> $b['status_order'];
+            }
+
+            if ( $a['severity_order'] !== $b['severity_order'] ) {
+                return $a['severity_order'] <=> $b['severity_order'];
+            }
+
+            $a_time = $a['last_occurrence_timestamp'] ?? 0;
+            $b_time = $b['last_occurrence_timestamp'] ?? 0;
+
+            if ( $a_time !== $b_time ) {
+                return $b_time <=> $a_time;
+            }
+
+            return strcmp( strtolower( $a['title'] ), strtolower( $b['title'] ) );
+        }
+    );
+
+    return $normalized;
 }
 
 function visibloc_jlg_get_onboarding_mode() {
@@ -2590,12 +3048,32 @@ function visibloc_jlg_render_permissions_section( $allowed_roles ) {
 }
 
 function visibloc_jlg_render_notifications_section( $notifications ) {
-    $section_id = 'visibloc-section-notifications';
-    $level_labels = [
+    $section_id     = 'visibloc-section-notifications';
+    $level_labels   = [
         'critical' => __( 'Critique', 'visi-bloc-jlg' ),
         'warning'  => __( 'Alerte', 'visi-bloc-jlg' ),
         'info'     => __( 'Information', 'visi-bloc-jlg' ),
     ];
+    $status_open      = class_exists( 'Visibloc_JLG_Alerts_Manager' ) ? Visibloc_JLG_Alerts_Manager::STATUS_OPEN : 'open';
+    $status_resolved  = class_exists( 'Visibloc_JLG_Alerts_Manager' ) ? Visibloc_JLG_Alerts_Manager::STATUS_RESOLVED : 'resolved';
+    $status_dismissed = class_exists( 'Visibloc_JLG_Alerts_Manager' ) ? Visibloc_JLG_Alerts_Manager::STATUS_DISMISSED : 'dismissed';
+    $status_labels    = [
+        $status_open      => __( 'En cours', 'visi-bloc-jlg' ),
+        $status_resolved  => __( 'Résolu', 'visi-bloc-jlg' ),
+        $status_dismissed => __( 'Ignoré', 'visi-bloc-jlg' ),
+        'runtime'         => __( 'Temps réel', 'visi-bloc-jlg' ),
+    ];
+    $status_classes = [
+        $status_open      => 'visibloc-notification__status--open',
+        $status_resolved  => 'visibloc-notification__status--resolved',
+        $status_dismissed => 'visibloc-notification__status--dismissed',
+        'runtime'         => 'visibloc-notification__status--runtime',
+    ];
+
+    $selected_filter = visibloc_jlg_get_sanitized_query_arg( 'visibloc_alert_level' );
+    $selected_filter = '' === $selected_filter ? 'all' : $selected_filter;
+    $datetime_format = visibloc_jlg_get_wp_datetime_format();
+    $now_timestamp   = function_exists( 'current_time' ) ? (int) current_time( 'timestamp' ) : time();
 
     ?>
     <div
@@ -2606,9 +3084,38 @@ function visibloc_jlg_render_notifications_section( $notifications ) {
         <h2 class="hndle"><span><?php esc_html_e( 'Centre de notifications', 'visi-bloc-jlg' ); ?></span></h2>
         <div class="inside">
             <div class="visibloc-notifications">
+                <div class="visibloc-notifications__toolbar">
+                    <form method="get" action="" class="visibloc-notifications__filter-form">
+                        <input type="hidden" name="page" value="visi-bloc-jlg-help" />
+                        <label class="visibloc-notifications__filter-label" for="visibloc-alert-filter">
+                            <?php esc_html_e( 'Filtrer par criticité', 'visi-bloc-jlg' ); ?>
+                        </label>
+                        <select
+                            id="visibloc-alert-filter"
+                            name="visibloc_alert_level"
+                            class="visibloc-notifications__filter-select"
+                            onchange="this.form.submit();"
+                        >
+                            <option value="all" <?php selected( 'all', $selected_filter ); ?>><?php esc_html_e( 'Toutes les alertes', 'visi-bloc-jlg' ); ?></option>
+                            <option value="critical" <?php selected( 'critical', $selected_filter ); ?>><?php esc_html_e( 'Critiques', 'visi-bloc-jlg' ); ?></option>
+                            <option value="warning" <?php selected( 'warning', $selected_filter ); ?>><?php esc_html_e( 'Alertes', 'visi-bloc-jlg' ); ?></option>
+                            <option value="info" <?php selected( 'info', $selected_filter ); ?>><?php esc_html_e( 'Informations', 'visi-bloc-jlg' ); ?></option>
+                        </select>
+                        <noscript>
+                            <button type="submit" class="button button-secondary"><?php esc_html_e( 'Filtrer', 'visi-bloc-jlg' ); ?></button>
+                        </noscript>
+                    </form>
+                </div>
+
                 <?php if ( empty( $notifications ) ) : ?>
                     <p class="visibloc-notifications__empty">
-                        <?php esc_html_e( 'Aucune alerte critique détectée pour le moment.', 'visi-bloc-jlg' ); ?>
+                        <?php
+                        if ( 'all' !== $selected_filter ) {
+                            esc_html_e( 'Aucune alerte ne correspond au filtre sélectionné.', 'visi-bloc-jlg' );
+                        } else {
+                            esc_html_e( 'Aucune alerte n’a été détectée pour le moment.', 'visi-bloc-jlg' );
+                        }
+                        ?>
                     </p>
                 <?php else : ?>
                     <ul class="visibloc-notifications__list">
@@ -2621,12 +3128,50 @@ function visibloc_jlg_render_notifications_section( $notifications ) {
                                 $level = 'info';
                             }
 
-                            $items   = isset( $notification['items'] ) && is_array( $notification['items'] )
-                                ? $notification['items']
-                                : [];
-                            $actions = isset( $notification['actions'] ) && is_array( $notification['actions'] )
-                                ? $notification['actions']
-                                : [];
+                            $items        = isset( $notification['items'] ) && is_array( $notification['items'] ) ? $notification['items'] : [];
+                            $actions      = isset( $notification['actions'] ) && is_array( $notification['actions'] ) ? $notification['actions'] : [];
+                            $incident_raw = isset( $notification['occurrence_count'] ) ? (int) $notification['occurrence_count'] : 1;
+                            $incidents    = max( 1, $incident_raw );
+
+                            $effective_status = isset( $notification['effective_status'] )
+                                ? (string) $notification['effective_status']
+                                : ( isset( $notification['status'] ) ? (string) $notification['status'] : $status_open );
+
+                            if ( ! isset( $status_labels[ $effective_status ] ) ) {
+                                $effective_status = $status_open;
+                            }
+
+                            $status_label  = $status_labels[ $effective_status ];
+                            $status_class  = $status_classes[ $effective_status ] ?? $status_classes[ $status_open ];
+                            $last_timestamp = null;
+
+                            if ( isset( $notification['last_occurrence_timestamp'] ) ) {
+                                $last_timestamp = (int) $notification['last_occurrence_timestamp'];
+                            } elseif ( ! empty( $notification['last_occurrence_at'] ) ) {
+                                $last_timestamp = strtotime( (string) $notification['last_occurrence_at'] );
+                            }
+
+                            $history_lines = [];
+
+                            if ( $last_timestamp ) {
+                                $absolute = date_i18n( $datetime_format, $last_timestamp );
+                                $relative = human_time_diff( $last_timestamp, $now_timestamp );
+                                $history_lines[] = sprintf(
+                                    __( 'Dernière occurrence : %1$s (%2$s)', 'visi-bloc-jlg' ),
+                                    $absolute,
+                                    sprintf( __( 'il y a %s', 'visi-bloc-jlg' ), $relative )
+                                );
+                            }
+
+                            $history_lines[] = sprintf(
+                                _n( 'Incident cumulé : %d', 'Incidents cumulés : %d', $incidents, 'visi-bloc-jlg' ),
+                                $incidents
+                            );
+
+                            $is_persistent = ! empty( $notification['persistent'] );
+                            $source_label  = $is_persistent
+                                ? __( 'Alerte persistée', 'visi-bloc-jlg' )
+                                : __( 'Calcul en temps réel', 'visi-bloc-jlg' );
                             ?>
                             <li class="visibloc-notification visibloc-notification--<?php echo esc_attr( $level ); ?>">
                                 <div class="visibloc-notification__header">
@@ -2637,6 +3182,19 @@ function visibloc_jlg_render_notifications_section( $notifications ) {
                                         <?php echo esc_html( $notification['title'] ?? '' ); ?>
                                     </h3>
                                 </div>
+
+                                <div class="visibloc-notification__meta">
+                                    <span class="visibloc-notification__status <?php echo esc_attr( $status_class ); ?>">
+                                        <?php echo esc_html( $status_label ); ?>
+                                    </span>
+                                    <span class="visibloc-notification__source">
+                                        <?php echo esc_html( $source_label ); ?>
+                                    </span>
+                                    <?php foreach ( $history_lines as $line ) : ?>
+                                        <span class="visibloc-notification__history"><?php echo esc_html( $line ); ?></span>
+                                    <?php endforeach; ?>
+                                </div>
+
                                 <?php if ( ! empty( $notification['description'] ) ) : ?>
                                     <p class="visibloc-notification__description">
                                         <?php echo esc_html( $notification['description'] ); ?>
@@ -2664,7 +3222,7 @@ function visibloc_jlg_render_notifications_section( $notifications ) {
 
                                 <?php if ( ! empty( $actions ) ) : ?>
                                     <div class="visibloc-notification__actions">
-                                        <?php foreach ( array_slice( $actions, 0, 2 ) as $action ) :
+                                        <?php foreach ( array_slice( $actions, 0, 3 ) as $action ) :
                                             $variant = isset( $action['variant'] ) && 'primary' === $action['variant']
                                                 ? 'button-primary'
                                                 : 'button-secondary';
@@ -2676,6 +3234,27 @@ function visibloc_jlg_render_notifications_section( $notifications ) {
                                                 <?php echo esc_html( $action['label'] ?? '' ); ?>
                                             </a>
                                         <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
+
+                                <?php if ( $is_persistent && ! empty( $notification['id'] ) && $effective_status === $status_open ) : ?>
+                                    <div class="visibloc-notification__management">
+                                        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="visibloc-notification__form">
+                                            <?php wp_nonce_field( 'visibloc_jlg_alert_mark_as_resolved' ); ?>
+                                            <input type="hidden" name="action" value="visibloc_jlg_mark_alert_resolved" />
+                                            <input type="hidden" name="alert_id" value="<?php echo (int) $notification['id']; ?>" />
+                                            <button type="submit" class="button button-secondary">
+                                                <?php esc_html_e( 'Marquer comme résolue', 'visi-bloc-jlg' ); ?>
+                                            </button>
+                                        </form>
+                                        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="visibloc-notification__form">
+                                            <?php wp_nonce_field( 'visibloc_jlg_alert_dismiss' ); ?>
+                                            <input type="hidden" name="action" value="visibloc_jlg_dismiss_alert" />
+                                            <input type="hidden" name="alert_id" value="<?php echo (int) $notification['id']; ?>" />
+                                            <button type="submit" class="button button-link-delete">
+                                                <?php esc_html_e( 'Ignorer', 'visi-bloc-jlg' ); ?>
+                                            </button>
+                                        </form>
                                     </div>
                                 <?php endif; ?>
                             </li>
