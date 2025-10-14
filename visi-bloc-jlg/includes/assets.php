@@ -1198,43 +1198,55 @@ function visibloc_jlg_get_editor_user_segments() {
 
     $items = [];
 
-    $sanitize_segment = null;
+    $fallback_sanitizer = static function ( $segment ) {
+        if ( is_object( $segment ) ) {
+            $segment = (array) $segment;
+        }
+
+        if ( ! is_array( $segment ) ) {
+            return null;
+        }
+
+        $value = isset( $segment['value'] ) ? trim( (string) $segment['value'] ) : '';
+
+        if ( '' === $value ) {
+            return null;
+        }
+
+        $sanitize_text = static function ( $value ) {
+            $value = (string) $value;
+
+            if ( function_exists( 'wp_strip_all_tags' ) ) {
+                $value = wp_strip_all_tags( $value );
+            }
+
+            return trim( $value );
+        };
+
+        return [
+            'value'       => $value,
+            'label'       => isset( $segment['label'] ) ? $sanitize_text( $segment['label'] ) : $value,
+            'description' => isset( $segment['description'] ) ? $sanitize_text( $segment['description'] ) : '',
+            'source'      => isset( $segment['source'] ) ? $sanitize_text( $segment['source'] ) : '',
+        ];
+    };
 
     if ( class_exists( 'Visibloc_CRM_Sync' ) && method_exists( 'Visibloc_CRM_Sync', 'sanitize_segment_for_storage' ) ) {
-        $sanitize_segment = [ 'Visibloc_CRM_Sync', 'sanitize_segment_for_storage' ];
-    } else {
-        $sanitize_segment = static function ( $segment ) {
-            if ( is_object( $segment ) ) {
-                $segment = (array) $segment;
+        $sanitize_segment = static function ( $segment ) use ( $fallback_sanitizer ) {
+            try {
+                $normalized = Visibloc_CRM_Sync::sanitize_segment_for_storage( $segment );
+            } catch ( Throwable $exception ) {
+                $normalized = null;
             }
 
-            if ( ! is_array( $segment ) ) {
-                return null;
+            if ( null === $normalized ) {
+                $normalized = $fallback_sanitizer( $segment );
             }
 
-            $value = isset( $segment['value'] ) ? trim( (string) $segment['value'] ) : '';
-
-            if ( '' === $value ) {
-                return null;
-            }
-
-            $sanitize_text = static function ( $value ) {
-                $value = (string) $value;
-
-                if ( function_exists( 'wp_strip_all_tags' ) ) {
-                    $value = wp_strip_all_tags( $value );
-                }
-
-                return trim( $value );
-            };
-
-            return [
-                'value'       => $value,
-                'label'       => isset( $segment['label'] ) ? $sanitize_text( $segment['label'] ) : $value,
-                'description' => isset( $segment['description'] ) ? $sanitize_text( $segment['description'] ) : '',
-                'source'      => isset( $segment['source'] ) ? $sanitize_text( $segment['source'] ) : '',
-            ];
+            return $normalized;
         };
+    } else {
+        $sanitize_segment = $fallback_sanitizer;
     }
 
     foreach ( $segments as $segment ) {
