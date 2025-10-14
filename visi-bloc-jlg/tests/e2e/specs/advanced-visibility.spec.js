@@ -116,7 +116,7 @@ async function prepareGroupBlock( { admin, editor, page }, content ) {
     await insertParagraphInGroup( editor, clientId, content );
     await selectBlockInEditor( page, 'core/group' );
 
-    await page.getByRole( 'button', { name: 'Settings' } ).click();
+    await page.getByRole( 'button', { name: 'Settings', exact: true } ).click();
 
     return clientId;
 }

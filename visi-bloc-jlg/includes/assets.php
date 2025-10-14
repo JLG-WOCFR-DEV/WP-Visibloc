@@ -1733,6 +1733,66 @@ function visibloc_jlg_render_missing_editor_assets_notice() {
         . '</code></p></div>';
 }
 
+/**
+ * Ensure the missing editor assets admin notice remains visible in the block editor.
+ */
+function visibloc_jlg_force_show_missing_editor_assets_notice() {
+    if ( ! function_exists( 'get_transient' ) || ! function_exists( 'current_user_can' ) ) {
+        return;
+    }
+
+    if ( ! current_user_can( 'manage_options' ) ) {
+        return;
+    }
+
+    $flag = get_transient( VISIBLOC_JLG_MISSING_EDITOR_ASSETS_TRANSIENT );
+
+    if ( false === $flag ) {
+        return;
+    }
+
+    $command      = 'npm install && npm run build';
+    $command_json = wp_json_encode( $command );
+
+    if ( false === $command_json ) {
+        $command_json = '"npm install && npm run build"';
+    }
+
+    $script = <<<JS
+document.addEventListener('DOMContentLoaded', function() {
+    var commandText = {$command_json};
+    var notices = document.querySelectorAll('.notice.notice-error');
+
+    notices.forEach(function(notice) {
+        if (!notice || !notice.textContent || notice.textContent.indexOf(commandText) === -1) {
+            return;
+        }
+
+        notice.hidden = false;
+        notice.classList.remove('hidden');
+
+        if (notice.style) {
+            notice.style.removeProperty('display');
+
+            if (notice.style.visibility === 'hidden') {
+                notice.style.visibility = '';
+            }
+        }
+
+        notice.removeAttribute('aria-hidden');
+    });
+});
+JS;
+
+    if ( function_exists( 'wp_print_inline_script_tag' ) ) {
+        wp_print_inline_script_tag( $script );
+
+        return;
+    }
+
+    echo '<script>' . $script . '</script>';
+}
+
 function visibloc_jlg_escape_admin_notice_text( $text ) {
     if ( function_exists( 'esc_html' ) ) {
         return esc_html( $text );
@@ -1742,6 +1802,7 @@ function visibloc_jlg_escape_admin_notice_text( $text ) {
 }
 
 add_action( 'admin_notices', 'visibloc_jlg_render_missing_editor_assets_notice' );
+add_action( 'admin_print_footer_scripts', 'visibloc_jlg_force_show_missing_editor_assets_notice' );
 
 function visibloc_jlg_build_device_visibility_css( $can_preview, $mobile_bp, $tablet_bp ) {
     $default_mobile_bp = 781;

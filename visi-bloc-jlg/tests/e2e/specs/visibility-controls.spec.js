@@ -69,8 +69,11 @@ async function exerciseVisibilityControls( { admin, editor, page }, blockName ) 
     const clientId = await selectBlockInEditor( page, blockName );
     expect( clientId ).toBeTruthy();
 
-    const blockLocator = page.locator( `.block-editor-block-list__block[data-block="${ clientId }"]` );
+    const blockLocator = page
+        .locator( `.block-editor-block-list__block[data-block="${ clientId }"]` )
+        .first();
 
+    await expect( blockLocator ).toBeVisible();
     await expect( blockLocator ).not.toHaveClass( /bloc-editeur-cache/ );
 
     const hideButton = page.getByRole( 'button', { name: 'Rendre caché' } );
@@ -89,7 +92,7 @@ async function exerciseVisibilityControls( { admin, editor, page }, blockName ) 
 
     await page.getByRole( 'button', { name: 'List view' } ).click();
 
-    await page.getByRole( 'button', { name: 'Settings' } ).click();
+    await page.getByRole( 'button', { name: 'Settings', exact: true } ).click();
 
     const deviceToggleGroups = page.locator( '.visi-bloc-device-toggle-group' );
     await expect( deviceToggleGroups.first() ).toBeVisible();
@@ -178,7 +181,11 @@ test.describe( 'Visi-Bloc group visibility controls', () => {
     } ) => {
         await admin.visitAdminPage( 'admin.php', 'page=visi-bloc-jlg-help' );
 
-        const columnsCheckbox = page.getByLabel( /core\/columns/ );
+        const columnsCheckbox = page
+            .locator( '.visibloc-supported-blocks-item' )
+            .filter( { hasText: '(core/columns)' } )
+            .locator( 'input[type="checkbox"]' );
+
         await columnsCheckbox.check();
 
         await Promise.all( [
@@ -198,7 +205,7 @@ test.describe( 'Visi-Bloc group visibility controls', () => {
         const clientId = await selectBlockInEditor( page, 'core/group' );
         expect( clientId ).toBeTruthy();
 
-        await page.getByRole( 'button', { name: 'Settings' } ).click();
+        await page.getByRole( 'button', { name: 'Settings', exact: true } ).click();
 
         const getPanelButton = ( label ) =>
             page
