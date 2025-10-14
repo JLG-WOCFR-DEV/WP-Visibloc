@@ -1196,9 +1196,8 @@ function visibloc_jlg_get_editor_user_segments() {
         }
     }
 
-    $items = [];
-
-    $fallback_sanitizer = static function ( $segment ) {
+    $items               = [];
+    $fallback_sanitizer  = static function ( $segment ) {
         if ( is_object( $segment ) ) {
             $segment = (array) $segment;
         }
@@ -1234,14 +1233,27 @@ function visibloc_jlg_get_editor_user_segments() {
     if ( class_exists( 'Visibloc_CRM_Sync' ) && method_exists( 'Visibloc_CRM_Sync', 'sanitize_segment_for_storage' ) ) {
         $sanitize_segment = static function ( $segment ) use ( $fallback_sanitizer ) {
             try {
-                $normalized = Visibloc_CRM_Sync::sanitize_segment_for_storage( $segment );
-            } catch ( Throwable $exception ) {
+                $normalized = call_user_func( [ 'Visibloc_CRM_Sync', 'sanitize_segment_for_storage' ], $segment );
+            } catch ( \Throwable $exception ) {
                 $normalized = null;
             }
 
-            if ( null === $normalized ) {
-                $normalized = $fallback_sanitizer( $segment );
+            if ( ! is_array( $normalized ) ) {
+                return $fallback_sanitizer( $segment );
             }
+
+            $value = isset( $normalized['value'] ) ? trim( (string) $normalized['value'] ) : '';
+
+            if ( function_exists( 'wp_strip_all_tags' ) ) {
+                $value = wp_strip_all_tags( $value );
+            }
+
+            $normalized['value'] = $value;
+            $normalized['label'] = isset( $normalized['label'] ) && '' !== trim( (string) $normalized['label'] )
+                ? $normalized['label']
+                : $value;
+            $normalized['description'] = isset( $normalized['description'] ) ? (string) $normalized['description'] : '';
+            $normalized['source']      = isset( $normalized['source'] ) ? (string) $normalized['source'] : '';
 
             return $normalized;
         };
@@ -1250,7 +1262,7 @@ function visibloc_jlg_get_editor_user_segments() {
     }
 
     foreach ( $segments as $segment ) {
-        $normalized = call_user_func( $sanitize_segment, $segment );
+        $normalized = $sanitize_segment( $segment );
 
         if ( null === $normalized ) {
             continue;
