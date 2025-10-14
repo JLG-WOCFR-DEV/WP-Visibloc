@@ -4161,6 +4161,20 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                     }))
                     .filter((option) => option.value);
 
+                const segmentsStatus = getVisiBlocObject('userSegmentsStatus') || {};
+                const syncError =
+                    segmentsStatus && typeof segmentsStatus.error === 'string'
+                        ? segmentsStatus.error.trim()
+                        : '';
+                const lastUpdatedHuman =
+                    segmentsStatus && typeof segmentsStatus.lastUpdatedHuman === 'string'
+                        ? segmentsStatus.lastUpdatedHuman.trim()
+                        : '';
+                const connectorLabel =
+                    segmentsStatus && typeof segmentsStatus.connectorLabel === 'string'
+                        ? segmentsStatus.connectorLabel.trim()
+                        : '';
+
                 const operatorOptions = [
                     { value: 'matches', label: __('Appartient au segment', 'visi-bloc-jlg') },
                     { value: 'does_not_match', label: __('N’appartient pas au segment', 'visi-bloc-jlg') },
@@ -4177,6 +4191,11 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                             options={operatorOptions}
                             onChange={(newOperator) => onUpdateRule({ operator: newOperator })}
                         />
+                        {syncError && (
+                            <Notice status="error" isDismissible={false}>
+                                {syncError}
+                            </Notice>
+                        )}
                         <ComboboxControl
                             label={__('Identifiant de segment', 'visi-bloc-jlg')}
                             value={selectedSegment}
@@ -4188,6 +4207,20 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                 'visi-bloc-jlg',
                             )}
                         />
+                        {!syncError && lastUpdatedHuman && (
+                            <p className="components-help-text">
+                                {connectorLabel
+                                    ? sprintf(
+                                          __('Segments « %s » synchronisés %s.', 'visi-bloc-jlg'),
+                                          connectorLabel,
+                                          lastUpdatedHuman,
+                                      )
+                                    : sprintf(
+                                          __('Segments synchronisés %s.', 'visi-bloc-jlg'),
+                                          lastUpdatedHuman,
+                                      )}
+                            </p>
+                        )}
                         {!segments.length && (
                             <p className="components-help-text">
                                 {__(

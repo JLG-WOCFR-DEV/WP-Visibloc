@@ -702,6 +702,14 @@ function visibloc_jlg_enqueue_editor_assets() {
         [],
         $asset_file['version']
     );
+    $user_segments_payload = visibloc_jlg_get_editor_user_segments();
+    $user_segments_items   = isset( $user_segments_payload['items'] ) && is_array( $user_segments_payload['items'] )
+        ? $user_segments_payload['items']
+        : [];
+    $user_segments_status  = isset( $user_segments_payload['status'] ) && is_array( $user_segments_payload['status'] )
+        ? $user_segments_payload['status']
+        : [];
+
     wp_localize_script(
         'visibloc-jlg-editor-script',
         'VisiBlocData',
@@ -714,7 +722,8 @@ function visibloc_jlg_enqueue_editor_assets() {
             'daysOfWeek'       => visibloc_jlg_get_editor_days_of_week(),
             'timezones'        => visibloc_jlg_get_editor_timezones(),
             'roleGroups'       => visibloc_jlg_get_editor_role_groups(),
-            'userSegments'     => visibloc_jlg_get_editor_user_segments(),
+            'userSegments'     => $user_segments_items,
+            'userSegmentsStatus' => $user_segments_status,
             'geolocationCountries' => visibloc_jlg_get_editor_geolocation_countries(),
             'loginStatuses'    => visibloc_jlg_get_editor_login_statuses(),
             'woocommerceTaxonomies' => visibloc_jlg_get_editor_woocommerce_taxonomies(),
@@ -1151,52 +1160,59 @@ function visibloc_jlg_get_editor_role_groups() {
 /**
  * Retrieve marketing segments exposed to the block editor.
  *
- * @return array<int, array<string, string>>
+ * @return array{
+ *     items:array<int,array<string,string>>,
+ *     status:array<string,mixed>
+ * }
  */
 function visibloc_jlg_get_editor_user_segments() {
-    /**
-     * Filters the list of marketing segments available in the editor UI.
-     *
-     * Each item should be an associative array containing a required `value` key
-     * and an optional `label` used for display.
-     *
-     * @since 1.1.1
-     *
-     * @param array<int, array<string, string>> $segments Declared user segments.
-     */
-    $segments = function_exists( 'apply_filters' )
-        ? apply_filters(
-            'visibloc_jlg_user_segments',
-            []
-        )
-        : [];
+    $snapshot = class_exists( 'Visibloc_CRM_Sync' )
+        ? Visibloc_CRM_Sync::get_snapshot()
+        : [
+            'segments'      => [],
+            'status'        => 'idle',
+            'error_message' => '',
+            'connector'     => '',
+            'synced_at'     => 0,
+            'attempted_at'  => 0,
+        ];
 
-    if ( ! is_array( $segments ) ) {
-        return [];
+    $segments = isset( $snapshot['segments'] ) && is_array( $snapshot['segments'] ) ? $snapshot['segments'] : [];
+
+    if ( function_exists( 'apply_filters' ) ) {
+        /**
+         * Preserve backward compatibility by allowing third-parties to provide
+         * segments directly through the historical filter.
+         *
+         * @since 1.1.1
+         *
+         * @param array<int, array<string, string>> $segments Declared user segments.
+         * @param array<string,mixed>                $snapshot Current snapshot data.
+         */
+        $filtered_segments = apply_filters( 'visibloc_jlg_user_segments', $segments, $snapshot );
+
+        if ( is_array( $filtered_segments ) ) {
+            $segments = $filtered_segments;
+        }
     }
 
     $items = [];
 
     foreach ( $segments as $segment ) {
-        if ( ! is_array( $segment ) ) {
+        if ( ! class_exists( 'Visibloc_CRM_Sync' ) ) {
+            break;
+        }
+
+        $normalized = Visibloc_CRM_Sync::sanitize_segment_for_storage( $segment );
+
+        if ( null === $normalized ) {
             continue;
         }
 
-        $value = isset( $segment['value'] ) ? (string) $segment['value'] : '';
-
-        if ( '' === $value ) {
-            continue;
-        }
-
-        $label = isset( $segment['label'] ) && is_string( $segment['label'] ) && '' !== trim( $segment['label'] )
-            ? $segment['label']
-            : $value;
-
-        $items[] = [
-            'value' => $value,
-            'label' => $label,
-        ];
+        $items[ $normalized['value'] ] = $normalized;
     }
+
+    $items = array_values( $items );
 
     usort(
         $items,
@@ -1205,7 +1221,65 @@ function visibloc_jlg_get_editor_user_segments() {
         }
     );
 
-    return $items;
+    $now              = function_exists( 'current_time' ) ? (int) current_time( 'timestamp' ) : time();
+    $status           = isset( $snapshot['status'] ) ? (string) $snapshot['status'] : 'idle';
+    $error_message    = isset( $snapshot['error_message'] ) ? (string) $snapshot['error_message'] : '';
+    $synced_at        = isset( $snapshot['synced_at'] ) ? (int) $snapshot['synced_at'] : 0;
+    $connector_id     = isset( $snapshot['connector'] ) ? (string) $snapshot['connector'] : '';
+    $stale_threshold  = function_exists( 'apply_filters' )
+        ? (int) apply_filters( 'visibloc_jlg_crm_segment_stale_threshold_hours', 12, $snapshot )
+        : 12;
+    $stale_threshold  = $stale_threshold > 0 ? $stale_threshold : 12;
+    $stale_message    = '';
+    $connector_label  = class_exists( 'Visibloc_CRM_Sync' )
+        ? Visibloc_CRM_Sync::get_connector_label( $connector_id )
+        : $connector_id;
+
+    if ( ( 'error' !== $status || '' === $error_message ) && $synced_at > 0 && $stale_threshold > 0 ) {
+        $age = max( 0, $now - $synced_at );
+
+        if ( $age >= ( $stale_threshold * HOUR_IN_SECONDS ) ) {
+            $stale_message = sprintf(
+                /* translators: %d: Number of hours. */
+                __( 'La dernière synchronisation CRM remonte à plus de %d heures. Relancez une synchronisation manuelle pour actualiser la liste.', 'visi-bloc-jlg' ),
+                $stale_threshold
+            );
+        }
+    }
+
+    $display_error = '';
+
+    if ( 'error' === $status && '' !== $error_message ) {
+        $display_error = $error_message;
+    } elseif ( '' !== $stale_message ) {
+        $display_error = $stale_message;
+    } elseif ( '' !== $connector_id && $synced_at <= 0 ) {
+        $display_error = __( 'Aucune synchronisation n’a encore été réalisée avec le connecteur sélectionné.', 'visi-bloc-jlg' );
+    }
+
+    $last_updated_human = '';
+
+    if ( $synced_at > 0 && function_exists( 'human_time_diff' ) ) {
+        $diff = human_time_diff( $synced_at, $now );
+
+        if ( '' !== $diff ) {
+            $last_updated_human = sprintf( __( 'il y a %s', 'visi-bloc-jlg' ), $diff );
+        }
+    }
+
+    return [
+        'items'  => $items,
+        'status' => [
+            'status'            => $status,
+            'error'             => $display_error,
+            'connector'         => $connector_id,
+            'connectorLabel'    => $connector_label,
+            'lastUpdated'       => $synced_at,
+            'lastUpdatedHuman'  => $last_updated_human,
+            'lastAttempt'       => isset( $snapshot['attempted_at'] ) ? (int) $snapshot['attempted_at'] : 0,
+            'segmentCount'      => count( $items ),
+        ],
+    ];
 }
 
 /**

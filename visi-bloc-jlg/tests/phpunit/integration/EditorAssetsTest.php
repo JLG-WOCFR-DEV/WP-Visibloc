@@ -522,17 +522,38 @@ class EditorAssetsTest extends TestCase {
         add_filter( 'visibloc_jlg_user_segments', $callback );
 
         try {
-            $segments = visibloc_jlg_get_editor_user_segments();
+            $payload = visibloc_jlg_get_editor_user_segments();
+
+            $this->assertIsArray( $payload );
+            $this->assertArrayHasKey( 'items', $payload );
+            $this->assertArrayHasKey( 'status', $payload );
 
             $this->assertSame(
                 [
-                    [ 'value' => 'fallback_segment', 'label' => 'fallback_segment' ],
-                    [ 'value' => 'warm_leads', 'label' => 'Leads chauds' ],
-                    [ 'value' => 'vip_clients', 'label' => 'VIP clients' ],
+                    [
+                        'value'       => 'fallback_segment',
+                        'label'       => 'fallback_segment',
+                        'description' => '',
+                        'source'      => '',
+                    ],
+                    [
+                        'value'       => 'warm_leads',
+                        'label'       => 'Leads chauds',
+                        'description' => '',
+                        'source'      => '',
+                    ],
+                    [
+                        'value'       => 'vip_clients',
+                        'label'       => 'VIP clients',
+                        'description' => '',
+                        'source'      => '',
+                    ],
                 ],
-                $segments,
+                $payload['items'],
                 'Segments should be sanitized and sorted alphabetically by label.'
             );
+
+            $this->assertIsArray( $payload['status'] );
         } finally {
             remove_filter( 'visibloc_jlg_user_segments', $callback );
         }

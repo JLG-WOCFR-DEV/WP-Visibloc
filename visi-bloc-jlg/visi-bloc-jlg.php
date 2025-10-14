@@ -45,6 +45,11 @@ if ( ! defined( 'VISIBLOC_JLG_PLUGIN_URL' ) ) {
 require_once __DIR__ . '/includes/plugin-meta.php';
 require_once __DIR__ . '/includes/utils.php';
 require_once __DIR__ . '/includes/audit-log.php';
+require_once __DIR__ . '/includes/integrations/class-visibloc-crm-sync.php';
+
+if ( is_admin() ) {
+    require_once __DIR__ . '/includes/integrations/crm-admin.php';
+}
 
 visibloc_jlg_get_plugin_version();
 
@@ -88,5 +93,6 @@ add_action(
     'plugins_loaded',
     static function () use ( $visibloc_jlg_plugin ) {
         $visibloc_jlg_plugin->register();
+        Visibloc_CRM_Sync::init();
     }
 );
