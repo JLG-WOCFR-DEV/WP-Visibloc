@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { test, expect } from '@wordpress/e2e-test-utils-playwright';
 
-const PLUGIN_SLUG = 'visi-bloc-jlg/visi-bloc-jlg.php';
+const PLUGIN_SLUG = 'visi-bloc-jlg';
 const PLUGIN_ROOT = path.resolve( __dirname, '../../..' );
 const ASSET_FILE = path.join( PLUGIN_ROOT, 'build/index.asset.php' );
 const BACKUP_FILE = `${ ASSET_FILE }.bak-e2e`;

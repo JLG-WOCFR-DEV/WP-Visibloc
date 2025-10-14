@@ -1,6 +1,6 @@
 import { test, expect } from '@wordpress/e2e-test-utils-playwright';
 
-const PLUGIN_SLUG = 'visi-bloc-jlg/visi-bloc-jlg.php';
+const PLUGIN_SLUG = 'visi-bloc-jlg';
 
 test.describe( 'Assistant Onboarding', () => {
     test.beforeEach( async ( { requestUtils } ) => {

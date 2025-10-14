@@ -3,7 +3,7 @@
  */
 import { test, expect } from '@wordpress/e2e-test-utils-playwright';
 
-const PLUGIN_SLUG = 'visi-bloc-jlg/visi-bloc-jlg.php';
+const PLUGIN_SLUG = 'visi-bloc-jlg';
 
 async function selectBlockInEditor( page, blockName ) {
     const clientIdHandle = await page.waitForFunction(
