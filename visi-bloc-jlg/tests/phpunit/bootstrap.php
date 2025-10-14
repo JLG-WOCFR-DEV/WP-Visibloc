@@ -196,6 +196,9 @@ function visibloc_test_reset_state() {
     $GLOBALS['visibloc_test_stats']      = [
         'get_posts_calls' => 0,
     ];
+    $GLOBALS['visibloc_test_filters']    = isset( $GLOBALS['visibloc_test_default_filters'] )
+        ? $GLOBALS['visibloc_test_default_filters']
+        : [];
 
     visibloc_test_reset_request_environment();
 
@@ -1569,6 +1572,12 @@ if ( ! function_exists( 'absint' ) ) {
 require_once __DIR__ . '/../../includes/utils.php';
 require_once __DIR__ . '/../../includes/datetime-utils.php';
 require_once __DIR__ . '/../../includes/visibility-logic.php';
+
+if ( ! isset( $GLOBALS['visibloc_test_default_filters'] ) ) {
+    $GLOBALS['visibloc_test_default_filters'] = is_array( $GLOBALS['visibloc_test_filters'] ?? null )
+        ? $GLOBALS['visibloc_test_filters']
+        : [];
+}
 
 if ( ! function_exists( 'trailingslashit' ) ) {
     function trailingslashit( $value ) {
