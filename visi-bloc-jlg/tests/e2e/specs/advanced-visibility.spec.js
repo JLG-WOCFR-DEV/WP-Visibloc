@@ -2,6 +2,12 @@
  * Playwright tests covering advanced visibility rules.
  */
 import { test, expect } from '@wordpress/e2e-test-utils-playwright';
+import { isWordPressEnvAvailable } from '../support/env';
+
+test.skip(
+    ! isWordPressEnvAvailable,
+    'WordPress test environment is not available in this execution context.',
+);
 
 const PLUGIN_SLUG = 'visi-bloc-jlg/visi-bloc-jlg.php';
 

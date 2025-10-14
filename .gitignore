@@ -1,4 +1,5 @@
 node_modules/
 vendor/
 visi-bloc-jlg/languages/*.mo
+visi-bloc-jlg/artifacts/
 .phpunit.result.cache
