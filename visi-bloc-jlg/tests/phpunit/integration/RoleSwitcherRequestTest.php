@@ -690,7 +690,7 @@ class RoleSwitcherRequestTest extends TestCase {
 
         try {
             $this->withRoleSwitcherMinWidthFilter(
-                static fn () => $filter_value,
+                static fn ( $current_width ) => $filter_value,
                 function () use ( $expected_toggle_width ) {
                     $model = visibloc_jlg_get_role_switcher_frontend_model( true );
 
@@ -716,8 +716,8 @@ class RoleSwitcherRequestTest extends TestCase {
     }
 
     /**
-     * @param callable():int $filter_callback
-     * @param callable():void $test_callback
+     * @param callable(int):int $filter_callback
+     * @param callable():void  $test_callback
      */
     private function withRoleSwitcherMinWidthFilter( callable $filter_callback, callable $test_callback ): void {
         add_filter( 'visibloc_jlg_role_switcher_min_width', $filter_callback, 10, 1 );
