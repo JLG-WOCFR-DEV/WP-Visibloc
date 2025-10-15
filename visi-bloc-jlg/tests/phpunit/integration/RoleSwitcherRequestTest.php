@@ -660,44 +660,52 @@ class RoleSwitcherRequestTest extends TestCase {
         update_option( 'visibloc_breakpoint_mobile', 960 );
         update_option( 'visibloc_breakpoint_tablet', 1200 );
 
-        $high_filter = static function () {
-            return 2000;
-        };
+        try {
+            $high_filter = static function () {
+                return 2000;
+            };
 
-        add_filter( 'visibloc_jlg_role_switcher_min_width', $high_filter, 10, 1 );
+            add_filter( 'visibloc_jlg_role_switcher_min_width', $high_filter, 10, 1 );
 
-        $model = visibloc_jlg_get_role_switcher_frontend_model( true );
+            try {
+                $model = visibloc_jlg_get_role_switcher_frontend_model( true );
 
-        $this->assertSame( 1200, $model['toggle_max_width'], 'The filter should be clamped to the widest breakpoint.' );
+                $this->assertSame( 1200, $model['toggle_max_width'], 'The filter should be clamped to the widest breakpoint.' );
+            } finally {
+                remove_filter( 'visibloc_jlg_role_switcher_min_width', $high_filter, 10 );
+            }
 
-        remove_filter( 'visibloc_jlg_role_switcher_min_width', $high_filter, 10 );
+            $reduced_filter = static function () {
+                return 980;
+            };
 
-        $reduced_filter = static function () {
-            return 980;
-        };
+            add_filter( 'visibloc_jlg_role_switcher_min_width', $reduced_filter, 10, 1 );
 
-        add_filter( 'visibloc_jlg_role_switcher_min_width', $reduced_filter, 10, 1 );
+            try {
+                $reduced_model = visibloc_jlg_get_role_switcher_frontend_model( true );
 
-        $reduced_model = visibloc_jlg_get_role_switcher_frontend_model( true );
+                $this->assertSame( 980, $reduced_model['toggle_max_width'], 'Filter values below the breakpoints should be honoured.' );
+            } finally {
+                remove_filter( 'visibloc_jlg_role_switcher_min_width', $reduced_filter, 10 );
+            }
 
-        $this->assertSame( 980, $reduced_model['toggle_max_width'], 'Filter values below the breakpoints should be honoured.' );
+            $negative_filter = static function () {
+                return -500;
+            };
 
-        remove_filter( 'visibloc_jlg_role_switcher_min_width', $reduced_filter, 10 );
+            add_filter( 'visibloc_jlg_role_switcher_min_width', $negative_filter, 10, 1 );
 
-        $negative_filter = static function () {
-            return -500;
-        };
+            try {
+                $fallback_model = visibloc_jlg_get_role_switcher_frontend_model( true );
 
-        add_filter( 'visibloc_jlg_role_switcher_min_width', $negative_filter, 10, 1 );
-
-        $fallback_model = visibloc_jlg_get_role_switcher_frontend_model( true );
-
-        $this->assertSame( 1200, $fallback_model['toggle_max_width'], 'Negative values should be treated as a no-op.' );
-
-        remove_filter( 'visibloc_jlg_role_switcher_min_width', $negative_filter, 10 );
-
-        delete_option( 'visibloc_breakpoint_mobile' );
-        delete_option( 'visibloc_breakpoint_tablet' );
+                $this->assertSame( 1200, $fallback_model['toggle_max_width'], 'Negative values should be treated as a no-op.' );
+            } finally {
+                remove_filter( 'visibloc_jlg_role_switcher_min_width', $negative_filter, 10 );
+            }
+        } finally {
+            delete_option( 'visibloc_breakpoint_mobile' );
+            delete_option( 'visibloc_breakpoint_tablet' );
+        }
     }
 
     public function test_external_absolute_request_uri_is_neutralized(): void {
