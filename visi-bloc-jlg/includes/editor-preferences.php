@@ -9,6 +9,8 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+require_once __DIR__ . '/utils.php';
+
 /**
  * Retrieve the user meta key used to persist the editor mode preference.
  *
@@ -16,6 +18,15 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function visibloc_jlg_get_editor_mode_meta_key() {
     return 'visibloc_editor_mode';
+}
+
+/**
+ * Retrieve the user meta key used to persist the high visibility preference.
+ *
+ * @return string
+ */
+function visibloc_jlg_get_high_visibility_meta_key() {
+    return 'visibloc_high_visibility';
 }
 
 /**
@@ -28,12 +39,32 @@ function visibloc_jlg_get_default_editor_mode() {
 }
 
 /**
+ * Return the default value for the high visibility preference.
+ *
+ * @return bool
+ */
+function visibloc_jlg_get_default_high_visibility() {
+    return false;
+}
+
+/**
  * List the supported editor modes.
  *
  * @return string[]
  */
 function visibloc_jlg_get_supported_editor_modes() {
     return [ 'simple', 'expert' ];
+}
+
+/**
+ * Normalize a high visibility value.
+ *
+ * @param mixed $value Raw value.
+ *
+ * @return bool
+ */
+function visibloc_jlg_normalize_high_visibility( $value ) {
+    return visibloc_jlg_normalize_boolean_value( $value );
 }
 
 /**
@@ -83,6 +114,37 @@ function visibloc_jlg_get_user_editor_mode( $user_id = 0 ) {
 }
 
 /**
+ * Retrieve the stored high visibility preference for a given user.
+ *
+ * @param int $user_id Optional user ID. Defaults to current user.
+ *
+ * @return bool
+ */
+function visibloc_jlg_get_user_high_visibility( $user_id = 0 ) {
+    if ( ! function_exists( 'get_current_user_id' ) ) {
+        return visibloc_jlg_get_default_high_visibility();
+    }
+
+    $user_id = $user_id > 0 ? (int) $user_id : get_current_user_id();
+
+    if ( $user_id <= 0 ) {
+        return visibloc_jlg_get_default_high_visibility();
+    }
+
+    if ( ! function_exists( 'get_user_meta' ) ) {
+        return visibloc_jlg_get_default_high_visibility();
+    }
+
+    $meta_value = get_user_meta( $user_id, visibloc_jlg_get_high_visibility_meta_key(), true );
+
+    if ( '' === $meta_value ) {
+        return visibloc_jlg_get_default_high_visibility();
+    }
+
+    return visibloc_jlg_normalize_high_visibility( $meta_value );
+}
+
+/**
  * Persist the editor mode for a given user.
  *
  * @param int    $user_id User identifier.
@@ -107,6 +169,34 @@ function visibloc_jlg_set_user_editor_mode( $user_id, $mode ) {
 }
 
 /**
+ * Persist the high visibility preference for a given user.
+ *
+ * @param int  $user_id User identifier.
+ * @param bool $enabled Whether high visibility should be enabled.
+ *
+ * @return bool
+ */
+function visibloc_jlg_set_user_high_visibility( $user_id, $enabled ) {
+    if ( ! function_exists( 'update_user_meta' ) ) {
+        return false;
+    }
+
+    $user_id = (int) $user_id;
+
+    if ( $user_id <= 0 ) {
+        return false;
+    }
+
+    $normalized_enabled = visibloc_jlg_normalize_high_visibility( $enabled );
+
+    return false !== update_user_meta(
+        $user_id,
+        visibloc_jlg_get_high_visibility_meta_key(),
+        $normalized_enabled ? '1' : '0'
+    );
+}
+
+/**
  * Determine if the current user can manage editor preferences.
  *
  * @return bool
@@ -123,6 +213,7 @@ function visibloc_jlg_can_manage_editor_preferences() {
 function visibloc_jlg_get_editor_preferences_payload() {
     return [
         'mode' => visibloc_jlg_get_user_editor_mode(),
+        'highVisibility' => visibloc_jlg_get_user_high_visibility(),
     ];
 }
 
@@ -160,6 +251,7 @@ function visibloc_jlg_rest_get_editor_preferences( WP_REST_Request $request ) { 
     return rest_ensure_response(
         [
             'mode' => visibloc_jlg_get_user_editor_mode(),
+            'highVisibility' => visibloc_jlg_get_user_high_visibility(),
         ]
     );
 }
@@ -180,6 +272,17 @@ function visibloc_jlg_sanitize_editor_mode( $mode ) {
 }
 
 /**
+ * Sanitize the incoming high visibility preference.
+ *
+ * @param mixed $enabled Raw value.
+ *
+ * @return bool
+ */
+function visibloc_jlg_sanitize_high_visibility( $enabled ) {
+    return visibloc_jlg_normalize_high_visibility( $enabled );
+}
+
+/**
  * Validate the incoming editor mode.
  *
  * @param string          $mode    Editor mode.
@@ -189,6 +292,18 @@ function visibloc_jlg_sanitize_editor_mode( $mode ) {
  */
 function visibloc_jlg_validate_editor_mode( $mode, WP_REST_Request $request ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
     return in_array( $mode, visibloc_jlg_get_supported_editor_modes(), true );
+}
+
+/**
+ * Validate the incoming high visibility preference.
+ *
+ * @param bool             $enabled  Sanitized value.
+ * @param WP_REST_Request  $request  Request instance.
+ *
+ * @return bool
+ */
+function visibloc_jlg_validate_high_visibility( $enabled, WP_REST_Request $request ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
+    return is_bool( $enabled );
 }
 
 /**
@@ -237,7 +352,20 @@ function visibloc_jlg_rest_update_editor_preferences( WP_REST_Request $request )
         $mode = visibloc_jlg_get_default_editor_mode();
     }
 
+    $high_visibility_param = $request->get_param( 'highVisibility' );
+    $high_visibility        = visibloc_jlg_normalize_high_visibility( $high_visibility_param );
+
     if ( ! visibloc_jlg_set_user_editor_mode( $user_id, $mode ) ) {
+        return new WP_Error(
+            'visibloc_rest_unavailable',
+            __( 'La préférence ne peut pas être enregistrée pour le moment.', 'visi-bloc-jlg' ),
+            [
+                'status' => 500,
+            ]
+        );
+    }
+
+    if ( ! visibloc_jlg_set_user_high_visibility( $user_id, $high_visibility ) ) {
         return new WP_Error(
             'visibloc_rest_unavailable',
             __( 'La préférence ne peut pas être enregistrée pour le moment.', 'visi-bloc-jlg' ),
@@ -250,6 +378,7 @@ function visibloc_jlg_rest_update_editor_preferences( WP_REST_Request $request )
     return rest_ensure_response(
         [
             'mode' => visibloc_jlg_get_user_editor_mode( $user_id ),
+            'highVisibility' => visibloc_jlg_get_user_high_visibility( $user_id ),
         ]
     );
 }
@@ -281,6 +410,12 @@ function visibloc_jlg_register_editor_preferences_rest_route() {
                         'required'          => true,
                         'sanitize_callback' => 'visibloc_jlg_sanitize_editor_mode',
                         'validate_callback' => 'visibloc_jlg_validate_editor_mode',
+                    ],
+                    'highVisibility' => [
+                        'type'              => 'boolean',
+                        'required'          => false,
+                        'sanitize_callback' => 'visibloc_jlg_sanitize_high_visibility',
+                        'validate_callback' => 'visibloc_jlg_validate_high_visibility',
                     ],
                 ],
             ],
