@@ -27,6 +27,89 @@
     }
 }
 
+body.visibloc-high-visibility {
+    --visibloc-focus-ring: 0 0 0 4px rgba(15, 23, 42, 0.75);
+    --visibloc-focus-outline: #0f172a;
+    --visibloc-border-subtle: rgba(15, 23, 42, 0.28);
+    --visibloc-border-strong: rgba(15, 23, 42, 0.48);
+    --visibloc-surface-subtle: #e2e8f0;
+}
+
+@media (prefers-color-scheme: dark) {
+    body.visibloc-high-visibility {
+        --visibloc-focus-ring: 0 0 0 4px rgba(226, 232, 240, 0.75);
+        --visibloc-focus-outline: #e2e8f0;
+        --visibloc-border-subtle: rgba(226, 232, 240, 0.55);
+        --visibloc-border-strong: rgba(226, 232, 240, 0.75);
+        --visibloc-surface-subtle: rgba(148, 163, 184, 0.32);
+    }
+}
+
+body.visibloc-high-visibility .visibloc-editor-mode__toggle .components-segmented-control__button {
+    min-height: 44px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+body.visibloc-high-visibility .visibloc-editor-mode .components-toggle-control {
+    padding: 12px 16px;
+    border-radius: var(--visibloc-radius-base);
+    border: 2px solid var(--visibloc-border-strong);
+    background: var(--visibloc-surface-subtle);
+}
+
+body.visibloc-high-visibility .visibloc-editor-mode .components-toggle-control__label,
+body.visibloc-high-visibility .visibloc-editor-mode .components-base-control__help,
+body.visibloc-high-visibility .visibloc-onboarding-panel__meta,
+body.visibloc-high-visibility .visibloc-onboarding-panel__placeholder,
+body.visibloc-high-visibility .visibloc-help-text {
+    color: #0f172a;
+    font-weight: 600;
+}
+
+@media (prefers-color-scheme: dark) {
+    body.visibloc-high-visibility .visibloc-editor-mode .components-toggle-control__label,
+    body.visibloc-high-visibility .visibloc-editor-mode .components-base-control__help,
+    body.visibloc-high-visibility .visibloc-onboarding-panel__meta,
+    body.visibloc-high-visibility .visibloc-onboarding-panel__placeholder,
+    body.visibloc-high-visibility .visibloc-help-text {
+        color: #e2e8f0;
+    }
+}
+
+body.visibloc-high-visibility .visibloc-status-badge,
+body.visibloc-high-visibility .visibloc-diagnostic-card,
+body.visibloc-high-visibility .visibloc-diagnostic-actions__item,
+body.visibloc-high-visibility .visibloc-onboarding-panel__badges .visibloc-onboarding-badges__item {
+    transition: none !important;
+}
+
+body.visibloc-high-visibility .visibloc-status-badge {
+    box-shadow: none;
+    border-width: 2px;
+    background: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+    body.visibloc-high-visibility .visibloc-status-badge {
+        background: rgba(15, 23, 42, 0.9);
+    }
+}
+
+body.visibloc-high-visibility .visibloc-status-badge__description {
+    opacity: 1;
+    font-weight: 600;
+}
+
+body.visibloc-high-visibility .visibloc-diagnostic-card {
+    border: 2px solid var(--visibloc-border-strong);
+    box-shadow: none;
+}
+
+body.visibloc-high-visibility .visibloc-diagnostic-actions__item .components-button {
+    font-weight: 700;
+}
+
 .visi-bloc-device-toggle-groups {
     display: flex;
     flex-direction: column;

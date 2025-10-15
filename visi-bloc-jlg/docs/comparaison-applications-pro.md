@@ -56,6 +56,7 @@ Ces écarts révèlent les leviers prioritaires pour aligner l'expérience Visi-
   - Focus ring unifié documenté (`focus.tokens.json`), tests `axe-core` dans la CI via Playwright (`await expect(page).toHaveNoViolations()`), badges d'arbre de blocs avec icônes SVG + texte caché.
   - Préférence « haute visibilité » (contraste renforcé, animations réduites, zones cliquables élargies) persistée en `localStorage` + `user_meta`.
   - Alertes in-éditeur quand un bloc est masqué par une règle, messages d'erreur contextualisés avec description ARIA et ordre de tabulation vérifié.
+  > ✅ **Mise à jour** – Le commutateur « Contraste renforcé » du panneau Visibloc applique une palette haute visibilité, élargit les zones cliquables et synchronise la préférence entre `localStorage` et le profil utilisateur.
 
 ### P0 – Design system et repères visuels
 - Capitaliser sur un **design system léger** aligné sur Gutenberg tout en clarifiant l'identité de Visi-Bloc.

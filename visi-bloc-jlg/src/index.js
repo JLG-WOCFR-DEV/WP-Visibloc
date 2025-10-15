@@ -827,6 +827,36 @@ const sanitizeEditorMode = (value) => {
     return normalized === EDITOR_MODE_EXPERT ? EDITOR_MODE_EXPERT : EDITOR_MODE_SIMPLE;
 };
 
+const sanitizeHighVisibilityPreference = (value) => {
+    if (typeof value === 'boolean') {
+        return value;
+    }
+
+    if (typeof value === 'number') {
+        return value !== 0;
+    }
+
+    if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+
+        if (!normalized) {
+            return false;
+        }
+
+        if (['1', 'true', 'yes', 'on', 'enabled', 'haute', 'actif'].includes(normalized)) {
+            return true;
+        }
+
+        if (['0', 'false', 'no', 'off', 'disabled', 'inactive'].includes(normalized)) {
+            return false;
+        }
+
+        return normalized !== '0';
+    }
+
+    return false;
+};
+
 const getVisiBlocArray = (key) => {
     if (typeof VisiBlocData !== 'object' || VisiBlocData === null) {
         return [];
@@ -3434,10 +3464,20 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
             () => sanitizeEditorMode(editorPreferences ? editorPreferences.mode : undefined),
             [editorPreferences],
         );
+        const initialHighVisibility = useMemo(
+            () =>
+                sanitizeHighVisibilityPreference(
+                    editorPreferences ? editorPreferences.highVisibility : false,
+                ),
+            [editorPreferences],
+        );
         const [editorMode, setEditorMode] = useState(initialEditorMode);
-        const [isSavingEditorMode, setSavingEditorMode] = useState(false);
-        const [editorModeError, setEditorModeError] = useState('');
-        const [editorModeSuccess, setEditorModeSuccess] = useState('');
+        const [isHighVisibilityEnabled, setHighVisibilityEnabled] = useState(
+            initialHighVisibility,
+        );
+        const [isSavingPreferences, setSavingPreferences] = useState(false);
+        const [editorPreferencesError, setEditorPreferencesError] = useState('');
+        const [editorPreferencesSuccess, setEditorPreferencesSuccess] = useState('');
         const editorModeStatusRegionId = useInstanceId(
             withVisibilityControls,
             'visibloc-editor-mode-status',
@@ -3472,6 +3512,46 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
         const editorModeDescription = isSimpleMode
             ? __('Le mode Simple affiche les étapes essentielles : appareils, calendrier, rôles et repli.', 'visi-bloc-jlg')
             : __('Le mode Expert ajoute les règles avancées et les diagnostics détaillés.', 'visi-bloc-jlg');
+        const highVisibilityDescription = __(
+            'Renforce le contraste, réduit les animations et agrandit les contrôles clés de Visibloc.',
+            'visi-bloc-jlg',
+        );
+        const persistEditorPreferences = useCallback(
+            (modeValue, highVisibilityValue, { onError } = {}) => {
+                if (!editorPreferencesEndpoint) {
+                    return;
+                }
+
+                const payload = {
+                    mode: sanitizeEditorMode(modeValue),
+                    highVisibility: sanitizeHighVisibilityPreference(highVisibilityValue),
+                };
+
+                setSavingPreferences(true);
+
+                apiFetch({
+                    path: editorPreferencesEndpoint,
+                    method: 'POST',
+                    data: payload,
+                })
+                    .then(() => {
+                        setEditorPreferencesSuccess(__('Préférence enregistrée.', 'visi-bloc-jlg'));
+                    })
+                    .catch(() => {
+                        if (typeof onError === 'function') {
+                            onError();
+                        }
+
+                        setEditorPreferencesError(
+                            __('Impossible d’enregistrer la préférence. Réessayez.', 'visi-bloc-jlg'),
+                        );
+                    })
+                    .finally(() => {
+                        setSavingPreferences(false);
+                    });
+            },
+            [editorPreferencesEndpoint],
+        );
         const handleEditorModeChange = useCallback(
             (nextMode) => {
                 const sanitized = sanitizeEditorMode(nextMode);
@@ -3483,44 +3563,87 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                 const previousMode = editorMode;
 
                 setEditorMode(sanitized);
-                setEditorModeError('');
-                setEditorModeSuccess('');
+                setEditorPreferencesError('');
+                setEditorPreferencesSuccess('');
 
                 if (!editorPreferencesEndpoint) {
                     return;
                 }
 
-                setSavingEditorMode(true);
-
-                apiFetch({
-                    path: editorPreferencesEndpoint,
-                    method: 'POST',
-                    data: { mode: sanitized },
-                })
-                    .then(() => {
-                        setEditorModeSuccess(__('Préférence enregistrée.', 'visi-bloc-jlg'));
-                    })
-                    .catch(() => {
-                        setEditorMode(previousMode);
-                        setEditorModeError(
-                            __('Impossible d’enregistrer la préférence. Réessayez.', 'visi-bloc-jlg'),
-                        );
-                    })
-                    .finally(() => {
-                        setSavingEditorMode(false);
-                    });
+                persistEditorPreferences(sanitized, isHighVisibilityEnabled, {
+                    onError: () => setEditorMode(previousMode),
+                });
             },
-            [editorMode, editorPreferencesEndpoint],
+            [
+                editorMode,
+                editorPreferencesEndpoint,
+                isHighVisibilityEnabled,
+                persistEditorPreferences,
+            ],
+        );
+        const handleHighVisibilityChange = useCallback(
+            (nextValue) => {
+                const normalized = sanitizeHighVisibilityPreference(nextValue);
+
+                if (normalized === isHighVisibilityEnabled) {
+                    return;
+                }
+
+                const previousValue = isHighVisibilityEnabled;
+
+                setHighVisibilityEnabled(normalized);
+                setEditorPreferencesError('');
+                setEditorPreferencesSuccess('');
+
+                if (!editorPreferencesEndpoint) {
+                    return;
+                }
+
+                persistEditorPreferences(editorMode, normalized, {
+                    onError: () => setHighVisibilityEnabled(previousValue),
+                });
+            },
+            [
+                editorMode,
+                editorPreferencesEndpoint,
+                isHighVisibilityEnabled,
+                persistEditorPreferences,
+            ],
         );
         useEffect(() => {
-            if (!editorModeSuccess) {
+            if (!editorPreferencesSuccess) {
                 return undefined;
             }
 
-            const timeout = setTimeout(() => setEditorModeSuccess(''), 4000);
+            const timeout = setTimeout(() => setEditorPreferencesSuccess(''), 4000);
 
             return () => clearTimeout(timeout);
-        }, [editorModeSuccess]);
+        }, [editorPreferencesSuccess]);
+        useEffect(() => {
+            if (typeof window !== 'undefined' && window.localStorage) {
+                try {
+                    window.localStorage.setItem(
+                        'visiblocHighVisibility',
+                        isHighVisibilityEnabled ? '1' : '0',
+                    );
+                } catch (error) {
+                    // Fail silently if localStorage is unavailable.
+                }
+            }
+
+            if (typeof document === 'undefined' || !document.body) {
+                return undefined;
+            }
+
+            document.body.classList.toggle(
+                'visibloc-high-visibility',
+                Boolean(isHighVisibilityEnabled),
+            );
+
+            return () => {
+                document.body.classList.remove('visibloc-high-visibility');
+            };
+        }, [isHighVisibilityEnabled]);
         const fallbackBlockLabel = useMemo(() => {
             if (!fallbackBlockId) {
                 return '';
@@ -5736,17 +5859,17 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                                 value={EDITOR_MODE_SIMPLE}
                                                 label={__('Simple', 'visi-bloc-jlg')}
                                                 icon={SimpleModeIcon}
-                                                disabled={isSavingEditorMode}
+                                                disabled={isSavingPreferences}
                                             />
                                             <ToggleGroupControlOptionIcon
                                                 value={EDITOR_MODE_EXPERT}
                                                 label={__('Expert', 'visi-bloc-jlg')}
                                                 icon={ExpertModeIcon}
-                                                disabled={isSavingEditorMode}
+                                                disabled={isSavingPreferences}
                                             />
                                         </ToggleGroupControl>
                                         <div className="visibloc-editor-mode__meta">
-                                            {isSavingEditorMode ? (
+                                            {isSavingPreferences ? (
                                                 <span className="visibloc-editor-mode__spinner">
                                                     <Spinner />
                                                     <span className="visibloc-editor-mode__spinner-text">
@@ -5757,20 +5880,27 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                             {renderHelpText(editorModeDescription, 'is-subtle')}
                                         </div>
                                     </BaseControl>
+                                    <ToggleControl
+                                        label={__('Contraste renforcé', 'visi-bloc-jlg')}
+                                        checked={isHighVisibilityEnabled}
+                                        onChange={handleHighVisibilityChange}
+                                        disabled={isSavingPreferences}
+                                        help={highVisibilityDescription}
+                                    />
                                     <div
                                         id={editorModeStatusRegionId}
                                         className="visibloc-editor-mode__status screen-reader-text"
                                         role="status"
                                         aria-live="polite"
                                     >
-                                        {editorModeError || editorModeSuccess}
+                                        {editorPreferencesError || editorPreferencesSuccess}
                                     </div>
-                                    {editorModeError ? (
+                                    {editorPreferencesError ? (
                                         <Notice
                                             status="error"
-                                            onRemove={() => setEditorModeError('')}
+                                            onRemove={() => setEditorPreferencesError('')}
                                         >
-                                            {editorModeError}
+                                            {editorPreferencesError}
                                         </Notice>
                                     ) : null}
                                 </div>
