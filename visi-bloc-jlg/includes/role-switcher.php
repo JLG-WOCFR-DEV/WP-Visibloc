@@ -1044,15 +1044,13 @@ function visibloc_jlg_get_role_switcher_frontend_model( $force_refresh = false )
         $toggle_max_width = 900;
     }
 
-    $minimum_toggle_width = (int) apply_filters( 'visibloc_jlg_role_switcher_min_width', 1280 );
+    $minimum_toggle_width = (int) apply_filters( 'visibloc_jlg_role_switcher_min_width', $toggle_max_width );
 
-    if ( $minimum_toggle_width < 0 ) {
-        $minimum_toggle_width = 0;
+    if ( $minimum_toggle_width <= 0 ) {
+        $minimum_toggle_width = $toggle_max_width;
     }
 
-    if ( $toggle_max_width < $minimum_toggle_width ) {
-        $toggle_max_width = $minimum_toggle_width;
-    }
+    $toggle_max_width = min( $toggle_max_width, $minimum_toggle_width );
 
     $cached_model = [
         'links'              => $menu_links,
