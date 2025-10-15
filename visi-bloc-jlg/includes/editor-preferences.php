@@ -353,7 +353,7 @@ function visibloc_jlg_rest_update_editor_preferences( WP_REST_Request $request )
     }
 
     $high_visibility_param = $request->get_param( 'highVisibility' );
-    $high_visibility        = visibloc_jlg_normalize_high_visibility( $high_visibility_param );
+    $high_visibility        = null;
 
     if ( ! visibloc_jlg_set_user_editor_mode( $user_id, $mode ) ) {
         return new WP_Error(
@@ -365,14 +365,20 @@ function visibloc_jlg_rest_update_editor_preferences( WP_REST_Request $request )
         );
     }
 
-    if ( ! visibloc_jlg_set_user_high_visibility( $user_id, $high_visibility ) ) {
-        return new WP_Error(
-            'visibloc_rest_unavailable',
-            __( 'La préférence ne peut pas être enregistrée pour le moment.', 'visi-bloc-jlg' ),
-            [
-                'status' => 500,
-            ]
-        );
+    if ( null !== $high_visibility_param ) {
+        $high_visibility = visibloc_jlg_normalize_high_visibility( $high_visibility_param );
+
+        if ( ! visibloc_jlg_set_user_high_visibility( $user_id, $high_visibility ) ) {
+            return new WP_Error(
+                'visibloc_rest_unavailable',
+                __( 'La préférence ne peut pas être enregistrée pour le moment.', 'visi-bloc-jlg' ),
+                [
+                    'status' => 500,
+                ]
+            );
+        }
+    } else {
+        $high_visibility = visibloc_jlg_get_user_high_visibility( $user_id );
     }
 
     return rest_ensure_response(
