@@ -660,7 +660,7 @@ class RoleSwitcherRequestTest extends TestCase {
         update_option( 'visibloc_breakpoint_mobile', 960 );
         update_option( 'visibloc_breakpoint_tablet', 1200 );
 
-        $high_filter = static function () {
+        $high_filter = static function ( $min_width ) {
             return 2000;
         };
 
@@ -672,7 +672,7 @@ class RoleSwitcherRequestTest extends TestCase {
 
         remove_filter( 'visibloc_jlg_role_switcher_min_width', $high_filter, 10 );
 
-        $reduced_filter = static function () {
+        $reduced_filter = static function ( $min_width ) {
             return 980;
         };
 
@@ -684,7 +684,7 @@ class RoleSwitcherRequestTest extends TestCase {
 
         remove_filter( 'visibloc_jlg_role_switcher_min_width', $reduced_filter, 10 );
 
-        $negative_filter = static function () {
+        $negative_filter = static function ( $min_width ) {
             return -500;
         };
 
