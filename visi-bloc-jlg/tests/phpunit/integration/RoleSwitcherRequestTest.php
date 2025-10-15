@@ -645,7 +645,35 @@ class RoleSwitcherRequestTest extends TestCase {
         $this->assertSame( 1280, $wide_model['toggle_max_width'], 'The widest breakpoint should control the toggle visibility.' );
     }
 
-    public function test_min_width_filter_cannot_exceed_configured_breakpoints(): void {
+    /**
+     * @return iterable<string, array{filter_value:int, expected_toggle_width:int}>
+     */
+    public static function provide_min_width_filter_expectations(): iterable {
+        yield 'filter values clamp to the widest breakpoint' => [
+            'filter_value'         => 2000,
+            'expected_toggle_width' => 1200,
+        ];
+
+        yield 'smaller positive filters lower the threshold' => [
+            'filter_value'         => 980,
+            'expected_toggle_width' => 980,
+        ];
+
+        yield 'zero falls back to the computed breakpoint maximum' => [
+            'filter_value'         => 0,
+            'expected_toggle_width' => 1200,
+        ];
+
+        yield 'negative filters are treated as a no-op' => [
+            'filter_value'         => -500,
+            'expected_toggle_width' => 1200,
+        ];
+    }
+
+    /**
+     * @dataProvider provide_min_width_filter_expectations
+     */
+    public function test_min_width_filter_respects_breakpoint_bounds( int $filter_value, int $expected_toggle_width ): void {
         global $visibloc_test_state;
 
         $user_id = 41;
@@ -661,47 +689,18 @@ class RoleSwitcherRequestTest extends TestCase {
         update_option( 'visibloc_breakpoint_tablet', 1200 );
 
         try {
-            $high_filter = static function () {
-                return 2000;
-            };
+            $this->withRoleSwitcherMinWidthFilter(
+                static fn () => $filter_value,
+                function () use ( $expected_toggle_width ) {
+                    $model = visibloc_jlg_get_role_switcher_frontend_model( true );
 
-            add_filter( 'visibloc_jlg_role_switcher_min_width', $high_filter, 10, 1 );
-
-            try {
-                $model = visibloc_jlg_get_role_switcher_frontend_model( true );
-
-                $this->assertSame( 1200, $model['toggle_max_width'], 'The filter should be clamped to the widest breakpoint.' );
-            } finally {
-                remove_filter( 'visibloc_jlg_role_switcher_min_width', $high_filter, 10 );
-            }
-
-            $reduced_filter = static function () {
-                return 980;
-            };
-
-            add_filter( 'visibloc_jlg_role_switcher_min_width', $reduced_filter, 10, 1 );
-
-            try {
-                $reduced_model = visibloc_jlg_get_role_switcher_frontend_model( true );
-
-                $this->assertSame( 980, $reduced_model['toggle_max_width'], 'Filter values below the breakpoints should be honoured.' );
-            } finally {
-                remove_filter( 'visibloc_jlg_role_switcher_min_width', $reduced_filter, 10 );
-            }
-
-            $negative_filter = static function () {
-                return -500;
-            };
-
-            add_filter( 'visibloc_jlg_role_switcher_min_width', $negative_filter, 10, 1 );
-
-            try {
-                $fallback_model = visibloc_jlg_get_role_switcher_frontend_model( true );
-
-                $this->assertSame( 1200, $fallback_model['toggle_max_width'], 'Negative values should be treated as a no-op.' );
-            } finally {
-                remove_filter( 'visibloc_jlg_role_switcher_min_width', $negative_filter, 10 );
-            }
+                    $this->assertSame(
+                        $expected_toggle_width,
+                        $model['toggle_max_width'],
+                        'The filter result should respect the configured breakpoint limits.'
+                    );
+                }
+            );
         } finally {
             delete_option( 'visibloc_breakpoint_mobile' );
             delete_option( 'visibloc_breakpoint_tablet' );
@@ -714,6 +713,20 @@ class RoleSwitcherRequestTest extends TestCase {
         $base_url = visibloc_jlg_get_preview_switch_base_url();
 
         $this->assertSame( 'https://example.test/', $base_url );
+    }
+
+    /**
+     * @param callable():int $filter_callback
+     * @param callable():void $test_callback
+     */
+    private function withRoleSwitcherMinWidthFilter( callable $filter_callback, callable $test_callback ): void {
+        add_filter( 'visibloc_jlg_role_switcher_min_width', $filter_callback, 10, 1 );
+
+        try {
+            $test_callback();
+        } finally {
+            remove_filter( 'visibloc_jlg_role_switcher_min_width', $filter_callback, 10 );
+        }
     }
 
     private function getLatestCookieLog(): ?array {
