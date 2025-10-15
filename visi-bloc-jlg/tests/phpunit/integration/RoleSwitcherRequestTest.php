@@ -645,6 +645,61 @@ class RoleSwitcherRequestTest extends TestCase {
         $this->assertSame( 1280, $wide_model['toggle_max_width'], 'The widest breakpoint should control the toggle visibility.' );
     }
 
+    public function test_min_width_filter_cannot_exceed_configured_breakpoints(): void {
+        global $visibloc_test_state;
+
+        $user_id = 41;
+
+        $visibloc_test_state['effective_user_id']             = $user_id;
+        $visibloc_test_state['current_user']                  = new Visibloc_Test_User( $user_id, [ 'administrator' ] );
+        $visibloc_test_state['can_preview_users'][ $user_id ] = true;
+        $visibloc_test_state['can_impersonate_users'][ $user_id ] = true;
+        $visibloc_test_state['allowed_preview_roles']         = [ 'administrator', 'editor' ];
+        $visibloc_test_state['roles']['editor']               = (object) [ 'name' => 'Editor', 'capabilities' => [] ];
+
+        update_option( 'visibloc_breakpoint_mobile', 960 );
+        update_option( 'visibloc_breakpoint_tablet', 1200 );
+
+        $high_filter = static function () {
+            return 2000;
+        };
+
+        add_filter( 'visibloc_jlg_role_switcher_min_width', $high_filter, 10, 1 );
+
+        $model = visibloc_jlg_get_role_switcher_frontend_model( true );
+
+        $this->assertSame( 1200, $model['toggle_max_width'], 'The filter should be clamped to the widest breakpoint.' );
+
+        remove_filter( 'visibloc_jlg_role_switcher_min_width', $high_filter, 10 );
+
+        $reduced_filter = static function () {
+            return 980;
+        };
+
+        add_filter( 'visibloc_jlg_role_switcher_min_width', $reduced_filter, 10, 1 );
+
+        $reduced_model = visibloc_jlg_get_role_switcher_frontend_model( true );
+
+        $this->assertSame( 980, $reduced_model['toggle_max_width'], 'Filter values below the breakpoints should be honoured.' );
+
+        remove_filter( 'visibloc_jlg_role_switcher_min_width', $reduced_filter, 10 );
+
+        $negative_filter = static function () {
+            return -500;
+        };
+
+        add_filter( 'visibloc_jlg_role_switcher_min_width', $negative_filter, 10, 1 );
+
+        $fallback_model = visibloc_jlg_get_role_switcher_frontend_model( true );
+
+        $this->assertSame( 1200, $fallback_model['toggle_max_width'], 'Negative values should be treated as a no-op.' );
+
+        remove_filter( 'visibloc_jlg_role_switcher_min_width', $negative_filter, 10 );
+
+        delete_option( 'visibloc_breakpoint_mobile' );
+        delete_option( 'visibloc_breakpoint_tablet' );
+    }
+
     public function test_external_absolute_request_uri_is_neutralized(): void {
         $_SERVER['REQUEST_URI'] = 'https://malicious.test/suspicious/?preview_role=guest&_wpnonce=fake';
 
