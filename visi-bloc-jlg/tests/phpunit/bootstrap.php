@@ -588,16 +588,28 @@ function visibloc_jlg_get_preview_role_from_cookie() {
             return null;
         }
 
-        return sanitize_key( $cookie_value );
+        $sanitized = sanitize_key( wp_unslash( $cookie_value ) );
+
+        if ( '' === $sanitized ) {
+            return null;
+        }
+
+        return $sanitized;
     }
 
-    $state_preview_role = $GLOBALS['visibloc_test_state']['preview_role'];
+    $state_preview_role = $GLOBALS['visibloc_test_state']['preview_role'] ?? '';
 
-    if ( ! is_string( $state_preview_role ) || '' === $state_preview_role ) {
+    if ( ! is_string( $state_preview_role ) ) {
         return null;
     }
 
-    return sanitize_key( $state_preview_role );
+    $sanitized_state_role = sanitize_key( wp_unslash( $state_preview_role ) );
+
+    if ( '' === $sanitized_state_role ) {
+        return null;
+    }
+
+    return $sanitized_state_role;
 }
 
 function visibloc_jlg_get_preview_runtime_context( $reset_cache = false ) {
