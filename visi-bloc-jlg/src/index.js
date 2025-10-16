@@ -20,6 +20,7 @@ import {
     SelectControl,
     ComboboxControl,
     ToggleGroupControl,
+    ToggleGroupControlOption,
     ToggleGroupControlOptionIcon,
     ToggleControl,
     CheckboxControl,
@@ -58,6 +59,9 @@ import './editor-styles.css';
 import { OnboardingWizard, useOnboardingWizard } from './onboarding';
 
 const DEFAULT_SUPPORTED_BLOCKS = ['core/group'];
+
+const ToggleGroupOption =
+    ToggleGroupControlOptionIcon || ToggleGroupControlOption;
 
 const DeviceOrientationPortraitIcon = () => (
     <svg
@@ -5353,7 +5357,7 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                             }
                                         >
                                             {group.options.map((option) => (
-                                                <ToggleGroupControlOptionIcon
+                                                <ToggleGroupOption
                                                     key={option.id}
                                                     value={option.id}
                                                     icon={option.icon}
@@ -5855,13 +5859,13 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                                 handleEditorModeChange(newValue || DEFAULT_EDITOR_MODE)
                                             }
                                         >
-                                            <ToggleGroupControlOptionIcon
+                                            <ToggleGroupOption
                                                 value={EDITOR_MODE_SIMPLE}
                                                 label={__('Simple', 'visi-bloc-jlg')}
                                                 icon={SimpleModeIcon}
                                                 disabled={isSavingPreferences}
                                             />
-                                            <ToggleGroupControlOptionIcon
+                                            <ToggleGroupOption
                                                 value={EDITOR_MODE_EXPERT}
                                                 label={__('Expert', 'visi-bloc-jlg')}
                                                 icon={ExpertModeIcon}
