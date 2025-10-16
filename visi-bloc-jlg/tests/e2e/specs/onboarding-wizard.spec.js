@@ -19,7 +19,12 @@ test.describe( 'Assistant Onboarding', () => {
         await editor.insertBlock( { name: 'core/group' } );
 
         await page.getByRole( 'button', { name: 'Settings', exact: true } ).click();
-        const openWizardButton = page.getByRole( 'button', { name: 'Ouvrir l’assistant' } );
+
+        await page.getByRole( 'button', { name: 'Assistant Onboarding', exact: true } ).click();
+
+        const openWizardButton = page.getByRole( 'button', {
+            name: /^(Ouvrir|Reprendre) l’assistant$/,
+        } );
         await expect( openWizardButton ).toBeVisible();
 
         await openWizardButton.click();

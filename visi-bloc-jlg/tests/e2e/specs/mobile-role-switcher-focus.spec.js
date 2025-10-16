@@ -70,6 +70,8 @@ test.describe( 'Visi-Bloc mobile role switcher focus management', () => {
     } );
 
     test( 'keeps focus trapped inside the panel while it is open', async ( { admin, page } ) => {
+        await page.setViewportSize( { width: 768, height: 900 } );
+
         await admin.visitAdminPage( 'index.php' );
         await page.goto( '/' );
 
