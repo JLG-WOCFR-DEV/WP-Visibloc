@@ -1759,29 +1759,43 @@ function visibloc_jlg_force_show_missing_editor_assets_notice() {
     }
 
     $script = <<<JS
-document.addEventListener('DOMContentLoaded', function() {
+(function() {
     var commandText = {$command_json};
-    var notices = document.querySelectorAll('.notice.notice-error');
 
-    notices.forEach(function(notice) {
-        if (!notice || !notice.textContent || notice.textContent.indexOf(commandText) === -1) {
-            return;
-        }
+    function revealMissingAssetNotice() {
+        var notices = document.querySelectorAll('.notice.notice-error');
 
-        notice.hidden = false;
-        notice.classList.remove('hidden');
-
-        if (notice.style) {
-            notice.style.removeProperty('display');
-
-            if (notice.style.visibility === 'hidden') {
-                notice.style.visibility = '';
+        notices.forEach(function(notice) {
+            if (!notice || !notice.textContent || notice.textContent.indexOf(commandText) === -1) {
+                return;
             }
-        }
 
-        notice.removeAttribute('aria-hidden');
-    });
-});
+            notice.hidden = false;
+            notice.removeAttribute('hidden');
+            notice.classList.remove('hidden');
+
+            if (notice.style) {
+                notice.style.removeProperty('display');
+
+                if (notice.style.visibility === 'hidden') {
+                    notice.style.visibility = '';
+                }
+
+                if (!notice.style.length) {
+                    notice.removeAttribute('style');
+                }
+            }
+
+            notice.removeAttribute('aria-hidden');
+        });
+    }
+
+    if (document.readyState !== 'loading') {
+        revealMissingAssetNotice();
+    }
+
+    document.addEventListener('DOMContentLoaded', revealMissingAssetNotice);
+})();
 JS;
 
     if ( function_exists( 'wp_print_inline_script_tag' ) ) {
