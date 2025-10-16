@@ -82,8 +82,11 @@ async function configureFallbackText( page, text ) {
 }
 
 async function addAdvancedRule( page ) {
-    await page.getByRole( 'button', { name: 'Règles de visibilité avancées' } ).click();
-    await page.getByRole( 'button', { name: 'Ajouter une règle' } ).click();
+    await page
+        .getByRole( 'tab', { name: /Étape 4.*Règles avancées/i } )
+        .click();
+    await page.getByRole( 'button', { name: 'Ajouter une règle de…' } ).click();
+    await page.getByRole( 'menuitem', { name: 'Type de contenu' } ).click();
 }
 
 async function getPostPermalink( page ) {
