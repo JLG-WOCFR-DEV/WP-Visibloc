@@ -45,6 +45,7 @@ import {
     CardFooter,
     Spinner,
     FormTokenField,
+    RadioControl,
 } from '@wordpress/components';
 import { __, sprintf, _n } from '@wordpress/i18n';
 import { __experimentalGetSettings, dateI18n, format as formatDate } from '@wordpress/date';
@@ -60,8 +61,9 @@ import { OnboardingWizard, useOnboardingWizard } from './onboarding';
 
 const DEFAULT_SUPPORTED_BLOCKS = ['core/group'];
 
-const ToggleGroupOption =
-    ToggleGroupControlOptionIcon || ToggleGroupControlOption;
+const ToggleGroupOption = ToggleGroupControlOptionIcon || ToggleGroupControlOption;
+const HAS_TOGGLE_GROUP_SUPPORT =
+    Boolean( ToggleGroupControl ) && Boolean( ToggleGroupOption );
 
 const DeviceOrientationPortraitIcon = () => (
     <svg
@@ -769,6 +771,17 @@ const DEVICE_VISIBILITY_FLAT_OPTIONS = DEVICE_VISIBILITY_OPTIONS.reduce(
     },
     [],
 );
+
+const DEVICE_VISIBILITY_SELECT_OPTIONS = [
+    {
+        label: __('Visible sur tous les appareils', 'visi-bloc-jlg'),
+        value: DEVICE_VISIBILITY_DEFAULT_OPTION.id,
+    },
+    ...DEVICE_VISIBILITY_FLAT_OPTIONS.map((option) => ({
+        label: option.label,
+        value: option.id,
+    })),
+];
 
 const SUPPORTED_ADVANCED_RULE_TYPES = [
     'post_type',
@@ -5336,38 +5349,63 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                 content: (
                     <BaseControl label={__('Visibilité par appareil', 'visi-bloc-jlg')}>
                         <div className="visi-bloc-device-toggle-groups">
-                            {DEVICE_VISIBILITY_OPTIONS.map((group) => {
-                                const isGroupActive = group.options.some(
-                                    (option) => option.id === deviceVisibility,
-                                );
+                            {HAS_TOGGLE_GROUP_SUPPORT
+                                ? DEVICE_VISIBILITY_OPTIONS.map((group) => {
+                                      const isGroupActive = group.options.some(
+                                          (option) => option.id === deviceVisibility,
+                                      );
 
-                                return (
-                                    <div key={group.id} className="visi-bloc-device-toggle-group">
-                                        <BaseControl.VisualLabel>{group.label}</BaseControl.VisualLabel>
-                                        <ToggleGroupControl
-                                            className="visi-bloc-device-toggle"
-                                            isBlock
-                                            isDeselectable
-                                            value={isGroupActive ? deviceVisibility : undefined}
-                                            onChange={(newValue) =>
-                                                setAttributes({
-                                                    deviceVisibility:
-                                                        newValue || DEVICE_VISIBILITY_DEFAULT_OPTION.id,
-                                                })
-                                            }
-                                        >
-                                            {group.options.map((option) => (
-                                                <ToggleGroupOption
-                                                    key={option.id}
-                                                    value={option.id}
-                                                    icon={option.icon}
-                                                    label={option.label}
-                                                />
-                                            ))}
-                                        </ToggleGroupControl>
-                                    </div>
-                                );
-                            })}
+                                      return (
+                                          <div
+                                              key={group.id}
+                                              className="visi-bloc-device-toggle-group"
+                                          >
+                                              <BaseControl.VisualLabel>
+                                                  {group.label}
+                                              </BaseControl.VisualLabel>
+                                              <ToggleGroupControl
+                                                  className="visi-bloc-device-toggle"
+                                                  isBlock
+                                                  isDeselectable
+                                                  value={
+                                                      isGroupActive
+                                                          ? deviceVisibility
+                                                          : undefined
+                                                  }
+                                                  onChange={(newValue) =>
+                                                      setAttributes({
+                                                          deviceVisibility:
+                                                              newValue ||
+                                                              DEVICE_VISIBILITY_DEFAULT_OPTION.id,
+                                                      })
+                                                  }
+                                              >
+                                                  {group.options.map((option) => (
+                                                      <ToggleGroupOption
+                                                          key={option.id}
+                                                          value={option.id}
+                                                          icon={option.icon}
+                                                          label={option.label}
+                                                      />
+                                                  ))}
+                                              </ToggleGroupControl>
+                                          </div>
+                                      );
+                                  })
+                                : (
+                                      <SelectControl
+                                          className="visi-bloc-device-toggle-select"
+                                          value={deviceVisibility}
+                                          options={DEVICE_VISIBILITY_SELECT_OPTIONS}
+                                          onChange={(newValue) =>
+                                              setAttributes({
+                                                  deviceVisibility:
+                                                      newValue ||
+                                                      DEVICE_VISIBILITY_DEFAULT_OPTION.id,
+                                              })
+                                          }
+                                      />
+                                  )}
                             <Button
                                 className="visi-bloc-device-toggle-reset"
                                 variant="link"
@@ -5851,27 +5889,52 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                         <BaseControl.VisualLabel>
                                             {__('Mode d’édition', 'visi-bloc-jlg')}
                                         </BaseControl.VisualLabel>
-                                        <ToggleGroupControl
-                                            className="visibloc-editor-mode__toggle"
-                                            isBlock
-                                            value={editorMode}
-                                            onChange={(newValue) =>
-                                                handleEditorModeChange(newValue || DEFAULT_EDITOR_MODE)
-                                            }
-                                        >
-                                            <ToggleGroupOption
-                                                value={EDITOR_MODE_SIMPLE}
-                                                label={__('Simple', 'visi-bloc-jlg')}
-                                                icon={SimpleModeIcon}
+                                        {HAS_TOGGLE_GROUP_SUPPORT ? (
+                                            <ToggleGroupControl
+                                                className="visibloc-editor-mode__toggle"
+                                                isBlock
+                                                value={editorMode}
+                                                onChange={(newValue) =>
+                                                    handleEditorModeChange(
+                                                        newValue || DEFAULT_EDITOR_MODE,
+                                                    )
+                                                }
+                                            >
+                                                <ToggleGroupOption
+                                                    value={EDITOR_MODE_SIMPLE}
+                                                    label={__('Simple', 'visi-bloc-jlg')}
+                                                    icon={SimpleModeIcon}
+                                                    disabled={isSavingPreferences}
+                                                />
+                                                <ToggleGroupOption
+                                                    value={EDITOR_MODE_EXPERT}
+                                                    label={__('Expert', 'visi-bloc-jlg')}
+                                                    icon={ExpertModeIcon}
+                                                    disabled={isSavingPreferences}
+                                                />
+                                            </ToggleGroupControl>
+                                        ) : (
+                                            <RadioControl
+                                                className="visibloc-editor-mode__toggle"
+                                                selected={editorMode}
+                                                options={[
+                                                    {
+                                                        label: __('Simple', 'visi-bloc-jlg'),
+                                                        value: EDITOR_MODE_SIMPLE,
+                                                    },
+                                                    {
+                                                        label: __('Expert', 'visi-bloc-jlg'),
+                                                        value: EDITOR_MODE_EXPERT,
+                                                    },
+                                                ]}
+                                                onChange={(newValue) =>
+                                                    handleEditorModeChange(
+                                                        newValue || DEFAULT_EDITOR_MODE,
+                                                    )
+                                                }
                                                 disabled={isSavingPreferences}
                                             />
-                                            <ToggleGroupOption
-                                                value={EDITOR_MODE_EXPERT}
-                                                label={__('Expert', 'visi-bloc-jlg')}
-                                                icon={ExpertModeIcon}
-                                                disabled={isSavingPreferences}
-                                            />
-                                        </ToggleGroupControl>
+                                        )}
                                         <div className="visibloc-editor-mode__meta">
                                             {isSavingPreferences ? (
                                                 <span className="visibloc-editor-mode__spinner">
