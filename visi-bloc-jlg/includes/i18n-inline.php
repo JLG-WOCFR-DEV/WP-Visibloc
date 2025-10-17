@@ -1,9 +1,16 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-if ( function_exists( '__' ) ) {
-    // Ensure the "Hidden block" string is available for translation tools.
-    __( 'Hidden block', 'visi-bloc-jlg' );
+if ( function_exists( 'add_action' ) ) {
+    add_action(
+        'init',
+        static function () {
+            if ( function_exists( '__' ) ) {
+                // Ensure the "Hidden block" string is available for translation tools.
+                __( 'Hidden block', 'visi-bloc-jlg' );
+            }
+        }
+    );
 }
 
 if ( ! function_exists( 'visibloc_jlg_inline_translate_hidden_block' ) ) {
