@@ -9,7 +9,7 @@ class FallbackBlocksTest extends TestCase {
         remove_all_filters( 'visibloc_jlg_available_fallback_blocks_query_args' );
     }
 
-    public function test_query_defaults_disable_pagination(): void {
+    public function test_query_defaults_enable_pagination(): void {
         $captured_args = null;
 
         add_filter(
@@ -28,15 +28,27 @@ class FallbackBlocksTest extends TestCase {
         }
 
         $this->assertIsArray( $captured_args, 'The filter should receive an array of query arguments.' );
+        $default_per_page = visibloc_jlg_get_default_fallback_blocks_per_page();
+
         $this->assertArrayHasKey( 'numberposts', $captured_args );
-        $this->assertSame( -1, $captured_args['numberposts'], 'The number of posts should be unlimited by default.' );
+        $this->assertSame(
+            $default_per_page,
+            $captured_args['numberposts'],
+            'The number of posts should be limited by default.',
+        );
         $this->assertArrayHasKey( 'posts_per_page', $captured_args );
-        $this->assertSame( -1, $captured_args['posts_per_page'], 'Pagination should remain disabled for WP_Query consumers.' );
+        $this->assertSame(
+            $default_per_page,
+            $captured_args['posts_per_page'],
+            'Pagination should be enabled for WP_Query consumers.',
+        );
         $this->assertArrayHasKey( 'nopaging', $captured_args );
-        $this->assertTrue( (bool) $captured_args['nopaging'], 'The query should explicitly disable pagination.' );
+        $this->assertFalse( (bool) $captured_args['nopaging'], 'The query should explicitly enable pagination.' );
+        $this->assertArrayHasKey( 'paged', $captured_args );
+        $this->assertSame( 1, $captured_args['paged'], 'The first page should be requested by default.' );
     }
 
-    public function test_all_reusable_blocks_are_returned_without_limit(): void {
+    public function test_default_request_is_limited_to_first_page(): void {
         for ( $index = 1; $index <= 205; $index++ ) {
             $GLOBALS['visibloc_posts'][ $index ] = [
                 'post_title'   => sprintf( 'Reusable block %03d', $index ),
@@ -48,26 +60,20 @@ class FallbackBlocksTest extends TestCase {
 
         $blocks = visibloc_jlg_get_available_fallback_blocks();
 
+        $default_per_page = visibloc_jlg_get_default_fallback_blocks_per_page();
+
         $this->assertCount(
-            205,
+            $default_per_page,
             $blocks,
-            'All reusable blocks should be listed when no limit is applied.'
+            'Only the first page of reusable blocks should be loaded by default.'
         );
 
         $values = array_column( $blocks, 'value' );
 
         $this->assertSame(
-            range( 1, 205 ),
+            range( 1, $default_per_page ),
             $values,
-            'The block IDs should cover the entire dataset.'
-        );
-
-        $labels = array_column( $blocks, 'label', 'value' );
-
-        $this->assertSame(
-            'Reusable block 205',
-            $labels[205] ?? null,
-            'The last block should be present with its title.'
+            'The block IDs should cover the first page of the dataset.'
         );
     }
 
@@ -89,6 +95,7 @@ class FallbackBlocksTest extends TestCase {
                 }
 
                 $args['numberposts'] = 10;
+                $args['posts_per_page'] = 10;
 
                 return $args;
             }
@@ -104,6 +111,32 @@ class FallbackBlocksTest extends TestCase {
             10,
             $limited_blocks,
             'Integrators should be able to narrow the query through the filter.'
+        );
+    }
+
+    public function test_overrides_can_disable_pagination_entirely(): void {
+        for ( $index = 1; $index <= 30; $index++ ) {
+            $GLOBALS['visibloc_posts'][ $index ] = [
+                'post_title'   => sprintf( 'Reusable block %03d', $index ),
+                'post_content' => '<!-- wp:paragraph --><p>Fallback paragraph</p><!-- /wp:paragraph -->',
+                'post_type'    => 'wp_block',
+                'post_status'  => 'publish',
+            ];
+        }
+
+        $blocks = visibloc_jlg_get_available_fallback_blocks(
+            [
+                'paged'          => 0,
+                'posts_per_page' => -1,
+                'numberposts'    => -1,
+                'nopaging'       => true,
+            ]
+        );
+
+        $this->assertCount(
+            30,
+            $blocks,
+            'Explicit overrides should still be able to disable pagination.',
         );
     }
 

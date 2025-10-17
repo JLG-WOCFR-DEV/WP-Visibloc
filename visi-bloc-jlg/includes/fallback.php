@@ -310,16 +310,22 @@ function visibloc_jlg_normalize_value_for_cache( $value ) {
  */
 function visibloc_jlg_get_fallback_blocks_requested_page() {
     if ( ! isset( $_GET['paged'] ) ) {
-        return 0;
+        return 1;
     }
 
     $raw_value = $_GET['paged'];
 
     if ( is_string( $raw_value ) || is_numeric( $raw_value ) ) {
-        return max( 0, absint( $raw_value ) );
+        if ( function_exists( 'wp_unslash' ) && is_string( $raw_value ) ) {
+            $raw_value = wp_unslash( $raw_value );
+        }
+
+        $page = absint( $raw_value );
+
+        return $page > 0 ? $page : 1;
     }
 
-    return 0;
+    return 1;
 }
 
 function visibloc_jlg_normalize_fallback_blocks_search_term( $raw_value ) {
@@ -471,13 +477,31 @@ function visibloc_jlg_get_block_fallback_markup( $attrs ) {
  *
  * @return array<int, array{value:int,label:string}>
  */
+/**
+ * Retrieve the default number of fallback blocks loaded per page.
+ *
+ * @return int
+ */
+function visibloc_jlg_get_default_fallback_blocks_per_page() {
+    $default_per_page = (int) apply_filters( 'visibloc_jlg_default_fallback_blocks_per_page', 20 );
+
+    if ( $default_per_page <= 0 ) {
+        $default_per_page = 20;
+    }
+
+    return $default_per_page;
+}
+
 function visibloc_jlg_get_available_fallback_blocks( $overrides = [], $include_meta = false ) {
+    $default_per_page = visibloc_jlg_get_default_fallback_blocks_per_page();
+
     $default_args = [
         'post_type'              => 'wp_block',
         'post_status'            => 'publish',
-        'numberposts'            => -1,
-        'posts_per_page'         => -1,
-        'nopaging'               => true,
+        'numberposts'            => $default_per_page,
+        'posts_per_page'         => $default_per_page,
+        'nopaging'               => false,
+        'paged'                  => 1,
         'orderby'                => 'title',
         'order'                  => 'ASC',
         'suppress_filters'       => false,
@@ -497,11 +521,10 @@ function visibloc_jlg_get_available_fallback_blocks( $overrides = [], $include_m
     /**
      * Filters the arguments used when looking up reusable blocks available as fallbacks.
      *
-     * By default the plugin disables pagination completely (`numberposts` and
-     * `posts_per_page` are both set to `-1`, and `nopaging` to `true`) so that no reusable
-     * block is hidden from the selector. Allowing the query arguments to be filtered lets
-     * integrators re-introduce pagination or otherwise tailor the lookup to their needs when
-     * a site has an extremely large collection of reusable blocks.
+     * By default the plugin limits the query to the first page of reusable blocks so that the
+     * editor does not have to preload the entire collection. Allowing the query arguments to be
+     * filtered lets integrators widen or disable the pagination entirely when they need a
+     * different behaviour.
      *
      * @since 1.1.1
      *
@@ -533,45 +556,68 @@ function visibloc_jlg_get_available_fallback_blocks( $overrides = [], $include_m
 
     $per_page = 0;
 
-    if ( array_key_exists( 'posts_per_page', $overrides ) ) {
-        $per_page = (int) $overrides['posts_per_page'];
-    } elseif ( isset( $query_args['posts_per_page'] ) ) {
+    if ( isset( $query_args['posts_per_page'] ) ) {
         $per_page = (int) $query_args['posts_per_page'];
     }
 
-    if ( $per_page <= 0 && array_key_exists( 'numberposts', $overrides ) ) {
-        $per_page = (int) $overrides['numberposts'];
-    } elseif ( $per_page <= 0 && isset( $query_args['numberposts'] ) ) {
-        $per_page = (int) $query_args['numberposts'];
+    if ( isset( $query_args['numberposts'] ) ) {
+        $numberposts = (int) $query_args['numberposts'];
+
+        if ( $per_page <= 0 || ( $numberposts > 0 && $numberposts < $per_page ) ) {
+            $per_page = $numberposts;
+        }
     }
 
-    if ( $requested_page > 0 ) {
-        if ( $per_page <= 0 ) {
-            $per_page = (int) apply_filters( 'visibloc_jlg_fallback_blocks_per_page', 50, $query_args, $requested_page );
+    $nopaging_requested = false;
+
+    if ( array_key_exists( 'nopaging', $query_args ) ) {
+        if ( function_exists( 'wp_validate_boolean' ) ) {
+            $nopaging_requested = wp_validate_boolean( $query_args['nopaging'] );
+        } else {
+            $nopaging_requested = (bool) $query_args['nopaging'];
+        }
+    }
+
+    if ( $nopaging_requested ) {
+        $query_args['nopaging'] = true;
+
+        if ( ! array_key_exists( 'posts_per_page', $overrides ) ) {
+            $query_args['posts_per_page'] = -1;
+        }
+
+        if ( ! array_key_exists( 'numberposts', $overrides ) ) {
+            $query_args['numberposts'] = -1;
+        }
+
+        if ( isset( $query_args['paged'] ) ) {
+            unset( $query_args['paged'] );
+        }
+
+        if ( isset( $query_args['offset'] ) && (int) $query_args['offset'] <= 0 ) {
+            unset( $query_args['offset'] );
+        }
+    } else {
+        if ( $requested_page <= 0 ) {
+            $requested_page = 1;
         }
 
         if ( $per_page <= 0 ) {
-            $per_page = 50;
+            $per_page = (int) apply_filters( 'visibloc_jlg_fallback_blocks_per_page', $default_per_page, $query_args, $requested_page );
+        }
+
+        if ( $per_page <= 0 ) {
+            $per_page = $default_per_page;
         }
 
         $query_args['posts_per_page'] = $per_page;
         $query_args['numberposts']    = $per_page;
         $query_args['nopaging']       = false;
         $query_args['paged']          = $requested_page;
-        $query_args['offset']         = max( 0, ( $requested_page - 1 ) * $per_page );
-    } else {
-        if ( isset( $query_args['paged'] ) ) {
-            unset( $query_args['paged'] );
-        }
 
-        if ( isset( $query_args['offset'] ) && (int) $query_args['offset'] > 0 ) {
-            $query_args['offset'] = (int) $query_args['offset'];
-        } else {
+        if ( $requested_page > 1 ) {
+            $query_args['offset'] = max( 0, ( $requested_page - 1 ) * $per_page );
+        } elseif ( isset( $query_args['offset'] ) && (int) $query_args['offset'] <= 0 ) {
             unset( $query_args['offset'] );
-        }
-
-        if ( ! array_key_exists( 'nopaging', $overrides ) ) {
-            $query_args['nopaging'] = $query_args['posts_per_page'] <= 0 && $query_args['numberposts'] <= 0;
         }
     }
 
