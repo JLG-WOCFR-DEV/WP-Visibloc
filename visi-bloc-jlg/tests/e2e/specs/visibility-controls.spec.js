@@ -6,6 +6,36 @@ import { test, expect } from '@wordpress/e2e-test-utils-playwright';
 
 const PLUGIN_SLUG = 'visi-bloc-jlg';
 
+async function ensureExpertMode( page ) {
+    const modeToggle = page.locator( '.visibloc-editor-mode__toggle' );
+
+    await expect( modeToggle ).toBeVisible( { timeout: 20000 } );
+
+    const expertButton = modeToggle.getByRole( 'button', { name: 'Expert', exact: true } );
+
+    if ( await expertButton.count() ) {
+        const isPressed = await expertButton.getAttribute( 'aria-pressed' );
+
+        if ( isPressed !== 'true' ) {
+            await expertButton.click( { timeout: 20000 } );
+        }
+
+        return;
+    }
+
+    const expertRadio = modeToggle.getByRole( 'radio', { name: 'Expert', exact: true } );
+
+    if ( await expertRadio.count() ) {
+        if ( !( await expertRadio.isChecked() ) ) {
+            await expertRadio.check( { timeout: 20000 } );
+        }
+
+        return;
+    }
+
+    throw new Error( 'Expert mode toggle not found in the inspector controls.' );
+}
+
 async function selectBlockInEditor( page, blockName ) {
     const clientIdHandle = await page.waitForFunction(
         ( targetName ) => {
@@ -103,6 +133,8 @@ async function exerciseVisibilityControls( { admin, editor, page }, blockName ) 
     } );
     await expect( settingsButton ).toBeVisible( { timeout: 20000 } );
     await settingsButton.click( { timeout: 20000 } );
+
+    await ensureExpertMode( page );
 
     const getStepTab = ( label ) => page.getByRole( 'tab', { name: label } );
     const stepSummary = page.locator( '.visi-bloc-help-text.is-summary' );
@@ -233,6 +265,8 @@ test.describe( 'Visi-Bloc group visibility controls', () => {
         } );
         await expect( settingsButton ).toBeVisible( { timeout: 20000 } );
         await settingsButton.click( { timeout: 20000 } );
+
+        await ensureExpertMode( page );
 
         const selectStep = async ( name ) => {
             const tab = page.getByRole( 'tab', { name } );
