@@ -64,6 +64,7 @@ const DEFAULT_SUPPORTED_BLOCKS = ['core/group'];
 const ToggleGroupOption = ToggleGroupControlOptionIcon || ToggleGroupControlOption;
 const HAS_TOGGLE_GROUP_SUPPORT =
     Boolean( ToggleGroupControl ) && Boolean( ToggleGroupOption );
+const HAS_FORM_TOKEN_FIELD_SUPPORT = typeof FormTokenField === 'function';
 
 const DeviceOrientationPortraitIcon = () => (
     <svg
@@ -1492,6 +1493,62 @@ const normalizeCountryCode = (value) => {
     const sanitized = value.replace(/[^a-z0-9]/gi, '').toUpperCase();
 
     return sanitized.length === 2 ? sanitized : '';
+};
+
+const parseCountryTokensFromString = (input) => {
+    if (typeof input !== 'string') {
+        return [];
+    }
+
+    return Array.from(
+        new Set(
+            input
+                .split(/[,\s]+/)
+                .map((token) => normalizeCountryCode(token))
+                .filter(Boolean),
+        ),
+    );
+};
+
+const CountryTokensTextControl = ({ value, onChange, label, placeholder }) => {
+    const sanitizedTokens = useMemo(() => {
+        if (!Array.isArray(value)) {
+            return [];
+        }
+
+        return value
+            .map((token) => normalizeCountryCode(token))
+            .filter(Boolean);
+    }, [value]);
+    const [inputValue, setInputValue] = useState(sanitizedTokens.join(', '));
+
+    useEffect(() => {
+        setInputValue(sanitizedTokens.join(', '));
+    }, [sanitizedTokens]);
+
+    const handleChange = useCallback(
+        (nextValue) => {
+            setInputValue(nextValue);
+
+            if (typeof onChange === 'function') {
+                onChange(parseCountryTokensFromString(nextValue));
+            }
+        },
+        [onChange],
+    );
+
+    return (
+        <TextControl
+            label={label}
+            value={inputValue}
+            onChange={handleChange}
+            placeholder={placeholder}
+            help={__(
+                'Séparez les codes pays par des virgules ou des espaces (ex. FR, CA, US).',
+                'visi-bloc-jlg',
+            )}
+        />
+    );
 };
 
 const getDefaultPostTypeRule = () => {
@@ -4671,13 +4728,22 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                                 onUpdateRule({ operator: newOperator === 'not_in' ? 'not_in' : 'in' })
                             }
                         />
-                        <FormTokenField
-                            label={__('Pays ciblés', 'visi-bloc-jlg')}
-                            value={tokens}
-                            suggestions={suggestions}
-                            onChange={handleTokensChange}
-                            placeholder={__('Ajouter un pays (FR, CA, US…)…', 'visi-bloc-jlg')}
-                        />
+                        {HAS_FORM_TOKEN_FIELD_SUPPORT ? (
+                            <FormTokenField
+                                label={__('Pays ciblés', 'visi-bloc-jlg')}
+                                value={tokens}
+                                suggestions={suggestions}
+                                onChange={handleTokensChange}
+                                placeholder={__('Ajouter un pays (FR, CA, US…)…', 'visi-bloc-jlg')}
+                            />
+                        ) : (
+                            <CountryTokensTextControl
+                                label={__('Pays ciblés', 'visi-bloc-jlg')}
+                                value={tokens}
+                                onChange={handleTokensChange}
+                                placeholder={__('Ajouter un pays (FR, CA, US…)…', 'visi-bloc-jlg')}
+                            />
+                        )}
                         {!countries.length && (
                             <p className="components-help-text">
                                 {__(
