@@ -682,10 +682,33 @@ function visibloc_jlg_enqueue_editor_assets() {
     visibloc_jlg_clear_missing_editor_assets_flag();
     visibloc_jlg_register_visual_preset_styles();
     $asset_file = include( $asset_file_path );
+    $default_script_version = visibloc_jlg_get_plugin_version();
+    $passive_touch_relative_path = 'assets/passive-touch-listeners.js';
+    $passive_touch_version       = visibloc_jlg_get_asset_version(
+        $passive_touch_relative_path,
+        $default_script_version
+    );
+
+    wp_register_script(
+        'visibloc-jlg-passive-touch-listeners',
+        visibloc_jlg_get_asset_url( $passive_touch_relative_path ),
+        [],
+        $passive_touch_version,
+        true
+    );
+
+    $dependencies = isset( $asset_file['dependencies'] ) && is_array( $asset_file['dependencies'] )
+        ? $asset_file['dependencies']
+        : [];
+
+    if ( ! in_array( 'visibloc-jlg-passive-touch-listeners', $dependencies, true ) ) {
+        $dependencies[] = 'visibloc-jlg-passive-touch-listeners';
+    }
+
     wp_enqueue_script(
         'visibloc-jlg-editor-script',
         visibloc_jlg_get_asset_url( 'build/index.js' ),
-        $asset_file['dependencies'],
+        $dependencies,
         $asset_file['version'],
         true
     );

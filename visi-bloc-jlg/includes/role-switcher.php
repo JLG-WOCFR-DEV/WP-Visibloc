@@ -1111,10 +1111,18 @@ function visibloc_jlg_enqueue_role_switcher_frontend_assets() {
 
     wp_add_inline_style( 'visibloc-jlg-role-switcher', $inline_css );
 
+    wp_register_script(
+        'visibloc-jlg-passive-touch-listeners',
+        plugins_url( 'assets/passive-touch-listeners.js', $plugin_main_file ),
+        [],
+        $version,
+        true
+    );
+
     wp_enqueue_script(
         'visibloc-jlg-role-switcher',
         plugins_url( 'assets/role-switcher-frontend.js', $plugin_main_file ),
-        [],
+        [ 'visibloc-jlg-passive-touch-listeners' ],
         $version,
         true
     );
