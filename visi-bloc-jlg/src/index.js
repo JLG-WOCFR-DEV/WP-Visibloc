@@ -1511,20 +1511,23 @@ const parseCountryTokensFromString = (input) => {
 };
 
 const CountryTokensTextControl = ({ value, onChange, label, placeholder }) => {
-    const sanitizedTokens = useMemo(() => {
+    const sanitizedTokensString = useMemo(() => {
         if (!Array.isArray(value)) {
-            return [];
+            return '';
         }
 
         return value
             .map((token) => normalizeCountryCode(token))
-            .filter(Boolean);
+            .filter(Boolean)
+            .join(', ');
     }, [value]);
-    const [inputValue, setInputValue] = useState(sanitizedTokens.join(', '));
+    const [inputValue, setInputValue] = useState(sanitizedTokensString);
 
     useEffect(() => {
-        setInputValue(sanitizedTokens.join(', '));
-    }, [sanitizedTokens]);
+        setInputValue((currentValue) =>
+            currentValue === sanitizedTokensString ? currentValue : sanitizedTokensString,
+        );
+    }, [sanitizedTokensString]);
 
     const handleChange = useCallback(
         (nextValue) => {
