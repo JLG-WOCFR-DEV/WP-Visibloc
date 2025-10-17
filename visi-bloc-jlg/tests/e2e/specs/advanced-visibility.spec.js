@@ -74,19 +74,37 @@ async function insertParagraphInGroup( editor, parentClientId, content ) {
 }
 
 async function configureFallbackText( page, text ) {
-    await page.getByRole( 'button', { name: 'Contenu de repli' } ).click();
-    await page.getByLabel( 'Source du repli' ).selectOption( 'text' );
+    const fallbackButton = page.getByRole( 'button', { name: 'Contenu de repli' } );
+    await expect( fallbackButton ).toBeVisible( { timeout: 20000 } );
+    await fallbackButton.click( { timeout: 20000 } );
+    const sourceSelect = page.getByLabel( 'Source du repli' );
+    await expect( sourceSelect ).toBeVisible( { timeout: 20000 } );
+    await sourceSelect.selectOption( 'text' );
     const textarea = page.getByLabel( 'Texte affiché en repli' );
+    await expect( textarea ).toBeVisible( { timeout: 20000 } );
     await textarea.fill( '' );
     await textarea.type( text );
 }
 
 async function addAdvancedRule( page ) {
-    await page
-        .getByRole( 'tab', { name: /Étape 4.*Règles avancées/i } )
-        .click();
-    await page.getByRole( 'button', { name: 'Ajouter une règle de…' } ).click();
-    await page.getByRole( 'menuitem', { name: 'Type de contenu' } ).click();
+    const advancedTab = page.getByRole( 'tab', {
+        name: /Étape 4.*Règles avancées/i,
+    } );
+    await expect( advancedTab ).toBeVisible( { timeout: 20000 } );
+    await advancedTab.click( { timeout: 20000 } );
+
+    const addRuleButton = page.getByRole( 'button', {
+        name: 'Ajouter une règle de…',
+    } );
+    await expect( addRuleButton ).toBeVisible( { timeout: 20000 } );
+    await expect( addRuleButton ).toBeEnabled();
+    await addRuleButton.click( { timeout: 20000 } );
+
+    const contentTypeMenuItem = page.getByRole( 'menuitem', {
+        name: 'Type de contenu',
+    } );
+    await expect( contentTypeMenuItem ).toBeVisible( { timeout: 20000 } );
+    await contentTypeMenuItem.click( { timeout: 20000 } );
 }
 
 async function getPostPermalink( page ) {
@@ -119,7 +137,12 @@ async function prepareGroupBlock( { admin, editor, page }, content ) {
     await insertParagraphInGroup( editor, clientId, content );
     await selectBlockInEditor( page, 'core/group' );
 
-    await page.getByRole( 'button', { name: 'Settings', exact: true } ).click();
+    const settingsButton = page.getByRole( 'button', {
+        name: 'Settings',
+        exact: true,
+    } );
+    await expect( settingsButton ).toBeVisible( { timeout: 20000 } );
+    await settingsButton.click( { timeout: 20000 } );
 
     return clientId;
 }

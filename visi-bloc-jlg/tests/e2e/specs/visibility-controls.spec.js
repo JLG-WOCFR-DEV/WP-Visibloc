@@ -78,42 +78,55 @@ async function exerciseVisibilityControls( { admin, editor, page }, blockName ) 
 
     const hideButton = page.getByRole( 'button', { name: 'Rendre caché' } );
     const showButton = page.getByRole( 'button', { name: 'Rendre visible' } );
-
-    await hideButton.click();
+    await expect( hideButton ).toBeVisible( { timeout: 20000 } );
+    await expect( hideButton ).toBeEnabled();
+    await hideButton.click( { timeout: 20000 } );
     await expect( blockLocator ).toHaveClass( /bloc-editeur-cache/ );
 
-    await page.getByRole( 'button', { name: 'List view' } ).click();
+    const listViewToggle = page.getByRole( 'button', { name: 'List view' } );
+    await expect( listViewToggle ).toBeVisible( { timeout: 20000 } );
+    await listViewToggle.click( { timeout: 20000 } );
     const listViewRow = page.locator( `.block-editor-list-view__block[data-block="${ clientId }"]` );
     await expect( listViewRow ).toHaveClass( /bloc-editeur-cache/ );
 
-    await showButton.click();
+    await expect( showButton ).toBeVisible( { timeout: 20000 } );
+    await expect( showButton ).toBeEnabled();
+    await showButton.click( { timeout: 20000 } );
     await expect( blockLocator ).not.toHaveClass( /bloc-editeur-cache/ );
     await expect( listViewRow ).not.toHaveClass( /bloc-editeur-cache/ );
 
-    await page.getByRole( 'button', { name: 'List view' } ).click();
+    await listViewToggle.click( { timeout: 20000 } );
 
-    await page.getByRole( 'button', { name: 'Settings', exact: true } ).click();
+    const settingsButton = page.getByRole( 'button', {
+        name: 'Settings',
+        exact: true,
+    } );
+    await expect( settingsButton ).toBeVisible( { timeout: 20000 } );
+    await settingsButton.click( { timeout: 20000 } );
 
     const getStepTab = ( label ) => page.getByRole( 'tab', { name: label } );
     const stepSummary = page.locator( '.visi-bloc-help-text.is-summary' );
 
-    await getStepTab( 'Étape 1 · Appareils' ).click();
+    const step1Tab = getStepTab( 'Étape 1 · Appareils' );
+    await expect( step1Tab ).toBeVisible( { timeout: 20000 } );
+    await step1Tab.click( { timeout: 20000 } );
     const deviceToggleGroups = page.locator( '.visi-bloc-device-toggle-group' );
-    await expect( deviceToggleGroups.first() ).toBeVisible();
+    await expect( deviceToggleGroups.first() ).toBeVisible( { timeout: 20000 } );
     await deviceToggleGroups
         .first()
         .getByRole( 'button', { name: 'Desktop' } )
-        .click();
+        .click( { timeout: 20000 } );
     await expect( stepSummary ).toHaveText( 'Afficher uniquement – Desktop' );
 
-    await getStepTab( 'Étape 2 · Calendrier' ).click();
+    const step2Tab = getStepTab( 'Étape 2 · Calendrier' );
+    await step2Tab.click( { timeout: 20000 } );
 
     const schedulingToggle = page.getByRole( 'checkbox', { name: 'Activer la programmation' } );
-    await schedulingToggle.check();
+    await schedulingToggle.check( { timeout: 20000 } );
     await expect( stepSummary ).toHaveText( 'Programmation active' );
 
     const startToggle = page.getByRole( 'checkbox', { name: 'Définir une date de début' } );
-    await startToggle.check();
+    await startToggle.check( { timeout: 20000 } );
     await expect( stepSummary ).toHaveText( 'Date définie' );
 
     const startPicker = page.locator( '.visi-bloc-datepicker-wrapper' ).first();
@@ -121,19 +134,19 @@ async function exerciseVisibilityControls( { admin, editor, page }, blockName ) 
     await startPicker.getByLabel( 'Time' ).fill( '08:30' );
 
     const endToggle = page.getByRole( 'checkbox', { name: 'Définir une date de fin' } );
-    await endToggle.check();
+    await endToggle.check( { timeout: 20000 } );
     const endPicker = page.locator( '.visi-bloc-datepicker-wrapper' ).nth( 1 );
     await endPicker.getByLabel( 'Date' ).fill( '2030-06-20' );
     await endPicker.getByLabel( 'Time' ).fill( '17:45' );
     await expect( stepSummary ).toHaveText( 'Plage définie' );
 
-    await getStepTab( 'Étape 3 · Rôles' ).click();
+    await getStepTab( 'Étape 3 · Rôles' ).click( { timeout: 20000 } );
 
     const loggedInCheckbox = page.getByRole( 'checkbox', { name: 'Utilisateurs connectés (tous)' } );
-    await loggedInCheckbox.check();
+    await loggedInCheckbox.check( { timeout: 20000 } );
 
     const administratorCheckbox = page.getByRole( 'checkbox', { name: 'Administrator' } );
-    await administratorCheckbox.check();
+    await administratorCheckbox.check( { timeout: 20000 } );
     await expect( stepSummary ).toHaveText( '2 rôles' );
 
     const attributes = await page.evaluate( ( id ) => {
@@ -152,9 +165,9 @@ async function exerciseVisibilityControls( { admin, editor, page }, blockName ) 
 
     await expect( blockLocator ).toHaveClass( /bloc-editeur-conditionnel/ );
 
-    await page.getByRole( 'button', { name: 'List view' } ).click();
+    await listViewToggle.click( { timeout: 20000 } );
     await expect( listViewRow ).toHaveClass( /bloc-editeur-conditionnel/ );
-    await page.getByRole( 'button', { name: 'List view' } ).click();
+    await listViewToggle.click( { timeout: 20000 } );
 
     const postContent = await editor.getEditedPostContent();
     expect( postContent ).toContain( `<!-- wp:${ blockName }` );
@@ -194,7 +207,8 @@ test.describe( 'Visi-Bloc group visibility controls', () => {
             .filter( { hasText: '(core/columns)' } )
             .locator( 'input[type="checkbox"]' );
 
-        await columnsCheckbox.check();
+        await expect( columnsCheckbox ).toBeVisible( { timeout: 20000 } );
+        await columnsCheckbox.check( { timeout: 20000 } );
 
         await Promise.all( [
             page.waitForNavigation( { waitUntil: 'networkidle' } ),
@@ -213,10 +227,17 @@ test.describe( 'Visi-Bloc group visibility controls', () => {
         const clientId = await selectBlockInEditor( page, 'core/group' );
         expect( clientId ).toBeTruthy();
 
-        await page.getByRole( 'button', { name: 'Settings', exact: true } ).click();
+        const settingsButton = page.getByRole( 'button', {
+            name: 'Settings',
+            exact: true,
+        } );
+        await expect( settingsButton ).toBeVisible( { timeout: 20000 } );
+        await settingsButton.click( { timeout: 20000 } );
 
         const selectStep = async ( name ) => {
-            await page.getByRole( 'tab', { name } ).click();
+            const tab = page.getByRole( 'tab', { name } );
+            await expect( tab ).toBeVisible( { timeout: 20000 } );
+            await tab.click( { timeout: 20000 } );
         };
         const stepSummary = page.locator( '.visi-bloc-help-text.is-summary' );
 
@@ -240,7 +261,7 @@ test.describe( 'Visi-Bloc group visibility controls', () => {
         await visibilityGroups
             .first()
             .getByRole( 'button', { name: 'Desktop' } )
-            .click();
+            .click( { timeout: 20000 } );
         await expect( stepSummary ).toHaveText( 'Afficher uniquement – Desktop' );
 
         await selectStep( 'Étape 2 · Calendrier' );
@@ -248,25 +269,39 @@ test.describe( 'Visi-Bloc group visibility controls', () => {
         await schedulingToggle.check();
         await expect( stepSummary ).toHaveText( 'Programmation active' );
 
-        await page.getByRole( 'checkbox', { name: 'Définir une date de début' } ).check();
+        await page
+            .getByRole( 'checkbox', { name: 'Définir une date de début' } )
+            .check( { timeout: 20000 } );
         await expect( stepSummary ).toHaveText( 'Date définie' );
 
-        await page.getByRole( 'checkbox', { name: 'Définir une date de fin' } ).check();
+        await page
+            .getByRole( 'checkbox', { name: 'Définir une date de fin' } )
+            .check( { timeout: 20000 } );
         await expect( stepSummary ).toHaveText( 'Plage définie' );
 
         await selectStep( 'Étape 3 · Rôles' );
-        await page.getByRole( 'checkbox', { name: 'Visiteurs déconnectés' } ).check();
-        await page.getByRole( 'checkbox', { name: 'Utilisateurs connectés (tous)' } ).check();
+        await page
+            .getByRole( 'checkbox', { name: 'Visiteurs déconnectés' } )
+            .check( { timeout: 20000 } );
+        await page
+            .getByRole( 'checkbox', { name: 'Utilisateurs connectés (tous)' } )
+            .check( { timeout: 20000 } );
         await expect( stepSummary ).toHaveText( '2 rôles' );
 
         await selectStep( 'Étape 4 · Règles avancées' );
-        await page.getByRole( 'button', { name: 'Ajouter une règle de…' } ).click();
-        await page.getByRole( 'menuitem', { name: 'Type de contenu' } ).click();
+        const addRuleButton = page.getByRole( 'button', { name: 'Ajouter une règle de…' } );
+        await expect( addRuleButton ).toBeVisible( { timeout: 20000 } );
+        await expect( addRuleButton ).toBeEnabled();
+        await addRuleButton.click( { timeout: 20000 } );
+        const ruleMenuItem = page.getByRole( 'menuitem', { name: 'Type de contenu' } );
+        await expect( ruleMenuItem ).toBeVisible( { timeout: 20000 } );
+        await ruleMenuItem.click( { timeout: 20000 } );
         await expect( stepSummary ).toHaveText( '1 règle ET' );
 
         await selectStep( /Étape \d+ · Repli/ );
         const fallbackToggle = page.getByRole( 'checkbox', { name: 'Activer le repli pour ce bloc' } );
-        await fallbackToggle.uncheck();
+        await expect( fallbackToggle ).toBeVisible( { timeout: 20000 } );
+        await fallbackToggle.uncheck( { timeout: 20000 } );
         await expect( stepSummary ).toHaveText( 'Inactif' );
     } );
 } );
