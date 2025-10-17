@@ -3,6 +3,18 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) { exit; }
 
 require_once __DIR__ . '/includes/cache-constants.php';
 
+if ( ! function_exists( 'visibloc_jlg_purge_preview_cookie' ) ) {
+    $role_switcher_path = __DIR__ . '/includes/role-switcher.php';
+
+    if ( file_exists( $role_switcher_path ) ) {
+        require_once $role_switcher_path;
+    }
+}
+
+if ( function_exists( 'visibloc_jlg_purge_preview_cookie' ) ) {
+    visibloc_jlg_purge_preview_cookie();
+}
+
 // Supprime les options de la base de données
 delete_option( 'visibloc_debug_mode' );
 delete_option( 'visibloc_breakpoint_mobile' );

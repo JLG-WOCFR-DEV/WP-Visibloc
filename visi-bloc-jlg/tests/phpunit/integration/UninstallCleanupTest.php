@@ -9,12 +9,21 @@ class UninstallCleanupTest extends TestCase {
     protected function setUp(): void {
         parent::setUp();
 
+        visibloc_test_reset_state();
+        visibloc_jlg_store_real_user_id( null );
+
+        $_GET    = [];
+        $_COOKIE = [];
+
         $GLOBALS['visibloc_test_options'] = [];
         $GLOBALS['visibloc_test_transients'] = [];
         $GLOBALS['visibloc_test_object_cache'] = [];
     }
 
     protected function tearDown(): void {
+        $_GET    = [];
+        $_COOKIE = [];
+
         $GLOBALS['visibloc_test_options'] = [];
         $GLOBALS['visibloc_test_transients'] = [];
         $GLOBALS['visibloc_test_object_cache'] = [];
@@ -154,5 +163,49 @@ class UninstallCleanupTest extends TestCase {
             $this->assertFalse( get_transient( $transient_name ) );
             $this->assertFalse( wp_cache_get( $transient_name, 'visibloc_jlg' ) );
         }
+    }
+
+    /**
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function test_uninstall_purges_preview_cookie_and_runtime_context(): void {
+        global $visibloc_test_state;
+
+        $real_user_id = 52;
+
+        $visibloc_test_state['effective_user_id']             = $real_user_id;
+        $visibloc_test_state['current_user']                  = new Visibloc_Test_User( $real_user_id, [ 'administrator' ] );
+        $visibloc_test_state['can_preview_users'][ $real_user_id ] = true;
+        $visibloc_test_state['can_impersonate_users'][ $real_user_id ] = true;
+        $visibloc_test_state['allowed_preview_roles']         = [ 'administrator' ];
+
+        visibloc_jlg_store_real_user_id( $real_user_id );
+
+        $_COOKIE['visibloc_preview_role'] = 'guest';
+
+        $initial_context = visibloc_jlg_get_preview_runtime_context( true );
+
+        $this->assertSame( 'guest', $initial_context['preview_role'], 'Guest preview should be active before uninstall.' );
+        $this->assertTrue( $initial_context['should_apply_preview_role'], 'Guest preview should apply before uninstall.' );
+
+        if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
+            define( 'WP_UNINSTALL_PLUGIN', true );
+        }
+
+        require dirname( __DIR__, 3 ) . '/uninstall.php';
+
+        $this->assertArrayNotHasKey( 'visibloc_preview_role', $_COOKIE, 'Uninstall should remove the preview cookie.' );
+
+        $refreshed_context = visibloc_jlg_get_preview_runtime_context( true );
+
+        $this->assertSame( '', $refreshed_context['preview_role'], 'Runtime context should be reset after uninstall.' );
+        $this->assertFalse( $refreshed_context['should_apply_preview_role'], 'No preview role should apply after uninstall.' );
+
+        $this->assertNotEmpty( $GLOBALS['visibloc_test_cookie_log'], 'Uninstall should attempt to expire the preview cookie.' );
+        $last_cookie = end( $GLOBALS['visibloc_test_cookie_log'] );
+
+        $this->assertSame( '', $last_cookie['value'], 'Expired cookie should be set with an empty value.' );
+        $this->assertLessThanOrEqual( time(), $last_cookie['expires'], 'Expired cookie should not extend the preview session.' );
     }
 }
