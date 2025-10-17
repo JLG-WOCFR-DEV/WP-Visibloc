@@ -33,6 +33,7 @@ test.describe( 'Visi-Bloc missing editor assets notice', () => {
 
         try {
             await admin.visitAdminPage( 'post-new.php' );
+            await page.waitForLoadState( 'networkidle' );
 
             const commandText = 'npm install && npm run build';
 
@@ -59,8 +60,8 @@ test.describe( 'Visi-Bloc missing editor assets notice', () => {
             }, commandText );
 
             const notice = page.locator( '.notice.notice-error' ).filter( { hasText: commandText } ).first();
-
-            await expect( notice ).toBeVisible();
+            await notice.waitFor( { state: 'visible', timeout: 20000 } );
+            await expect( notice ).toBeVisible( { timeout: 20000 } );
             await expect.poll( async () => notice.getAttribute( 'hidden' ) ).toBeNull();
             await expect.poll( async () => notice.getAttribute( 'aria-hidden' ) ).not.toBe( 'true' );
             await expect( notice ).not.toHaveCSS( 'display', 'none' );
