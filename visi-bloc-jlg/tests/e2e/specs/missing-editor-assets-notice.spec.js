@@ -33,7 +33,7 @@ test.describe( 'Visi-Bloc missing editor assets notice', () => {
 
         try {
             await admin.visitAdminPage( 'post-new.php' );
-            await page.waitForLoadState( 'networkidle' );
+            await page.waitForLoadState( 'domcontentloaded' );
 
             const commandText = 'npm install && npm run build';
 

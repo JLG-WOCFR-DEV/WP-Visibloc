@@ -2,6 +2,36 @@ import { test, expect } from '@wordpress/e2e-test-utils-playwright';
 
 const PLUGIN_SLUG = 'visi-bloc-jlg';
 
+async function ensureExpertMode( page ) {
+    const modeToggle = page.locator( '.visibloc-editor-mode__toggle' );
+
+    await expect( modeToggle ).toBeVisible( { timeout: 20000 } );
+
+    const expertButton = modeToggle.getByRole( 'button', { name: 'Expert', exact: true } );
+
+    if ( await expertButton.count() ) {
+        const isPressed = await expertButton.getAttribute( 'aria-pressed' );
+
+        if ( isPressed !== 'true' ) {
+            await expertButton.click( { timeout: 20000 } );
+        }
+
+        return;
+    }
+
+    const expertRadio = modeToggle.getByRole( 'radio', { name: 'Expert', exact: true } );
+
+    if ( await expertRadio.count() ) {
+        if ( !( await expertRadio.isChecked() ) ) {
+            await expertRadio.check( { timeout: 20000 } );
+        }
+
+        return;
+    }
+
+    throw new Error( 'Expert mode toggle not found in the inspector controls.' );
+}
+
 test.describe( 'Assistant Onboarding', () => {
     test.beforeEach( async ( { requestUtils } ) => {
         await requestUtils.activatePlugin( PLUGIN_SLUG );
@@ -24,6 +54,8 @@ test.describe( 'Assistant Onboarding', () => {
         } );
         await expect( settingsButton ).toBeVisible( { timeout: 20000 } );
         await settingsButton.click( { timeout: 20000 } );
+
+        await ensureExpertMode( page );
 
         const onboardingButton = page.getByRole( 'button', {
             name: 'Assistant Onboarding',
