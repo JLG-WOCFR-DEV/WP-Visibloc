@@ -48,8 +48,8 @@ export function canvasAwareGetByText( page, editor, text, options ) {
     return baseLocator;
 }
 
-async function ensureVisiblocPanelOpen( page ) {
-    const panelToggle = page.getByRole( 'button', {
+async function ensureVisiblocPanelOpen( page, editor ) {
+    const panelToggle = canvasAwareGetByRole( page, editor, 'button', {
         name: 'Parcours de visibilité',
         exact: false,
     } );
@@ -68,7 +68,7 @@ async function ensureVisiblocPanelOpen( page ) {
 }
 
 export async function ensureExpertMode( page, editor ) {
-    await ensureVisiblocPanelOpen( page );
+    await ensureVisiblocPanelOpen( page, editor );
 
     const modeToggle = canvasAwareLocator( page, editor, '.visibloc-editor-mode__toggle' );
 
