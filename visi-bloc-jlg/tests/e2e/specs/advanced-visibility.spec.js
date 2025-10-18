@@ -104,9 +104,19 @@ async function insertParagraphInGroup( editor, parentClientId, content ) {
 }
 
 async function configureFallbackText( page, text ) {
-    const fallbackButton = page.getByRole( 'button', { name: 'Contenu de repli' } );
-    await expect( fallbackButton ).toBeVisible( { timeout: 20000 } );
-    await fallbackButton.click( { timeout: 20000 } );
+    const fallbackTab = page.getByRole( 'tab', { name: /Étape \d+ · Repli/ } );
+    await expect( fallbackTab ).toBeVisible( { timeout: 20000 } );
+    await fallbackTab.click( { timeout: 20000 } );
+
+    const fallbackToggle = page.getByRole( 'checkbox', {
+        name: 'Activer le repli pour ce bloc',
+    } );
+    await expect( fallbackToggle ).toBeVisible( { timeout: 20000 } );
+
+    if ( !( await fallbackToggle.isChecked() ) ) {
+        await fallbackToggle.check( { timeout: 20000 } );
+    }
+
     const sourceSelect = page.getByLabel( 'Source du repli' );
     await expect( sourceSelect ).toBeVisible( { timeout: 20000 } );
     await sourceSelect.selectOption( 'text' );
