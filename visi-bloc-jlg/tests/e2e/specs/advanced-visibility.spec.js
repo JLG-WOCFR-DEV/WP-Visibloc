@@ -2,6 +2,11 @@
  * Playwright tests covering advanced visibility rules.
  */
 import { test, expect } from '@wordpress/e2e-test-utils-playwright';
+import {
+    ensureExpertMode,
+    canvasAwareGetByRole,
+    canvasAwareGetByLabel,
+} from '../utils/editor.js';
 
 const PLUGIN_SLUG = 'visi-bloc-jlg';
 
@@ -61,36 +66,6 @@ async function selectBlockInEditor( page, blockName ) {
     return clientIdHandle.jsonValue();
 }
 
-async function ensureExpertMode( page ) {
-    const modeToggle = page.locator( '.visibloc-editor-mode__toggle' );
-
-    await expect( modeToggle ).toBeVisible( { timeout: 20000 } );
-
-    const expertButton = modeToggle.getByRole( 'button', { name: 'Expert', exact: true } );
-
-    if ( await expertButton.count() ) {
-        const isPressed = await expertButton.getAttribute( 'aria-pressed' );
-
-        if ( isPressed !== 'true' ) {
-            await expertButton.click( { timeout: 20000 } );
-        }
-
-        return;
-    }
-
-    const expertRadio = modeToggle.getByRole( 'radio', { name: 'Expert', exact: true } );
-
-    if ( await expertRadio.count() ) {
-        if ( !( await expertRadio.isChecked() ) ) {
-            await expertRadio.check( { timeout: 20000 } );
-        }
-
-        return;
-    }
-
-    throw new Error( 'Expert mode toggle not found in the inspector controls.' );
-}
-
 async function insertParagraphInGroup( editor, parentClientId, content ) {
     await editor.insertBlock(
         {
@@ -103,12 +78,14 @@ async function insertParagraphInGroup( editor, parentClientId, content ) {
     );
 }
 
-async function configureFallbackText( page, text ) {
-    const fallbackTab = page.getByRole( 'tab', { name: /Étape \d+ · Repli/ } );
+async function configureFallbackText( page, editor, text ) {
+    const fallbackTab = canvasAwareGetByRole( page, editor, 'tab', {
+        name: /Étape \d+ · Repli/,
+    } );
     await expect( fallbackTab ).toBeVisible( { timeout: 20000 } );
     await fallbackTab.click( { timeout: 20000 } );
 
-    const fallbackToggle = page.getByRole( 'checkbox', {
+    const fallbackToggle = canvasAwareGetByRole( page, editor, 'checkbox', {
         name: 'Activer le repli pour ce bloc',
     } );
     await expect( fallbackToggle ).toBeVisible( { timeout: 20000 } );
@@ -117,32 +94,32 @@ async function configureFallbackText( page, text ) {
         await fallbackToggle.check( { timeout: 20000 } );
     }
 
-    const sourceSelect = page.getByLabel( 'Source du repli' );
+    const sourceSelect = canvasAwareGetByLabel( page, editor, 'Source du repli' );
     await expect( sourceSelect ).toBeVisible( { timeout: 20000 } );
     await sourceSelect.selectOption( 'text' );
-    const textarea = page.getByLabel( 'Texte affiché en repli' );
+    const textarea = canvasAwareGetByLabel( page, editor, 'Texte affiché en repli' );
     await expect( textarea ).toBeVisible( { timeout: 20000 } );
     await textarea.fill( '' );
     await textarea.type( text );
 }
 
-async function addAdvancedRule( page ) {
-    await ensureExpertMode( page );
+async function addAdvancedRule( page, editor ) {
+    await ensureExpertMode( page, editor );
 
-    const advancedTab = page.getByRole( 'tab', {
+    const advancedTab = canvasAwareGetByRole( page, editor, 'tab', {
         name: /Étape 4.*Règles avancées/i,
     } );
     await expect( advancedTab ).toBeVisible( { timeout: 20000 } );
     await advancedTab.click( { timeout: 20000 } );
 
-    const addRuleButton = page.getByRole( 'button', {
+    const addRuleButton = canvasAwareGetByRole( page, editor, 'button', {
         name: 'Ajouter une règle de…',
     } );
     await expect( addRuleButton ).toBeVisible( { timeout: 20000 } );
     await expect( addRuleButton ).toBeEnabled();
     await addRuleButton.click( { timeout: 20000 } );
 
-    const contentTypeMenuItem = page.getByRole( 'menuitem', {
+    const contentTypeMenuItem = canvasAwareGetByRole( page, editor, 'menuitem', {
         name: 'Type de contenu',
     } );
     await expect( contentTypeMenuItem ).toBeVisible( { timeout: 20000 } );
@@ -179,14 +156,14 @@ async function prepareGroupBlock( { admin, editor, page }, content ) {
     await insertParagraphInGroup( editor, clientId, content );
     await selectBlockInEditor( page, 'core/group' );
 
-    const settingsButton = page.getByRole( 'button', {
+    const settingsButton = canvasAwareGetByRole( page, editor, 'button', {
         name: 'Settings',
         exact: true,
     } );
     await expect( settingsButton ).toBeVisible( { timeout: 20000 } );
     await settingsButton.click( { timeout: 20000 } );
 
-    await ensureExpertMode( page );
+    await ensureExpertMode( page, editor );
 
     return clientId;
 }
@@ -212,15 +189,19 @@ test.describe( 'Advanced visibility rules', () => {
         const fallbackText = 'Fallback for logged-in users';
 
         await prepareGroupBlock( { admin, editor, page }, visibleText );
-        await addAdvancedRule( page );
+        await addAdvancedRule( page, editor );
 
-        const typeSelect = page.getByLabel( 'Type de règle' ).last();
+        const typeSelect = canvasAwareGetByLabel( page, editor, 'Type de règle' ).last();
         await typeSelect.selectOption( 'logged_in_status' );
 
-        await page.getByLabel( 'Condition' ).last().selectOption( 'is' );
-        await page.getByLabel( 'État de connexion' ).last().selectOption( 'logged_out' );
+        await canvasAwareGetByLabel( page, editor, 'Condition' )
+            .last()
+            .selectOption( 'is' );
+        await canvasAwareGetByLabel( page, editor, 'État de connexion' )
+            .last()
+            .selectOption( 'logged_out' );
 
-        await configureFallbackText( page, fallbackText );
+        await configureFallbackText( page, editor, fallbackText );
 
         await editor.publishPost();
         const permalink = await getPostPermalink( page );
@@ -245,15 +226,19 @@ test.describe( 'Advanced visibility rules', () => {
         const fallbackText = 'Fallback for non-admin users';
 
         await prepareGroupBlock( { admin, editor, page }, visibleText );
-        await addAdvancedRule( page );
+        await addAdvancedRule( page, editor );
 
-        const typeSelect = page.getByLabel( 'Type de règle' ).last();
+        const typeSelect = canvasAwareGetByLabel( page, editor, 'Type de règle' ).last();
         await typeSelect.selectOption( 'user_role_group' );
 
-        await page.getByLabel( 'Condition' ).last().selectOption( 'matches' );
-        await page.getByLabel( 'Groupe de rôles' ).last().selectOption( 'administrator' );
+        await canvasAwareGetByLabel( page, editor, 'Condition' )
+            .last()
+            .selectOption( 'matches' );
+        await canvasAwareGetByLabel( page, editor, 'Groupe de rôles' )
+            .last()
+            .selectOption( 'administrator' );
 
-        await configureFallbackText( page, fallbackText );
+        await configureFallbackText( page, editor, fallbackText );
 
         await editor.publishPost();
         const permalink = await getPostPermalink( page );
@@ -278,18 +263,20 @@ test.describe( 'Advanced visibility rules', () => {
         const fallbackText = 'Fallback when promo missing';
 
         await prepareGroupBlock( { admin, editor, page }, visibleText );
-        await addAdvancedRule( page );
+        await addAdvancedRule( page, editor );
 
-        const typeSelect = page.getByLabel( 'Type de règle' ).last();
+        const typeSelect = canvasAwareGetByLabel( page, editor, 'Type de règle' ).last();
         await typeSelect.selectOption( 'query_param' );
 
-        await page.getByLabel( 'Condition' ).last().selectOption( 'equals' );
-        const paramInput = page.getByLabel( 'Nom du paramètre' ).last();
+        await canvasAwareGetByLabel( page, editor, 'Condition' )
+            .last()
+            .selectOption( 'equals' );
+        const paramInput = canvasAwareGetByLabel( page, editor, 'Nom du paramètre' ).last();
         await paramInput.fill( 'promo' );
-        const valueInput = page.getByLabel( 'Valeur attendue' ).last();
+        const valueInput = canvasAwareGetByLabel( page, editor, 'Valeur attendue' ).last();
         await valueInput.fill( 'special' );
 
-        await configureFallbackText( page, fallbackText );
+        await configureFallbackText( page, editor, fallbackText );
 
         await editor.publishPost();
         const permalink = await getPostPermalink( page );
