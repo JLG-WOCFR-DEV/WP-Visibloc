@@ -4,45 +4,65 @@ function hasCanvas( editor ) {
     return Boolean( editor && editor.page && editor.canvas );
 }
 
-export function canvasAwareLocator( page, editor, selector, options ) {
+async function resolveCanvasAwareLocator( baseLocator, getCanvasLocator ) {
+    if ( await baseLocator.count() ) {
+        return baseLocator;
+    }
+
+    if ( typeof getCanvasLocator === 'function' ) {
+        const canvasLocator = await getCanvasLocator();
+
+        if ( canvasLocator ) {
+            return canvasLocator;
+        }
+    }
+
+    return baseLocator;
+}
+
+export async function canvasAwareLocator( page, editor, selector, options ) {
     const baseLocator = page.locator( selector, options );
 
     if ( hasCanvas( editor ) ) {
-        const frameLocator = editor.canvas.locator( selector, options );
-        return baseLocator.or( frameLocator );
+        return resolveCanvasAwareLocator( baseLocator, () =>
+            editor.canvas.locator( selector, options )
+        );
     }
 
     return baseLocator;
 }
 
-export function canvasAwareGetByRole( page, editor, role, options ) {
+export async function canvasAwareGetByRole( page, editor, role, options ) {
     const baseLocator = page.getByRole( role, options );
 
     if ( hasCanvas( editor ) && typeof editor.canvas.getByRole === 'function' ) {
-        const frameLocator = editor.canvas.getByRole( role, options );
-        return baseLocator.or( frameLocator );
+        return resolveCanvasAwareLocator( baseLocator, () =>
+            editor.canvas.getByRole( role, options )
+        );
     }
 
     return baseLocator;
 }
 
-export function canvasAwareGetByLabel( page, editor, text, options ) {
+export async function canvasAwareGetByLabel( page, editor, text, options ) {
     const baseLocator = page.getByLabel( text, options );
 
     if ( hasCanvas( editor ) && typeof editor.canvas.getByLabel === 'function' ) {
-        const frameLocator = editor.canvas.getByLabel( text, options );
-        return baseLocator.or( frameLocator );
+        return resolveCanvasAwareLocator( baseLocator, () =>
+            editor.canvas.getByLabel( text, options )
+        );
     }
 
     return baseLocator;
 }
 
-export function canvasAwareGetByText( page, editor, text, options ) {
+export async function canvasAwareGetByText( page, editor, text, options ) {
     const baseLocator = page.getByText( text, options );
 
     if ( hasCanvas( editor ) && typeof editor.canvas.getByText === 'function' ) {
-        const frameLocator = editor.canvas.getByText( text, options );
-        return baseLocator.or( frameLocator );
+        return resolveCanvasAwareLocator( baseLocator, () =>
+            editor.canvas.getByText( text, options )
+        );
     }
 
     return baseLocator;
@@ -70,7 +90,7 @@ async function ensureVisiblocPanelOpen( page ) {
 export async function ensureExpertMode( page, editor ) {
     await ensureVisiblocPanelOpen( page );
 
-    const modeToggle = canvasAwareLocator( page, editor, '.visibloc-editor-mode__toggle' );
+    const modeToggle = await canvasAwareLocator( page, editor, '.visibloc-editor-mode__toggle' );
 
     await expect( modeToggle ).toBeVisible( { timeout: 20000 } );
 

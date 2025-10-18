@@ -79,13 +79,13 @@ async function insertParagraphInGroup( editor, parentClientId, content ) {
 }
 
 async function configureFallbackText( page, editor, text ) {
-    const fallbackTab = canvasAwareGetByRole( page, editor, 'tab', {
+    const fallbackTab = await canvasAwareGetByRole( page, editor, 'tab', {
         name: /Étape \d+ · Repli/,
     } );
     await expect( fallbackTab ).toBeVisible( { timeout: 20000 } );
     await fallbackTab.click( { timeout: 20000 } );
 
-    const fallbackToggle = canvasAwareGetByRole( page, editor, 'checkbox', {
+    const fallbackToggle = await canvasAwareGetByRole( page, editor, 'checkbox', {
         name: 'Activer le repli pour ce bloc',
     } );
     await expect( fallbackToggle ).toBeVisible( { timeout: 20000 } );
@@ -94,10 +94,10 @@ async function configureFallbackText( page, editor, text ) {
         await fallbackToggle.check( { timeout: 20000 } );
     }
 
-    const sourceSelect = canvasAwareGetByLabel( page, editor, 'Source du repli' );
+    const sourceSelect = await canvasAwareGetByLabel( page, editor, 'Source du repli' );
     await expect( sourceSelect ).toBeVisible( { timeout: 20000 } );
     await sourceSelect.selectOption( 'text' );
-    const textarea = canvasAwareGetByLabel( page, editor, 'Texte affiché en repli' );
+    const textarea = await canvasAwareGetByLabel( page, editor, 'Texte affiché en repli' );
     await expect( textarea ).toBeVisible( { timeout: 20000 } );
     await textarea.fill( '' );
     await textarea.type( text );
@@ -106,20 +106,20 @@ async function configureFallbackText( page, editor, text ) {
 async function addAdvancedRule( page, editor ) {
     await ensureExpertMode( page, editor );
 
-    const advancedTab = canvasAwareGetByRole( page, editor, 'tab', {
+    const advancedTab = await canvasAwareGetByRole( page, editor, 'tab', {
         name: /Étape 4.*Règles avancées/i,
     } );
     await expect( advancedTab ).toBeVisible( { timeout: 20000 } );
     await advancedTab.click( { timeout: 20000 } );
 
-    const addRuleButton = canvasAwareGetByRole( page, editor, 'button', {
+    const addRuleButton = await canvasAwareGetByRole( page, editor, 'button', {
         name: 'Ajouter une règle de…',
     } );
     await expect( addRuleButton ).toBeVisible( { timeout: 20000 } );
     await expect( addRuleButton ).toBeEnabled();
     await addRuleButton.click( { timeout: 20000 } );
 
-    const contentTypeMenuItem = canvasAwareGetByRole( page, editor, 'menuitem', {
+    const contentTypeMenuItem = await canvasAwareGetByRole( page, editor, 'menuitem', {
         name: 'Type de contenu',
     } );
     await expect( contentTypeMenuItem ).toBeVisible( { timeout: 20000 } );
@@ -156,7 +156,7 @@ async function prepareGroupBlock( { admin, editor, page }, content ) {
     await insertParagraphInGroup( editor, clientId, content );
     await selectBlockInEditor( page, 'core/group' );
 
-    const settingsButton = canvasAwareGetByRole( page, editor, 'button', {
+    const settingsButton = await canvasAwareGetByRole( page, editor, 'button', {
         name: 'Settings',
         exact: true,
     } );
@@ -191,13 +191,19 @@ test.describe( 'Advanced visibility rules', () => {
         await prepareGroupBlock( { admin, editor, page }, visibleText );
         await addAdvancedRule( page, editor );
 
-        const typeSelect = canvasAwareGetByLabel( page, editor, 'Type de règle' ).last();
+        const typeSelect = (
+            await canvasAwareGetByLabel( page, editor, 'Type de règle' )
+        ).last();
         await typeSelect.selectOption( 'logged_in_status' );
 
-        await canvasAwareGetByLabel( page, editor, 'Condition' )
+        await (
+            await canvasAwareGetByLabel( page, editor, 'Condition' )
+        )
             .last()
             .selectOption( 'is' );
-        await canvasAwareGetByLabel( page, editor, 'État de connexion' )
+        await (
+            await canvasAwareGetByLabel( page, editor, 'État de connexion' )
+        )
             .last()
             .selectOption( 'logged_out' );
 
@@ -228,13 +234,19 @@ test.describe( 'Advanced visibility rules', () => {
         await prepareGroupBlock( { admin, editor, page }, visibleText );
         await addAdvancedRule( page, editor );
 
-        const typeSelect = canvasAwareGetByLabel( page, editor, 'Type de règle' ).last();
+        const typeSelect = (
+            await canvasAwareGetByLabel( page, editor, 'Type de règle' )
+        ).last();
         await typeSelect.selectOption( 'user_role_group' );
 
-        await canvasAwareGetByLabel( page, editor, 'Condition' )
+        await (
+            await canvasAwareGetByLabel( page, editor, 'Condition' )
+        )
             .last()
             .selectOption( 'matches' );
-        await canvasAwareGetByLabel( page, editor, 'Groupe de rôles' )
+        await (
+            await canvasAwareGetByLabel( page, editor, 'Groupe de rôles' )
+        )
             .last()
             .selectOption( 'administrator' );
 
@@ -265,15 +277,23 @@ test.describe( 'Advanced visibility rules', () => {
         await prepareGroupBlock( { admin, editor, page }, visibleText );
         await addAdvancedRule( page, editor );
 
-        const typeSelect = canvasAwareGetByLabel( page, editor, 'Type de règle' ).last();
+        const typeSelect = (
+            await canvasAwareGetByLabel( page, editor, 'Type de règle' )
+        ).last();
         await typeSelect.selectOption( 'query_param' );
 
-        await canvasAwareGetByLabel( page, editor, 'Condition' )
+        await (
+            await canvasAwareGetByLabel( page, editor, 'Condition' )
+        )
             .last()
             .selectOption( 'equals' );
-        const paramInput = canvasAwareGetByLabel( page, editor, 'Nom du paramètre' ).last();
+        const paramInput = (
+            await canvasAwareGetByLabel( page, editor, 'Nom du paramètre' )
+        ).last();
         await paramInput.fill( 'promo' );
-        const valueInput = canvasAwareGetByLabel( page, editor, 'Valeur attendue' ).last();
+        const valueInput = (
+            await canvasAwareGetByLabel( page, editor, 'Valeur attendue' )
+        ).last();
         await valueInput.fill( 'special' );
 
         await configureFallbackText( page, editor, fallbackText );
