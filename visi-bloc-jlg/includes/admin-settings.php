@@ -9,6 +9,7 @@ require_once __DIR__ . '/fallback.php';
 require_once __DIR__ . '/utils.php';
 require_once __DIR__ . '/plugin-meta.php';
 require_once __DIR__ . '/insights.php';
+require_once __DIR__ . '/datetime-utils.php';
 
 visibloc_jlg_define_default_supported_blocks();
 
@@ -131,9 +132,9 @@ function visibloc_jlg_normalize_schedule_timestamp( $value ) {
         return $timestamp > 0 ? $timestamp : null;
     }
 
-    $timestamp = strtotime( (string) $value );
+    $timestamp = visibloc_jlg_parse_schedule_datetime( (string) $value, 'site' );
 
-    return false !== $timestamp ? $timestamp : null;
+    return null !== $timestamp ? $timestamp : null;
 }
 
 // Notifications logic replaced below.
