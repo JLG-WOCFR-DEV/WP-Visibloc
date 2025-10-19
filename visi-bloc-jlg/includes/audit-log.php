@@ -177,24 +177,37 @@ function visibloc_jlg_record_audit_event( $event_type, array $payload = [] ) {
 
     $created_at = function_exists( 'current_time' ) ? current_time( 'mysql' ) : gmdate( 'Y-m-d H:i:s' );
 
+    $data = [
+        'event_type' => $normalized_event,
+        'message'    => $message,
+        'created_at' => $created_at,
+    ];
+
+    $formats = [
+        '%s',
+        '%s',
+        '%s',
+    ];
+
+    if ( null !== $context_json ) {
+        $data['context'] = $context_json;
+        $formats[]       = '%s';
+    }
+
+    if ( $user_id > 0 ) {
+        $data['user_id'] = $user_id;
+        $formats[]       = '%d';
+    }
+
+    if ( $post_id > 0 ) {
+        $data['post_id'] = $post_id;
+        $formats[]       = '%d';
+    }
+
     $inserted = $wpdb->insert(
         visibloc_jlg_get_audit_log_table_name(),
-        [
-            'event_type' => $normalized_event,
-            'message'    => $message,
-            'context'    => $context_json,
-            'user_id'    => $user_id > 0 ? $user_id : null,
-            'post_id'    => $post_id > 0 ? $post_id : null,
-            'created_at' => $created_at,
-        ],
-        [
-            '%s',
-            '%s',
-            '%s',
-            '%d',
-            '%d',
-            '%s',
-        ]
+        $data,
+        $formats
     );
 
     return false !== $inserted;
