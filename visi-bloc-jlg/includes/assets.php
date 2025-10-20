@@ -1818,6 +1818,8 @@ function visibloc_jlg_force_show_missing_editor_assets_notice() {
     }
 
     document.addEventListener('DOMContentLoaded', revealMissingAssetNotice);
+    window.addEventListener('load', revealMissingAssetNotice);
+    window.requestAnimationFrame(revealMissingAssetNotice);
 })();
 JS;
 
