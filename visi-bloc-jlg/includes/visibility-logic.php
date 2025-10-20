@@ -321,6 +321,11 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
         ];
 
     $can_preview_hidden_blocks = ! empty( $preview_context['can_preview_hidden_blocks'] );
+    $should_apply_preview_role = ! empty( $preview_context['should_apply_preview_role'] );
+
+    if ( ! $should_apply_preview_role ) {
+        $can_preview_hidden_blocks = false;
+    }
     $user_visibility_context   = visibloc_jlg_get_user_visibility_context( $preview_context, $can_preview_hidden_blocks );
     $preview_transforms        = [];
     $preview_reasons           = [];

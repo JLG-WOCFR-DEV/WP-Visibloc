@@ -337,7 +337,7 @@ class VisibilityLogicTest extends TestCase {
         $visibloc_test_state['can_preview_users'][7]          = true;
         $visibloc_test_state['can_impersonate_users'][7]      = true;
         $visibloc_test_state['allowed_preview_roles']         = [ 'administrator' ];
-        $visibloc_test_state['preview_role']                  = '';
+        $visibloc_test_state['preview_role']                  = 'administrator';
 
         $block = [
             'blockName' => 'core/group',
@@ -400,7 +400,7 @@ class VisibilityLogicTest extends TestCase {
         $visibloc_test_state['can_preview_users'][9]        = true;
         $visibloc_test_state['can_impersonate_users'][9]    = true;
         $visibloc_test_state['allowed_preview_roles']       = [ 'administrator' ];
-        $visibloc_test_state['preview_role']                = '';
+        $visibloc_test_state['preview_role']                = 'administrator';
 
         $post = new WP_Post(
             [
@@ -709,7 +709,7 @@ class VisibilityLogicTest extends TestCase {
         $visibloc_test_state['can_preview_users'][7]          = true;
         $visibloc_test_state['can_impersonate_users'][7]      = true;
         $visibloc_test_state['allowed_preview_roles']         = [ 'administrator' ];
-        $visibloc_test_state['preview_role']                  = '';
+        $visibloc_test_state['preview_role']                  = 'administrator';
 
         try {
             $block = [
@@ -743,7 +743,7 @@ class VisibilityLogicTest extends TestCase {
         $visibloc_test_state['can_preview_users'][5]          = true;
         $visibloc_test_state['can_impersonate_users'][5]      = true;
         $visibloc_test_state['allowed_preview_roles']         = [ 'administrator' ];
-        $visibloc_test_state['preview_role']                  = '';
+        $visibloc_test_state['preview_role']                  = 'administrator';
 
         try {
             $GLOBALS['visibloc_test_options']['visibloc_fallback_settings'] = [
@@ -1104,8 +1104,9 @@ class VisibilityLogicTest extends TestCase {
         $visibloc_test_state['effective_user_id']       = 9;
         $visibloc_test_state['current_user']            = new Visibloc_Test_User( 9, [ 'administrator' ] );
         $visibloc_test_state['can_preview_users'][9]    = true;
+        $visibloc_test_state['can_impersonate_users'][9] = true;
         $visibloc_test_state['allowed_preview_roles']   = [ 'administrator' ];
-        $visibloc_test_state['preview_role']            = '';
+        $visibloc_test_state['preview_role']            = 'administrator';
 
         $block = [
             'blockName' => 'core/group',
@@ -1147,8 +1148,9 @@ class VisibilityLogicTest extends TestCase {
         $visibloc_test_state['effective_user_id']       = 11;
         $visibloc_test_state['current_user']            = new Visibloc_Test_User( 11, [ 'administrator' ] );
         $visibloc_test_state['can_preview_users'][11]   = true;
+        $visibloc_test_state['can_impersonate_users'][11] = true;
         $visibloc_test_state['allowed_preview_roles']   = [ 'administrator' ];
-        $visibloc_test_state['preview_role']            = '';
+        $visibloc_test_state['preview_role']            = 'administrator';
 
         $block = [
             'blockName' => 'core/group',

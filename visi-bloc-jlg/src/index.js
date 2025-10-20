@@ -6779,13 +6779,39 @@ addFilter(
     'visi-bloc-jlg/add-editor-status-badges',
     createHigherOrderComponent(
         (BlockListBlock) => (props) => {
-            const className = typeof props.className === 'string' ? props.className : '';
-            const hasHiddenBadge = className.includes('bloc-editeur-cache');
-            const hasFallbackBadge = className.includes('bloc-editeur-repli');
-            const hasConditionalBadge = className.includes('bloc-editeur-conditionnel');
             const visibilityState = props.clientId
                 ? blockVisibilityState.get(props.clientId) || {}
                 : {};
+            const classParts = [];
+
+            if (typeof props.className === 'string' && props.className.trim()) {
+                classParts.push(props.className.trim());
+            }
+
+            if (visibilityState.isHidden) {
+                classParts.push('bloc-editeur-cache');
+            }
+
+            if (visibilityState.hasFallback) {
+                classParts.push('bloc-editeur-repli');
+            }
+
+            if (visibilityState.isConditionallyHidden) {
+                classParts.push('bloc-editeur-conditionnel');
+            }
+
+            const normalizedClassName = Array.from(
+                new Set(
+                    classParts
+                        .join(' ')
+                        .split(/\s+/)
+                        .filter(Boolean),
+                ),
+            ).join(' ');
+
+            const hasHiddenBadge = normalizedClassName.includes('bloc-editeur-cache');
+            const hasFallbackBadge = normalizedClassName.includes('bloc-editeur-repli');
+            const hasConditionalBadge = normalizedClassName.includes('bloc-editeur-conditionnel');
             const hiddenDescription =
                 typeof visibilityState.hiddenDescription === 'string'
                     ? visibilityState.hiddenDescription
@@ -6799,11 +6825,16 @@ addFilter(
                     ? visibilityState.fallbackDescription
                     : '';
 
+            const elementProps = {
+                ...props,
+                className: normalizedClassName,
+            };
+
             if (!hasHiddenBadge && !hasFallbackBadge && !hasConditionalBadge) {
-                return <BlockListBlock {...props} />;
+                return <BlockListBlock {...elementProps} />;
             }
 
-            const element = <BlockListBlock {...props} />;
+            const element = <BlockListBlock {...elementProps} />;
             const existingChildren = Children.toArray(element.props.children);
             const badges = [];
 
