@@ -78,48 +78,96 @@ async function ensureVisiblocPanelOpen( page ) {
         return;
     }
 
-    const isExpanded = await panelToggle.getAttribute( 'aria-expanded' );
+    for ( let attempt = 0; attempt < 3; attempt++ ) {
+        const isExpanded = await panelToggle.getAttribute( 'aria-expanded' );
 
-    if ( isExpanded === 'true' ) {
-        return;
+        if ( isExpanded === 'true' ) {
+            return;
+        }
+
+        await panelToggle.click( { timeout: 20000 } );
+
+        try {
+            await expect( panelToggle ).toHaveAttribute( 'aria-expanded', 'true', {
+                timeout: 5000,
+            } );
+            return;
+        } catch ( error ) {
+            if ( attempt === 2 ) {
+                throw error;
+            }
+        }
     }
 
-    await panelToggle.click( { timeout: 20000 } );
+    throw new Error( 'Unable to open the Visi-Bloc panel after multiple attempts.' );
 }
 
 export async function ensureExpertMode( page, editor ) {
     await ensureVisiblocPanelOpen( page );
 
-    const modeToggle = await canvasAwareLocator( page, editor, '.visibloc-editor-mode__toggle' );
+    const modeToggle = (
+        await canvasAwareLocator( page, editor, '.visibloc-editor-mode__toggle' )
+    ).first();
 
     await expect( modeToggle ).toBeVisible( { timeout: 20000 } );
 
-    const expertButton = modeToggle.getByRole( 'button', {
-        name: 'Expert',
-        exact: true,
-    } );
+    const ensureExpertButtonSelected = async () => {
+        const expertButton = modeToggle.getByRole( 'button', {
+            name: 'Expert',
+            exact: true,
+        } );
 
-    if ( await expertButton.count() ) {
+        if ( ! ( await expertButton.count() ) ) {
+            return false;
+        }
+
+        if ( ! ( await expertButton.isVisible() ) ) {
+            await modeToggle.click( { timeout: 20000 } );
+            await expect( expertButton ).toBeVisible( { timeout: 10000 } );
+        }
+
         const isPressed = await expertButton.getAttribute( 'aria-pressed' );
 
         if ( isPressed !== 'true' ) {
             await expertButton.click( { timeout: 20000 } );
+            await expect( expertButton ).toHaveAttribute( 'aria-pressed', 'true', {
+                timeout: 10000,
+            } );
         }
 
-        return;
-    }
+        return true;
+    };
 
-    const expertRadio = modeToggle.getByRole( 'radio', {
-        name: 'Expert',
-        exact: true,
-    } );
+    const ensureExpertRadioSelected = async () => {
+        const expertRadio = modeToggle.getByRole( 'radio', {
+            name: 'Expert',
+            exact: true,
+        } );
 
-    if ( await expertRadio.count() ) {
+        if ( ! ( await expertRadio.count() ) ) {
+            return false;
+        }
+
+        if ( ! ( await expertRadio.isVisible() ) ) {
+            await modeToggle.click( { timeout: 20000 } );
+            await expect( expertRadio ).toBeVisible( { timeout: 10000 } );
+        }
+
         if ( ! ( await expertRadio.isChecked() ) ) {
             await expertRadio.check( { timeout: 20000 } );
+            await expect( expertRadio ).toBeChecked( { timeout: 10000 } );
         }
 
-        return;
+        return true;
+    };
+
+    for ( let attempt = 0; attempt < 3; attempt++ ) {
+        if ( ( await ensureExpertButtonSelected() ) || ( await ensureExpertRadioSelected() ) ) {
+            return;
+        }
+
+        await modeToggle.click( { timeout: 20000 } );
+        await page.waitForTimeout( 500 );
     }
 
     throw new Error( 'Expert mode toggle not found in the inspector controls.' );
