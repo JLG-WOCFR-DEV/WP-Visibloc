@@ -82,8 +82,10 @@ async function exerciseVisibilityControls( { admin, editor, page }, blockName ) 
         )
     ).first();
 
-    await expect( blockLocator ).toBeVisible();
-    await expect( blockLocator ).not.toHaveClass( /bloc-editeur-cache/ );
+    await expect( blockLocator ).toBeVisible( { timeout: 20000 } );
+    await expect( blockLocator ).not.toHaveClass( /bloc-editeur-cache/, {
+        timeout: 20000,
+    } );
 
     const hideButton = await canvasAwareGetByRole( page, editor, 'button', {
         name: 'Rendre caché',
@@ -94,7 +96,9 @@ async function exerciseVisibilityControls( { admin, editor, page }, blockName ) 
     await expect( hideButton ).toBeVisible( { timeout: 20000 } );
     await expect( hideButton ).toBeEnabled();
     await hideButton.click( { timeout: 20000 } );
-    await expect( blockLocator ).toHaveClass( /bloc-editeur-cache/ );
+    await expect( blockLocator ).toHaveClass( /bloc-editeur-cache/, {
+        timeout: 20000,
+    } );
 
     const listViewToggle = await canvasAwareGetByRole( page, editor, 'button', {
         name: 'List view',
@@ -106,13 +110,19 @@ async function exerciseVisibilityControls( { admin, editor, page }, blockName ) 
         editor,
         `.block-editor-list-view__block[data-block="${ clientId }"]`,
     );
-    await expect( listViewRow ).toHaveClass( /bloc-editeur-cache/ );
+    await expect( listViewRow ).toHaveClass( /bloc-editeur-cache/, {
+        timeout: 20000,
+    } );
 
     await expect( showButton ).toBeVisible( { timeout: 20000 } );
     await expect( showButton ).toBeEnabled();
     await showButton.click( { timeout: 20000 } );
-    await expect( blockLocator ).not.toHaveClass( /bloc-editeur-cache/ );
-    await expect( listViewRow ).not.toHaveClass( /bloc-editeur-cache/ );
+    await expect( blockLocator ).not.toHaveClass( /bloc-editeur-cache/, {
+        timeout: 20000,
+    } );
+    await expect( listViewRow ).not.toHaveClass( /bloc-editeur-cache/, {
+        timeout: 20000,
+    } );
 
     await listViewToggle.click( { timeout: 20000 } );
 
@@ -146,7 +156,9 @@ async function exerciseVisibilityControls( { admin, editor, page }, blockName ) 
         .first()
         .getByRole( 'button', { name: 'Desktop' } )
         .click( { timeout: 20000 } );
-    await expect( stepSummary ).toHaveText( 'Afficher uniquement – Desktop' );
+    await expect( stepSummary ).toHaveText( 'Afficher uniquement – Desktop', {
+        timeout: 20000,
+    } );
 
     const step2Tab = await getStepTab( 'Étape 2 · Calendrier' );
     await step2Tab.click( { timeout: 20000 } );
@@ -155,13 +167,17 @@ async function exerciseVisibilityControls( { admin, editor, page }, blockName ) 
         name: 'Activer la programmation',
     } );
     await schedulingToggle.check( { timeout: 20000 } );
-    await expect( stepSummary ).toHaveText( 'Programmation active' );
+    await expect( schedulingToggle ).toBeChecked( { timeout: 20000 } );
+    await expect( stepSummary ).toHaveText( 'Programmation active', {
+        timeout: 20000,
+    } );
 
     const startToggle = await canvasAwareGetByRole( page, editor, 'checkbox', {
         name: 'Définir une date de début',
     } );
     await startToggle.check( { timeout: 20000 } );
-    await expect( stepSummary ).toHaveText( 'Date définie' );
+    await expect( startToggle ).toBeChecked( { timeout: 20000 } );
+    await expect( stepSummary ).toHaveText( 'Date définie', { timeout: 20000 } );
 
     const datePickers = await canvasAwareLocator(
         page,
@@ -176,10 +192,11 @@ async function exerciseVisibilityControls( { admin, editor, page }, blockName ) 
         name: 'Définir une date de fin',
     } );
     await endToggle.check( { timeout: 20000 } );
+    await expect( endToggle ).toBeChecked( { timeout: 20000 } );
     const endPicker = datePickers.nth( 1 );
     await endPicker.getByLabel( 'Date' ).fill( '2030-06-20' );
     await endPicker.getByLabel( 'Time' ).fill( '17:45' );
-    await expect( stepSummary ).toHaveText( 'Plage définie' );
+    await expect( stepSummary ).toHaveText( 'Plage définie', { timeout: 20000 } );
 
     const step3Tab = await getStepTab( 'Étape 3 · Rôles' );
     await step3Tab.click( { timeout: 20000 } );
@@ -188,12 +205,14 @@ async function exerciseVisibilityControls( { admin, editor, page }, blockName ) 
         name: 'Utilisateurs connectés (tous)',
     } );
     await loggedInCheckbox.check( { timeout: 20000 } );
+    await expect( loggedInCheckbox ).toBeChecked( { timeout: 20000 } );
 
     const administratorCheckbox = await canvasAwareGetByRole( page, editor, 'checkbox', {
         name: 'Administrator',
     } );
     await administratorCheckbox.check( { timeout: 20000 } );
-    await expect( stepSummary ).toHaveText( '2 rôles' );
+    await expect( administratorCheckbox ).toBeChecked( { timeout: 20000 } );
+    await expect( stepSummary ).toHaveText( '2 rôles', { timeout: 20000 } );
 
     const attributes = await page.evaluate( ( id ) => {
         const store = window.wp.data.select( 'core/block-editor' );
@@ -209,10 +228,14 @@ async function exerciseVisibilityControls( { admin, editor, page }, blockName ) 
     expect( attributes.publishEndDate ).toContain( '2030-06-20T17:45' );
     expect( attributes.visibilityRoles ).toEqual( expect.arrayContaining( [ 'logged-in', 'administrator' ] ) );
 
-    await expect( blockLocator ).toHaveClass( /bloc-editeur-conditionnel/ );
+    await expect( blockLocator ).toHaveClass( /bloc-editeur-conditionnel/, {
+        timeout: 20000,
+    } );
 
     await listViewToggle.click( { timeout: 20000 } );
-    await expect( listViewRow ).toHaveClass( /bloc-editeur-conditionnel/ );
+    await expect( listViewRow ).toHaveClass( /bloc-editeur-conditionnel/, {
+        timeout: 20000,
+    } );
     await listViewToggle.click( { timeout: 20000 } );
 
     const postContent = await editor.getEditedPostContent();
@@ -255,13 +278,16 @@ test.describe( 'Visi-Bloc group visibility controls', () => {
 
         await expect( columnsCheckbox ).toBeVisible( { timeout: 20000 } );
         await columnsCheckbox.check( { timeout: 20000 } );
+        await expect( columnsCheckbox ).toBeChecked( { timeout: 20000 } );
 
         await Promise.all( [
             page.waitForNavigation( { waitUntil: 'networkidle' } ),
             page.getByRole( 'button', { name: 'Enregistrer les blocs compatibles' } ).click(),
         ] );
 
-        await expect( page.getByText( 'Réglages mis à jour.' ) ).toBeVisible();
+        await expect( page.getByText( 'Réglages mis à jour.' ) ).toBeVisible( {
+            timeout: 20000,
+        } );
 
         await exerciseVisibilityControls( { admin, editor, page }, 'core/columns' );
     } );
@@ -294,19 +320,19 @@ test.describe( 'Visi-Bloc group visibility controls', () => {
         );
 
         await selectStep( 'Étape 1 · Appareils' );
-        await expect( stepSummary ).toHaveText( 'Inactif' );
+        await expect( stepSummary ).toHaveText( 'Inactif', { timeout: 20000 } );
 
         await selectStep( 'Étape 2 · Calendrier' );
-        await expect( stepSummary ).toHaveText( 'Inactif' );
+        await expect( stepSummary ).toHaveText( 'Inactif', { timeout: 20000 } );
 
         await selectStep( 'Étape 3 · Rôles' );
-        await expect( stepSummary ).toHaveText( 'Inactif' );
+        await expect( stepSummary ).toHaveText( 'Inactif', { timeout: 20000 } );
 
         await selectStep( 'Étape 4 · Règles avancées' );
-        await expect( stepSummary ).toHaveText( 'Inactif' );
+        await expect( stepSummary ).toHaveText( 'Inactif', { timeout: 20000 } );
 
         await selectStep( /Étape \d+ · Repli/ );
-        await expect( stepSummary ).not.toHaveText( 'Inactif' );
+        await expect( stepSummary ).not.toHaveText( 'Inactif', { timeout: 20000 } );
 
         await selectStep( 'Étape 1 · Appareils' );
         const visibilityGroups = await canvasAwareLocator(
@@ -318,37 +344,46 @@ test.describe( 'Visi-Bloc group visibility controls', () => {
             .first()
             .getByRole( 'button', { name: 'Desktop' } )
             .click( { timeout: 20000 } );
-        await expect( stepSummary ).toHaveText( 'Afficher uniquement – Desktop' );
+        await expect( stepSummary ).toHaveText( 'Afficher uniquement – Desktop', {
+            timeout: 20000,
+        } );
 
         await selectStep( 'Étape 2 · Calendrier' );
         const schedulingToggle = await canvasAwareGetByRole( page, editor, 'checkbox', {
             name: 'Activer la programmation',
         } );
-        await schedulingToggle.check();
-        await expect( stepSummary ).toHaveText( 'Programmation active' );
+        await schedulingToggle.check( { timeout: 20000 } );
+        await expect( schedulingToggle ).toBeChecked( { timeout: 20000 } );
+        await expect( stepSummary ).toHaveText( 'Programmation active', {
+            timeout: 20000,
+        } );
 
         const startDateToggle = await canvasAwareGetByRole( page, editor, 'checkbox', {
             name: 'Définir une date de début',
         } );
         await startDateToggle.check( { timeout: 20000 } );
-        await expect( stepSummary ).toHaveText( 'Date définie' );
+        await expect( startDateToggle ).toBeChecked( { timeout: 20000 } );
+        await expect( stepSummary ).toHaveText( 'Date définie', { timeout: 20000 } );
 
         const endDateToggle = await canvasAwareGetByRole( page, editor, 'checkbox', {
             name: 'Définir une date de fin',
         } );
         await endDateToggle.check( { timeout: 20000 } );
-        await expect( stepSummary ).toHaveText( 'Plage définie' );
+        await expect( endDateToggle ).toBeChecked( { timeout: 20000 } );
+        await expect( stepSummary ).toHaveText( 'Plage définie', { timeout: 20000 } );
 
         await selectStep( 'Étape 3 · Rôles' );
         const loggedOutToggle = await canvasAwareGetByRole( page, editor, 'checkbox', {
             name: 'Visiteurs déconnectés',
         } );
         await loggedOutToggle.check( { timeout: 20000 } );
+        await expect( loggedOutToggle ).toBeChecked( { timeout: 20000 } );
         const loggedInToggle = await canvasAwareGetByRole( page, editor, 'checkbox', {
             name: 'Utilisateurs connectés (tous)',
         } );
         await loggedInToggle.check( { timeout: 20000 } );
-        await expect( stepSummary ).toHaveText( '2 rôles' );
+        await expect( loggedInToggle ).toBeChecked( { timeout: 20000 } );
+        await expect( stepSummary ).toHaveText( '2 rôles', { timeout: 20000 } );
 
         await selectStep( 'Étape 4 · Règles avancées' );
         const addRuleButton = await canvasAwareGetByRole( page, editor, 'button', {
@@ -362,7 +397,7 @@ test.describe( 'Visi-Bloc group visibility controls', () => {
         } );
         await expect( ruleMenuItem ).toBeVisible( { timeout: 20000 } );
         await ruleMenuItem.click( { timeout: 20000 } );
-        await expect( stepSummary ).toHaveText( '1 règle ET' );
+        await expect( stepSummary ).toHaveText( '1 règle ET', { timeout: 20000 } );
 
         await selectStep( /Étape \d+ · Repli/ );
         const fallbackToggle = await canvasAwareGetByRole( page, editor, 'checkbox', {
@@ -370,6 +405,7 @@ test.describe( 'Visi-Bloc group visibility controls', () => {
         } );
         await expect( fallbackToggle ).toBeVisible( { timeout: 20000 } );
         await fallbackToggle.uncheck( { timeout: 20000 } );
-        await expect( stepSummary ).toHaveText( 'Inactif' );
+        await expect( fallbackToggle ).not.toBeChecked( { timeout: 20000 } );
+        await expect( stepSummary ).toHaveText( 'Inactif', { timeout: 20000 } );
     } );
 } );

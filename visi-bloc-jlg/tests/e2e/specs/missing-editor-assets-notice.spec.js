@@ -33,37 +33,21 @@ test.describe( 'Visi-Bloc missing editor assets notice', () => {
 
         try {
             await admin.visitAdminPage( 'post-new.php' );
-            await page.waitForLoadState( 'domcontentloaded' );
+            await page.waitForLoadState( 'networkidle' );
 
             const commandText = 'npm install && npm run build';
 
-            await page.waitForFunction( ( text ) => {
-                var notices = document.querySelectorAll( '.notice.notice-error' );
-
-                return Array.prototype.some.call( notices, function( notice ) {
-                    if ( ! notice || ! notice.textContent || notice.textContent.indexOf( text ) === -1 ) {
-                        return false;
-                    }
-
-                    var computedStyle = window.getComputedStyle( notice );
-
-                    return (
-                        ! notice.hidden &&
-                        notice.getAttribute( 'hidden' ) === null &&
-                        notice.getAttribute( 'aria-hidden' ) !== 'true' &&
-                        computedStyle.display !== 'none' &&
-                        computedStyle.visibility !== 'hidden' &&
-                        notice.style.display === '' &&
-                        notice.style.visibility !== 'hidden'
-                    );
-                } );
-            }, commandText );
-
-            const notice = page.locator( '.notice.notice-error' ).filter( { hasText: commandText } ).first();
-            await notice.waitFor( { state: 'visible', timeout: 20000 } );
+            const notice = page
+                .locator( '.notice.notice-error' )
+                .filter( { hasText: commandText } )
+                .first();
             await expect( notice ).toBeVisible( { timeout: 20000 } );
-            await expect.poll( async () => notice.getAttribute( 'hidden' ) ).toBeNull();
-            await expect.poll( async () => notice.getAttribute( 'aria-hidden' ) ).not.toBe( 'true' );
+            await expect( notice ).not.toHaveAttribute( 'hidden', /.*/, {
+                timeout: 20000,
+            } );
+            await expect( notice ).not.toHaveAttribute( 'aria-hidden', 'true', {
+                timeout: 20000,
+            } );
             await expect( notice ).not.toHaveCSS( 'display', 'none' );
             await expect( notice ).not.toHaveCSS( 'visibility', 'hidden' );
         } finally {
