@@ -1125,7 +1125,7 @@ class VisibilityLogicTest extends TestCase {
         $this->assertStringContainsString( '<p>Scheduled content</p>', $output );
     }
 
-    public function test_invalid_schedule_returns_content_for_regular_users(): void {
+    public function test_invalid_schedule_hides_content_for_regular_users(): void {
         $block = [
             'blockName' => 'core/group',
             'attrs'     => [
@@ -1136,10 +1136,25 @@ class VisibilityLogicTest extends TestCase {
         ];
 
         $this->assertSame(
-            '<p>Scheduled content</p>',
+            '',
             visibloc_jlg_render_block_filter( '<p>Scheduled content</p>', $block ),
-            'Invalid scheduling windows must not hide content for regular visitors.'
+            'Invalid scheduling windows must hide content for regular visitors.'
         );
+
+        $decision = visibloc_jlg_should_display_for_schedule(
+            [
+                'is_enabled' => true,
+                'start_time' => 200,
+                'end_time'   => 100,
+            ],
+            [
+                'current_time' => 150,
+                'can_preview'  => false,
+            ]
+        );
+
+        $this->assertFalse( $decision->is_visible, 'Public visitors must fail closed on inverted schedules.' );
+        $this->assertSame( 'schedule-invalid', $decision->reason );
     }
 
     public function test_invalid_schedule_shows_error_badge_for_authorized_previewers(): void {
@@ -1305,6 +1320,142 @@ class VisibilityLogicTest extends TestCase {
             '<p>Scheduled content</p>',
             visibloc_jlg_render_block_filter( '<p>Scheduled content</p>', $block ),
             'Invalid timezone identifiers should allow visibility after the site timezone window opens.'
+        );
+    }
+
+    public function test_always_visible_block_does_not_mark_response_uncacheable(): void {
+        $block = [
+            'blockName' => 'core/group',
+            'attrs'     => [
+                'align' => 'wide',
+            ],
+        ];
+
+        $this->assertSame(
+            '<p>Always visible</p>',
+            visibloc_jlg_render_block_filter( '<p>Always visible</p>', $block )
+        );
+        $this->assertFalse(
+            visibloc_jlg_is_response_uncacheable(),
+            'Blocks without visibility rules must remain cacheable.'
+        );
+    }
+
+    public function test_manual_hidden_block_does_not_mark_response_uncacheable(): void {
+        $block = [
+            'blockName' => 'core/group',
+            'attrs'     => [
+                'isHidden' => true,
+            ],
+        ];
+
+        visibloc_jlg_render_block_filter( '<p>Hidden content</p>', $block );
+
+        $this->assertFalse(
+            visibloc_jlg_is_response_uncacheable(),
+            'Universal hide flags must not disable full-page caching.'
+        );
+    }
+
+    public function test_role_visibility_marks_response_uncacheable(): void {
+        $block = [
+            'blockName' => 'core/group',
+            'attrs'     => [
+                'visibilityRoles' => [ 'logged-in' ],
+            ],
+        ];
+
+        visibloc_jlg_render_block_filter( '<p>Members only</p>', $block );
+
+        $this->assertTrue(
+            visibloc_jlg_is_response_uncacheable(),
+            'Role and logged-in rules must bypass full-page caches.'
+        );
+        $this->assertTrue( defined( 'DONOTCACHEPAGE' ) && DONOTCACHEPAGE );
+    }
+
+    public function test_schedule_visibility_marks_response_uncacheable(): void {
+        $block = [
+            'blockName' => 'core/group',
+            'attrs'     => [
+                'isSchedulingEnabled' => true,
+                'publishStartDate'    => '2020-01-01 00:00:00',
+            ],
+        ];
+
+        visibloc_jlg_render_block_filter( '<p>Scheduled content</p>', $block );
+
+        $this->assertTrue(
+            visibloc_jlg_is_response_uncacheable(),
+            'Scheduled blocks must bypass full-page caches.'
+        );
+    }
+
+    public function test_geolocation_rule_marks_response_uncacheable(): void {
+        $this->assertTrue(
+            visibloc_jlg_attrs_use_personalized_visibility(
+                [
+                    'advancedVisibility' => [
+                        'logic' => 'AND',
+                        'rules' => [
+                            [
+                                'type'      => 'geolocation',
+                                'operator'  => 'in',
+                                'countries' => [ 'FR' ],
+                            ],
+                        ],
+                    ],
+                ]
+            ),
+            'Geo rules must bypass full-page caches.'
+        );
+    }
+
+    public function test_post_type_rule_does_not_mark_response_uncacheable(): void {
+        $this->assertFalse(
+            visibloc_jlg_attrs_use_personalized_visibility(
+                [
+                    'advancedVisibility' => [
+                        'logic' => 'AND',
+                        'rules' => [
+                            [
+                                'type'     => 'post_type',
+                                'operator' => 'is',
+                                'value'    => 'page',
+                            ],
+                        ],
+                    ],
+                ]
+            ),
+            'Post-level rules shared by every visitor must remain cacheable.'
+        );
+    }
+
+    /**
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function test_uncacheable_flag_sends_nocache_headers(): void {
+        visibloc_jlg_mark_response_uncacheable();
+        visibloc_jlg_maybe_send_uncacheable_headers();
+
+        $this->assertTrue( defined( 'DONOTCACHEPAGE' ) && DONOTCACHEPAGE );
+        $this->assertTrue( ! empty( $GLOBALS['visibloc_test_state']['nocache_headers_called'] ) );
+    }
+
+    public function test_queried_post_with_role_rules_is_marked_uncacheable(): void {
+        $GLOBALS['post'] = new WP_Post(
+            [
+                'ID'           => 77,
+                'post_content' => '<!-- wp:group {"visibilityRoles":["subscriber"]} --><div class="wp-block-group">Hello</div><!-- /wp:group -->',
+            ]
+        );
+
+        visibloc_jlg_maybe_mark_queried_content_uncacheable();
+
+        $this->assertTrue(
+            visibloc_jlg_is_response_uncacheable(),
+            'Personalized rules in the queried post should disable caching before render.'
         );
     }
 

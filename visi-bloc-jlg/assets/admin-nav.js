@@ -43,6 +43,7 @@
 
             if (tab) {
                 tab.classList.toggle('is-active', isActive);
+                tab.classList.toggle('nav-tab-active', isActive);
                 tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
                 tab.setAttribute('tabindex', isActive ? '0' : '-1');
             }

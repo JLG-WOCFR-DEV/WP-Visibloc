@@ -2161,7 +2161,7 @@ function visibloc_jlg_render_help_page_content() {
     $group_description_id = $group_select_id . '-description';
 
     ?>
-    <div class="wrap">
+    <div class="wrap visibloc-jlg">
         <h1><?php esc_html_e( 'Visi-Bloc - JLG - Aide et Réglages', 'visi-bloc-jlg' ); ?></h1>
         <?php if ( 'updated' === $status ) : ?>
             <div id="message" class="updated notice is-dismissible"><p><?php esc_html_e( 'Réglages mis à jour.', 'visi-bloc-jlg' ); ?></p></div>
@@ -2199,14 +2199,19 @@ function visibloc_jlg_render_help_page_content() {
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="visibloc-help-groups__tabs" role="tablist" aria-label="<?php esc_attr_e( 'Vues thématiques Visi-Bloc', 'visi-bloc-jlg' ); ?>">
+                <h2 class="nav-tab-wrapper visibloc-help-groups__tabs" role="tablist" aria-label="<?php esc_attr_e( 'Vues thématiques Visi-Bloc', 'visi-bloc-jlg' ); ?>">
                     <?php foreach ( $groups as $index => $group ) :
                         $is_active = ( 0 === $index );
                         $tab_id    = $group['id'] . '-tab';
+                        $tab_class = 'nav-tab visibloc-help-groups__tab';
+
+                        if ( $is_active ) {
+                            $tab_class .= ' nav-tab-active is-active';
+                        }
                         ?>
                         <button
                             type="button"
-                            class="visibloc-help-groups__tab<?php echo $is_active ? ' is-active' : ''; ?>"
+                            class="<?php echo esc_attr( $tab_class ); ?>"
                             id="<?php echo esc_attr( $tab_id ); ?>"
                             role="tab"
                             aria-selected="<?php echo $is_active ? 'true' : 'false'; ?>"
@@ -2217,7 +2222,7 @@ function visibloc_jlg_render_help_page_content() {
                             <span class="visibloc-help-groups__tab-label"><?php echo esc_html( $group['label'] ); ?></span>
                         </button>
                     <?php endforeach; ?>
-                </div>
+                </h2>
             </div>
             <div class="visibloc-help-groups__panels">
                 <?php foreach ( $groups as $index => $group ) :

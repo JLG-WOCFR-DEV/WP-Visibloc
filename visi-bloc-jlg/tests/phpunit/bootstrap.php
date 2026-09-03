@@ -130,6 +130,12 @@ if ( ! function_exists( 'wp_doing_cron' ) ) {
     }
 }
 
+if ( ! function_exists( 'nocache_headers' ) ) {
+    function nocache_headers() {
+        $GLOBALS['visibloc_test_state']['nocache_headers_called'] = true;
+    }
+}
+
 if ( ! function_exists( 'wp_get_referer' ) ) {
     function wp_get_referer() {
         return $GLOBALS['visibloc_test_request_environment']['referer'] ?? '';
@@ -199,6 +205,9 @@ function visibloc_test_reset_state() {
     $GLOBALS['visibloc_test_filters']    = isset( $GLOBALS['visibloc_test_default_filters'] )
         ? $GLOBALS['visibloc_test_default_filters']
         : [];
+
+    unset( $GLOBALS['visibloc_jlg_uncacheable'] );
+    $GLOBALS['visibloc_test_state']['nocache_headers_called'] = false;
 
     visibloc_test_reset_request_environment();
 

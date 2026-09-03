@@ -250,11 +250,227 @@ function visibloc_jlg_render_block_visibility_router( $block_content, $block ) {
 add_filter( 'render_block', 'visibloc_jlg_render_block_visibility_router', 10, 2 );
 
 /**
+ * Personalized visibility rules that must not be stored in a full-page cache.
+ *
+ * @return string[]
+ */
+function visibloc_jlg_get_personalized_advanced_rule_types() {
+    return [
+        'logged_in_status',
+        'user_role_group',
+        'user_segment',
+        'geolocation',
+        'recurring_schedule',
+        'cookie',
+        'query_param',
+        'visit_count',
+        'woocommerce_cart',
+    ];
+}
+
+/**
+ * Whether a block's visibility depends on the visitor, geo, or schedule.
+ *
+ * Manual hide flags and post-level rules (type/taxonomy/template) are universal
+ * for public visitors and must not disable caching by themselves.
+ *
+ * @param array $visibility_roles    Normalized role list.
+ * @param bool  $has_schedule        Whether scheduling is enabled.
+ * @param array $advanced_visibility Normalized advanced rules.
+ * @return bool
+ */
+function visibloc_jlg_block_uses_personalized_visibility( $visibility_roles, $has_schedule, array $advanced_visibility ) {
+    if ( ! empty( $visibility_roles ) ) {
+        return true;
+    }
+
+    if ( $has_schedule ) {
+        return true;
+    }
+
+    if ( empty( $advanced_visibility['rules'] ) || ! is_array( $advanced_visibility['rules'] ) ) {
+        return false;
+    }
+
+    $personalized_types = visibloc_jlg_get_personalized_advanced_rule_types();
+
+    foreach ( $advanced_visibility['rules'] as $rule ) {
+        $type = isset( $rule['type'] ) ? (string) $rule['type'] : '';
+
+        if ( '' !== $type && in_array( $type, $personalized_types, true ) ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Whether block attributes contain a non-universal visibility rule.
+ *
+ * @param mixed $attrs Block attributes.
+ * @return bool
+ */
+function visibloc_jlg_attrs_use_personalized_visibility( $attrs ) {
+    if ( ! is_array( $attrs ) ) {
+        return false;
+    }
+
+    $visibility_roles    = visibloc_jlg_normalize_visibility_roles( $attrs['visibilityRoles'] ?? [] );
+    $advanced_visibility = visibloc_jlg_normalize_advanced_visibility( $attrs['advancedVisibility'] ?? null );
+    $has_schedule        = isset( $attrs['isSchedulingEnabled'] )
+        ? visibloc_jlg_normalize_boolean( $attrs['isSchedulingEnabled'] )
+        : false;
+
+    return visibloc_jlg_block_uses_personalized_visibility( $visibility_roles, $has_schedule, $advanced_visibility );
+}
+
+/**
+ * Recursively inspect parsed blocks for personalized visibility rules.
+ *
+ * @param array $blocks Parsed Gutenberg blocks.
+ * @return bool
+ */
+function visibloc_jlg_parsed_blocks_use_personalized_visibility( $blocks ) {
+    if ( ! is_array( $blocks ) ) {
+        return false;
+    }
+
+    foreach ( $blocks as $block ) {
+        if ( ! is_array( $block ) ) {
+            continue;
+        }
+
+        if ( visibloc_jlg_attrs_use_personalized_visibility( $block['attrs'] ?? [] ) ) {
+            return true;
+        }
+
+        if ( ! empty( $block['innerBlocks'] ) && visibloc_jlg_parsed_blocks_use_personalized_visibility( $block['innerBlocks'] ) ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Lightweight scan of raw block markup when parse_blocks() is unavailable.
+ *
+ * @param string $content Raw post content.
+ * @return bool
+ */
+function visibloc_jlg_content_has_personalized_visibility( $content ) {
+    if ( ! is_string( $content ) || '' === $content ) {
+        return false;
+    }
+
+    if ( function_exists( 'parse_blocks' ) ) {
+        return visibloc_jlg_parsed_blocks_use_personalized_visibility( parse_blocks( $content ) );
+    }
+
+    if ( false !== strpos( $content, '"isSchedulingEnabled":true' )
+        || false !== strpos( $content, '"isSchedulingEnabled": true' )
+    ) {
+        return true;
+    }
+
+    if ( preg_match( '/"visibilityRoles"\s*:\s*\[\s*"/', $content ) ) {
+        return true;
+    }
+
+    foreach ( visibloc_jlg_get_personalized_advanced_rule_types() as $type ) {
+        if ( false !== strpos( $content, '"type":"' . $type . '"' )
+            || false !== strpos( $content, '"type": "' . $type . '"' )
+        ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Mark the current response as uncacheable for full-page caches.
+ */
+function visibloc_jlg_mark_response_uncacheable() {
+    $GLOBALS['visibloc_jlg_uncacheable'] = true;
+
+    if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+        define( 'DONOTCACHEPAGE', true );
+    }
+}
+
+/**
+ * Whether the current response has been marked uncacheable.
+ *
+ * @return bool
+ */
+function visibloc_jlg_is_response_uncacheable() {
+    return ! empty( $GLOBALS['visibloc_jlg_uncacheable'] );
+}
+
+/**
+ * Send no-cache headers when personalized visibility was used.
+ */
+function visibloc_jlg_maybe_send_uncacheable_headers() {
+    static $headers_sent = false;
+
+    if ( $headers_sent ) {
+        return;
+    }
+
+    if ( ! visibloc_jlg_is_response_uncacheable() ) {
+        return;
+    }
+
+    $headers_sent = true;
+
+    visibloc_jlg_mark_response_uncacheable();
+
+    if ( function_exists( 'nocache_headers' ) ) {
+        nocache_headers();
+    }
+}
+
+/**
+ * Inspect the queried post early so cache plugins see DONOTCACHEPAGE
+ * before the template is rendered.
+ */
+function visibloc_jlg_maybe_mark_queried_content_uncacheable() {
+    if ( function_exists( 'is_admin' ) && is_admin() ) {
+        visibloc_jlg_maybe_send_uncacheable_headers();
+        return;
+    }
+
+    if ( visibloc_jlg_is_response_uncacheable() ) {
+        visibloc_jlg_maybe_send_uncacheable_headers();
+        return;
+    }
+
+    $content = '';
+
+    if ( isset( $GLOBALS['post'] ) && is_object( $GLOBALS['post'] ) && isset( $GLOBALS['post']->post_content ) ) {
+        $content = (string) $GLOBALS['post']->post_content;
+    }
+
+    if ( visibloc_jlg_content_has_personalized_visibility( $content ) ) {
+        visibloc_jlg_mark_response_uncacheable();
+    }
+
+    visibloc_jlg_maybe_send_uncacheable_headers();
+}
+
+if ( function_exists( 'add_action' ) ) {
+    add_action( 'send_headers', 'visibloc_jlg_maybe_mark_queried_content_uncacheable', 0 );
+    add_action( 'template_redirect', 'visibloc_jlg_maybe_mark_queried_content_uncacheable', 0 );
+}
+
+/**
  * Apply Visibloc visibility logic to rendered blocks.
  *
  * L’ordre d’évaluation reflète l’expérience attendue côté éditeur :
  * 1. Préparer le fallback sans le rendre tant qu’aucune règle ne le requiert.
- * 2. Évaluer la programmation : une fenêtre invalide annule le fallback mais doit signaler l’erreur en aperçu.
+ * 2. Évaluer la programmation : une fenêtre invalide est masquée (fail closed) en public et signalée en aperçu.
  * 3. Appliquer les règles avancées, qui peuvent activer le fallback.
  * 4. Vérifier les rôles.
  * 5. Lire le drapeau manuel.
@@ -308,6 +524,10 @@ function visibloc_jlg_render_block_filter( $block_content, $block ) {
 
     if ( ! $has_hidden_flag && ! $has_schedule && empty( $visibility_roles ) && ! $has_advanced_rules ) {
         return $block_content;
+    }
+
+    if ( visibloc_jlg_block_uses_personalized_visibility( $visibility_roles, $has_schedule, $advanced_visibility ) ) {
+        visibloc_jlg_mark_response_uncacheable();
     }
 
     $get_fallback_markup = visibloc_jlg_create_fallback_loader( $attrs );
@@ -462,7 +682,7 @@ function visibloc_jlg_should_display_for_schedule( array $schedule, array $conte
             return visibloc_jlg_visibility_decision( true, false, $transform, 'schedule-invalid' );
         }
 
-        return visibloc_jlg_visibility_decision( true, false, null, 'schedule-invalid' );
+        return visibloc_jlg_visibility_decision( false, true, null, 'schedule-invalid' );
     }
 
     $is_before_start = null !== $start_time && $current_time < $start_time;
