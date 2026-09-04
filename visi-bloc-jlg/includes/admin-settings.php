@@ -2064,6 +2064,12 @@ function visibloc_jlg_render_help_page_content() {
         'render' => 'visibloc_jlg_render_permissions_section',
         'args'   => [ $allowed_roles ],
     ];
+    $section_map['visibloc-section-rules'] = [
+        'id'     => 'visibloc-section-rules',
+        'label'  => __( 'Règles actives', 'visi-bloc-jlg' ),
+        'render' => 'visibloc_jlg_render_rules_cockpit_section',
+        'args'   => [],
+    ];
     $section_map['visibloc-section-hidden'] = [
         'id'     => 'visibloc-section-hidden',
         'label'  => __( 'Tableau de bord des blocs masqués (via Œil)', 'visi-bloc-jlg' ),
@@ -3395,6 +3401,115 @@ function visibloc_jlg_render_insights_dashboard_section() {
                     </div>
                 <?php endif; ?>
             <?php endif; ?>
+        </div>
+    </div>
+    <?php
+}
+
+function visibloc_jlg_render_rules_cockpit_section() {
+    $index = function_exists( 'visibloc_jlg_get_group_block_summary_index' )
+        ? visibloc_jlg_get_group_block_summary_index()
+        : [];
+
+    $rows = [];
+
+    if ( is_array( $index ) ) {
+        foreach ( $index as $post_id => $summary ) {
+            $post_id = (int) $post_id;
+
+            if ( $post_id <= 0 || ! is_array( $summary ) ) {
+                continue;
+            }
+
+            if ( ! visibloc_jlg_group_block_summary_has_data( $summary ) ) {
+                continue;
+            }
+
+            $title = get_the_title( $post_id );
+
+            if ( ! is_string( $title ) || $title === '' ) {
+                $title = sprintf( __( 'Contenu #%d', 'visi-bloc-jlg' ), $post_id );
+            }
+
+            $scheduled = isset( $summary['scheduled'] ) && is_array( $summary['scheduled'] )
+                ? $summary['scheduled']
+                : [];
+
+            $rows[] = [
+                'post_id'   => $post_id,
+                'title'     => $title,
+                'edit_url'  => get_edit_post_link( $post_id, 'raw' ),
+                'hidden'    => isset( $summary['hidden'] ) ? (int) $summary['hidden'] : 0,
+                'device'    => isset( $summary['device'] ) ? (int) $summary['device'] : 0,
+                'scheduled' => count( $scheduled ),
+            ];
+        }
+    }
+
+    usort(
+        $rows,
+        static function ( $a, $b ) {
+            $a_total = $a['hidden'] + $a['device'] + $a['scheduled'];
+            $b_total = $b['hidden'] + $b['device'] + $b['scheduled'];
+
+            if ( $a_total === $b_total ) {
+                return strcmp( (string) $a['title'], (string) $b['title'] );
+            }
+
+            return $b_total <=> $a_total;
+        }
+    );
+
+    $section_id  = 'visibloc-section-rules';
+
+    ?>
+    <div
+        id="<?php echo esc_attr( $section_id ); ?>"
+        class="postbox"
+        data-visibloc-section="<?php echo esc_attr( $section_id ); ?>"
+    >
+        <h2 class="hndle"><span><?php esc_html_e( 'Règles actives', 'visi-bloc-jlg' ); ?></span></h2>
+        <div class="inside">
+            <p><?php esc_html_e( 'Vue consolidée des contenus qui portent une règle Visi-Bloc (masquage, appareil ou programmation).', 'visi-bloc-jlg' ); ?></p>
+            <?php if ( empty( $rows ) ) : ?>
+                <p><?php esc_html_e( 'Aucune règle indexée pour le moment. Enregistrez un contenu ou reconstruisez l’index.', 'visi-bloc-jlg' ); ?></p>
+            <?php else : ?>
+                <table class="widefat striped">
+                    <thead>
+                        <tr>
+                            <th scope="col"><?php esc_html_e( 'Contenu', 'visi-bloc-jlg' ); ?></th>
+                            <th scope="col"><?php esc_html_e( 'Masqués', 'visi-bloc-jlg' ); ?></th>
+                            <th scope="col"><?php esc_html_e( 'Appareil', 'visi-bloc-jlg' ); ?></th>
+                            <th scope="col"><?php esc_html_e( 'Programmés', 'visi-bloc-jlg' ); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ( $rows as $row ) : ?>
+                            <tr>
+                                <td>
+                                    <?php if ( ! empty( $row['edit_url'] ) ) : ?>
+                                        <a href="<?php echo esc_url( $row['edit_url'] ); ?>"><?php echo esc_html( $row['title'] ); ?></a>
+                                    <?php else : ?>
+                                        <?php echo esc_html( $row['title'] ); ?>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?php echo esc_html( number_format_i18n( $row['hidden'] ) ); ?></td>
+                                <td><?php echo esc_html( number_format_i18n( $row['device'] ) ); ?></td>
+                                <td><?php echo esc_html( number_format_i18n( $row['scheduled'] ) ); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+            <p class="description">
+                <?php
+                printf(
+                    /* translators: %s: WP-CLI command. */
+                    esc_html__( 'Pour reconstruire l’index : %s', 'visi-bloc-jlg' ),
+                    '<code>wp visibloc rebuild-index</code>'
+                );
+                ?>
+            </p>
         </div>
     </div>
     <?php
