@@ -15,11 +15,11 @@
     --visibloc-shadow-subtle: 0 1px 2px rgba(15, 23, 42, 0.08);
     --visibloc-shadow-elevated: 0 18px 40px -24px rgba(15, 23, 42, 0.6);
     --visibloc-font-family: var(--wp-admin-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
-    --visibloc-accent: #4f46e5;
-    --visibloc-accent-strong: #312e81;
+    --visibloc-accent: var(--wp-admin-theme-color, #2271b1);
+    --visibloc-accent-strong: var(--wp-admin-theme-color-darker-10, #135e96);
     --visibloc-text-primary: #0f172a;
     --visibloc-text-subtle: rgba(15, 23, 42, 0.72);
-    --visibloc-focus-ring: 0 0 0 3px rgba(79, 70, 229, 0.35);
+    --visibloc-focus-ring: 0 0 0 3px rgba(34, 113, 177, 0.35);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -40,9 +40,9 @@
         --visibloc-font-family: var(--wp-admin-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
         --visibloc-text-primary: #f8fafc;
         --visibloc-text-subtle: rgba(226, 232, 240, 0.75);
-        --visibloc-accent: #818cf8;
-        --visibloc-accent-strong: #c7d2fe;
-        --visibloc-focus-ring: 0 0 0 3px rgba(129, 140, 248, 0.45);
+        --visibloc-accent: var(--wp-admin-theme-color, #72aee6);
+        --visibloc-accent-strong: var(--wp-admin-theme-color-darker-10, #4f94d4);
+        --visibloc-focus-ring: 0 0 0 3px rgba(114, 174, 230, 0.45);
     }
 }
 
@@ -63,9 +63,9 @@ body.is-dark-theme .bloc-role-apercu {
     --visibloc-font-family: var(--wp-admin-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
     --visibloc-text-primary: #f8fafc;
     --visibloc-text-subtle: rgba(226, 232, 240, 0.75);
-    --visibloc-accent: #818cf8;
-    --visibloc-accent-strong: #c7d2fe;
-    --visibloc-focus-ring: 0 0 0 3px rgba(129, 140, 248, 0.45);
+    --visibloc-accent: var(--wp-admin-theme-color, #72aee6);
+    --visibloc-accent-strong: var(--wp-admin-theme-color-darker-10, #4f94d4);
+    --visibloc-focus-ring: 0 0 0 3px rgba(114, 174, 230, 0.45);
 }
 
 .visibloc-onboarding {
@@ -144,7 +144,7 @@ body.is-dark-theme .bloc-role-apercu {
     display: block;
     height: 100%;
     width: 0;
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    background: var(--wp-admin-theme-color, #2271b1);
     border-radius: inherit;
     transition: width 0.4s ease;
 }
@@ -327,8 +327,8 @@ body.is-dark-theme .bloc-role-apercu {
 }
 
 .visibloc-help-groups__tab.nav-tab:focus {
-    outline: 2px solid transparent;
-    box-shadow: var(--visibloc-focus-ring);
+    outline: 1px solid #3582c4;
+    box-shadow: none;
 }
 
 .visibloc-help-groups__panels {
@@ -892,7 +892,7 @@ body.is-dark-theme .visibloc-status-badge__icon {
 
 .visibloc-recipe-card:hover {
     transform: translateY(-2px);
-    border-color: rgba(79, 70, 229, 0.35);
+    border-color: rgba(34, 113, 177, 0.35);
     box-shadow: var(--visibloc-shadow-elevated);
 }
 
@@ -906,7 +906,7 @@ body.is-dark-theme .visibloc-status-badge__icon {
     align-self: flex-start;
     padding: 4px 10px;
     border-radius: var(--visibloc-radius-pill);
-    background: rgba(79, 70, 229, 0.12);
+    background: rgba(34, 113, 177, 0.12);
     color: var(--visibloc-accent-strong);
     font-size: 12px;
     font-weight: 600;
@@ -939,7 +939,7 @@ body.is-dark-theme .visibloc-status-badge__icon {
 .visibloc-recipe-card__blocks li {
     padding: 6px 10px;
     border-radius: 999px;
-    background: rgba(79, 70, 229, 0.1);
+    background: rgba(34, 113, 177, 0.1);
     color: var(--visibloc-accent-strong);
     font-size: 12px;
     font-weight: 600;
@@ -1071,7 +1071,7 @@ body.is-dark-theme .visibloc-status-badge__icon {
 
 .visibloc-guided-recipes__dialog-close:hover,
 .visibloc-guided-recipes__dialog-close:focus-visible {
-    background: rgba(79, 70, 229, 0.12);
+    background: rgba(34, 113, 177, 0.12);
     color: var(--visibloc-accent-strong);
     outline: none;
     box-shadow: var(--visibloc-focus-ring);
@@ -1141,22 +1141,22 @@ body.is-dark-theme .visibloc-status-badge__icon {
     height: 12px;
     border-radius: 999px;
     overflow: hidden;
-    background: rgba(79, 70, 229, 0.15);
+    background: rgba(34, 113, 177, 0.15);
     border: none;
 }
 
 .visibloc-guided-recipes__progress::-webkit-progress-bar {
-    background: rgba(79, 70, 229, 0.15);
+    background: rgba(34, 113, 177, 0.15);
     border-radius: 999px;
 }
 
 .visibloc-guided-recipes__progress::-webkit-progress-value {
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    background: var(--wp-admin-theme-color, #2271b1);
     border-radius: 999px;
 }
 
 .visibloc-guided-recipes__progress::-moz-progress-bar {
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    background: var(--wp-admin-theme-color, #2271b1);
     border-radius: 999px;
 }
 
@@ -1194,9 +1194,9 @@ body.is-dark-theme .visibloc-status-badge__icon {
 
 .visibloc-guided-recipes__stepper-tab[aria-selected="true"] {
     border-color: var(--visibloc-accent);
-    background: rgba(79, 70, 229, 0.15);
+    background: rgba(34, 113, 177, 0.15);
     color: var(--visibloc-accent-strong);
-    box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.15);
+    box-shadow: 0 0 0 1px rgba(34, 113, 177, 0.15);
 }
 
 .visibloc-guided-recipes__stepper-tab:focus-visible {
@@ -1239,7 +1239,7 @@ body.is-dark-theme .visibloc-status-badge__icon {
 .visibloc-recipe-step__notes {
     padding: 12px 14px;
     border-left: 4px solid var(--visibloc-accent);
-    background: rgba(79, 70, 229, 0.08);
+    background: rgba(34, 113, 177, 0.08);
     border-radius: 10px;
     display: grid;
     gap: 6px;
@@ -1472,7 +1472,7 @@ body.visibloc-recipes-modal-open {
 }
 
 .visibloc-insights-badge--preview {
-    background: rgba(79, 70, 229, 0.18);
+    background: rgba(34, 113, 177, 0.18);
     color: var(--visibloc-accent);
 }
 
@@ -1639,7 +1639,7 @@ body.visibloc-recipes-modal-open {
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    background: rgba(79, 70, 229, 0.12);
+    background: rgba(34, 113, 177, 0.12);
     color: var(--visibloc-accent-strong);
 }
 

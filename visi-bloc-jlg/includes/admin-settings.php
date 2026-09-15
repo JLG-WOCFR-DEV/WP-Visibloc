@@ -876,9 +876,77 @@ function visibloc_jlg_get_onboarding_mode() {
 }
 
 function visibloc_jlg_update_onboarding_mode( $mode ) {
-    $normalized = 'expert' === strtolower( (string) $mode ) ? 'expert' : 'simple';
+    $normalized = visibloc_jlg_sanitize_onboarding_mode( $mode );
 
     update_option( 'visibloc_onboarding_mode', $normalized );
+}
+
+/**
+ * Sanitize the onboarding mode option.
+ *
+ * @param mixed $mode Raw mode.
+ * @return string
+ */
+function visibloc_jlg_sanitize_onboarding_mode( $mode ) {
+    return 'expert' === strtolower( (string) $mode ) ? 'expert' : 'simple';
+}
+
+/**
+ * Sanitize preview roles, always keeping administrators.
+ *
+ * @param mixed $roles Raw roles.
+ * @return string[]
+ */
+function visibloc_jlg_sanitize_preview_roles( $roles ) {
+    if ( ! is_array( $roles ) ) {
+        $roles = [];
+    }
+
+    $sanitized = [];
+
+    foreach ( $roles as $role ) {
+        $role = sanitize_key( (string) $role );
+
+        if ( '' !== $role ) {
+            $sanitized[] = $role;
+        }
+    }
+
+    $sanitized = array_values( array_unique( $sanitized ) );
+
+    if ( ! in_array( 'administrator', $sanitized, true ) ) {
+        $sanitized[] = 'administrator';
+    }
+
+    return $sanitized;
+}
+
+/**
+ * Sanitize the debug mode option.
+ *
+ * @param mixed $value Raw value.
+ * @return string
+ */
+function visibloc_jlg_sanitize_debug_mode( $value ) {
+    if ( is_bool( $value ) ) {
+        return $value ? 'on' : 'off';
+    }
+
+    $value = is_string( $value ) ? strtolower( $value ) : '';
+
+    return in_array( $value, [ 'on', '1', 'true' ], true ) ? 'on' : 'off';
+}
+
+/**
+ * Sanitize a positive integer breakpoint.
+ *
+ * @param mixed $value Raw value.
+ * @return int
+ */
+function visibloc_jlg_sanitize_positive_int( $value ) {
+    $value = absint( $value );
+
+    return $value > 0 ? $value : 1;
 }
 
 function visibloc_jlg_sanitize_onboarding_text( $value ) {
@@ -2170,11 +2238,11 @@ function visibloc_jlg_render_help_page_content() {
     <div class="wrap visibloc-jlg">
         <h1><?php esc_html_e( 'Visi-Bloc - JLG - Aide et Réglages', 'visi-bloc-jlg' ); ?></h1>
         <?php if ( 'updated' === $status ) : ?>
-            <div id="message" class="updated notice is-dismissible"><p><?php esc_html_e( 'Réglages mis à jour.', 'visi-bloc-jlg' ); ?></p></div>
+            <div id="message" class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Réglages mis à jour.', 'visi-bloc-jlg' ); ?></p></div>
         <?php elseif ( 'invalid_breakpoints' === $status ) : ?>
             <div id="message" class="notice notice-error is-dismissible"><p><?php echo esc_html( $breakpoints_requirement_message ); ?> <?php esc_html_e( 'Les réglages n’ont pas été enregistrés.', 'visi-bloc-jlg' ); ?></p></div>
         <?php elseif ( 'settings_imported' === $status ) : ?>
-            <div id="message" class="updated notice is-dismissible"><p><?php esc_html_e( 'Les réglages ont été importés avec succès.', 'visi-bloc-jlg' ); ?></p></div>
+            <div id="message" class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Les réglages ont été importés avec succès.', 'visi-bloc-jlg' ); ?></p></div>
         <?php elseif ( 'settings_import_failed' === $status ) : ?>
             <?php
             $error_code     = visibloc_jlg_get_sanitized_query_arg( 'error_code' );

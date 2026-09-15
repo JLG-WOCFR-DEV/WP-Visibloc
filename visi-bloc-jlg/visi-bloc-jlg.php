@@ -2,7 +2,10 @@
 /**
  * Plugin Name:       Visi-Bloc - JLG
  * Description:       Ajoute des options avancées pour cacher/afficher des blocs sur le site public.
- * Version:           1.1
+ * Version:           1.1.1
+ * Requires at least: 5.8
+ * Tested up to:      7.1
+ * Requires PHP:      7.4
  * Author:            Jérôme Le Gousse
  * Text Domain:       visi-bloc-jlg
  * Domain Path:       /languages

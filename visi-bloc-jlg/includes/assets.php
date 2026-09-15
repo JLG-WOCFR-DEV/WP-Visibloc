@@ -599,12 +599,19 @@ function visibloc_jlg_enqueue_admin_styles( $hook_suffix ) {
 
     visibloc_jlg_register_visual_preset_styles();
 
-    $style_version    = visibloc_jlg_get_plugin_version();
+    $style_version = visibloc_jlg_get_plugin_version();
+
+    wp_enqueue_style(
+        'visibloc-jlg-admin-styles',
+        visibloc_jlg_get_asset_url( 'admin-styles.css' ),
+        [],
+        $style_version
+    );
 
     wp_enqueue_style(
         'visibloc-jlg-admin-responsive',
         visibloc_jlg_get_asset_url( 'assets/admin-responsive.css' ),
-        [],
+        [ 'visibloc-jlg-admin-styles' ],
         $style_version
     );
 }
@@ -670,6 +677,36 @@ function visibloc_jlg_enqueue_admin_recipes_script( $hook_suffix ) {
     }
 }
 
+/**
+ * Load editor canvas CSS inside the iframed block editor (WordPress 6.3+ / 7.1).
+ *
+ * `enqueue_block_editor_assets` prints into the parent editor frame, so block
+ * badges and outlines would be missing. `enqueue_block_assets` is copied into
+ * the iframe and must stay admin-only.
+ */
+add_action( 'enqueue_block_assets', 'visibloc_jlg_enqueue_editor_canvas_assets' );
+function visibloc_jlg_enqueue_editor_canvas_assets() {
+    if ( ! function_exists( 'is_admin' ) || ! is_admin() ) {
+        return;
+    }
+
+    $asset_file_path = visibloc_jlg_get_asset_path( 'build/index.asset.php' );
+
+    if ( ! file_exists( $asset_file_path ) ) {
+        return;
+    }
+
+    $asset_file = include $asset_file_path;
+    $version    = isset( $asset_file['version'] ) ? $asset_file['version'] : visibloc_jlg_get_plugin_version();
+
+    wp_enqueue_style(
+        'visibloc-jlg-editor-canvas',
+        visibloc_jlg_get_asset_url( 'build/index.css' ),
+        [],
+        $version
+    );
+}
+
 add_action( 'enqueue_block_editor_assets', 'visibloc_jlg_enqueue_editor_assets' );
 function visibloc_jlg_enqueue_editor_assets() {
     $asset_file_path = visibloc_jlg_get_asset_path( 'build/index.asset.php' );
@@ -704,6 +741,32 @@ function visibloc_jlg_enqueue_editor_assets() {
     if ( ! in_array( 'visibloc-jlg-passive-touch-listeners', $dependencies, true ) ) {
         $dependencies[] = 'visibloc-jlg-passive-touch-listeners';
     }
+
+    $iframe_sync_relative_path = 'assets/editor-iframe-sync.js';
+    $iframe_sync_version       = visibloc_jlg_get_asset_version(
+        $iframe_sync_relative_path,
+        $default_script_version
+    );
+
+    wp_register_script(
+        'visibloc-jlg-editor-iframe-sync',
+        visibloc_jlg_get_asset_url( $iframe_sync_relative_path ),
+        [],
+        $iframe_sync_version,
+        true
+    );
+
+    if ( ! in_array( 'visibloc-jlg-editor-iframe-sync', $dependencies, true ) ) {
+        $dependencies[] = 'visibloc-jlg-editor-iframe-sync';
+    }
+
+    wp_enqueue_script(
+        'visibloc-jlg-editor-iframe-sync',
+        visibloc_jlg_get_asset_url( $iframe_sync_relative_path ),
+        [],
+        $iframe_sync_version,
+        true
+    );
 
     wp_enqueue_script(
         'visibloc-jlg-editor-script',

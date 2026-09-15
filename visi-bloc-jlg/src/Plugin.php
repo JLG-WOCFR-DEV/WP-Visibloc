@@ -93,7 +93,7 @@ class Plugin {
         require_once $this->plugin_dir . '/includes/block-utils.php';
         require_once $this->plugin_dir . '/includes/admin-settings.php';
 
-        add_action( 'init', [ $this, 'register_supported_blocks_setting' ] );
+        add_action( 'init', [ $this, 'register_plugin_settings' ] );
     }
 
     /**
@@ -149,6 +149,84 @@ class Plugin {
                 dirname( $this->plugin_basename ) . '/languages'
             );
         }
+    }
+
+    /**
+     * Register plugin options with the Settings API.
+     *
+     * Custom admin-post / admin_init handlers keep scoped saves; registration
+     * exposes sanitization and option whitelist to WordPress.
+     */
+    public function register_plugin_settings() {
+        if ( ! function_exists( 'register_setting' ) ) {
+            return;
+        }
+
+        $this->register_supported_blocks_setting();
+
+        register_setting(
+            'visibloc',
+            'visibloc_preview_roles',
+            [
+                'type'              => 'array',
+                'sanitize_callback' => 'visibloc_jlg_sanitize_preview_roles',
+                'default'           => [ 'administrator' ],
+            ]
+        );
+
+        register_setting(
+            'visibloc',
+            'visibloc_breakpoint_mobile',
+            [
+                'type'              => 'integer',
+                'sanitize_callback' => 'visibloc_jlg_sanitize_positive_int',
+                'default'           => 781,
+            ]
+        );
+
+        register_setting(
+            'visibloc',
+            'visibloc_breakpoint_tablet',
+            [
+                'type'              => 'integer',
+                'sanitize_callback' => 'visibloc_jlg_sanitize_positive_int',
+                'default'           => 1024,
+            ]
+        );
+
+        register_setting(
+            'visibloc',
+            'visibloc_fallback_settings',
+            [
+                'type'              => 'array',
+                'sanitize_callback' => 'visibloc_jlg_normalize_fallback_settings',
+                'default'           => [
+                    'mode'     => 'none',
+                    'text'     => '',
+                    'block_id' => 0,
+                ],
+            ]
+        );
+
+        register_setting(
+            'visibloc',
+            'visibloc_debug_mode',
+            [
+                'type'              => 'string',
+                'sanitize_callback' => 'visibloc_jlg_sanitize_debug_mode',
+                'default'           => 'off',
+            ]
+        );
+
+        register_setting(
+            'visibloc',
+            'visibloc_onboarding_mode',
+            [
+                'type'              => 'string',
+                'sanitize_callback' => 'visibloc_jlg_sanitize_onboarding_mode',
+                'default'           => 'simple',
+            ]
+        );
     }
 
     /**
