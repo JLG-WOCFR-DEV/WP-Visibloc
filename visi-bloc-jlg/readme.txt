@@ -21,3 +21,6 @@ Visi-Bloc – JLG ajoute des options avancées pour afficher ou masquer des bloc
 * Charge le CSS d’éditeur dans l’iframe Gutenberg (WordPress 7.1).
 * Synchronise les classes d’accessibilité (haute visibilité, badges compacts) vers le document canvas.
 * Aligne l’admin sur la charte wp-admin (accent thème WP, notices natives).
+* Échappe les `%` Gutenberg des recettes guidées pour PHP 8.2 (`sprintf`).
+* Enregistre la page CRM après le menu parent (`admin.php?page=visi-bloc-jlg-crm`).
+* Injecte et clone le CSS visibloc dans l’iframe éditeur 7.1.

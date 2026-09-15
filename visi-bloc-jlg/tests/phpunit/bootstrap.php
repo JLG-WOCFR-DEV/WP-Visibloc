@@ -152,8 +152,20 @@ if ( ! function_exists( 'admin_url' ) ) {
 
 visibloc_test_reset_request_environment();
 
+if ( ! defined( 'MINUTE_IN_SECONDS' ) ) {
+    define( 'MINUTE_IN_SECONDS', 60 );
+}
+
 if ( ! defined( 'HOUR_IN_SECONDS' ) ) {
     define( 'HOUR_IN_SECONDS', 3600 );
+}
+
+if ( ! defined( 'DAY_IN_SECONDS' ) ) {
+    define( 'DAY_IN_SECONDS', 86400 );
+}
+
+if ( ! defined( 'WEEK_IN_SECONDS' ) ) {
+    define( 'WEEK_IN_SECONDS', 604800 );
 }
 
 $GLOBALS['visibloc_test_state'] = [
@@ -210,6 +222,7 @@ function visibloc_test_reset_state() {
     $GLOBALS['visibloc_test_state']['nocache_headers_called'] = false;
 
     visibloc_test_reset_request_environment();
+    visibloc_test_reset_menus();
 
     if ( function_exists( 'visibloc_jlg_get_fallback_settings' ) ) {
         visibloc_jlg_get_fallback_settings( true );
@@ -244,6 +257,14 @@ function visibloc_test_reset_assets() {
     $GLOBALS['visibloc_test_scripts']             = [];
     $GLOBALS['visibloc_test_registered_settings'] = [];
 }
+
+function visibloc_test_reset_menus() {
+    $GLOBALS['submenu']                = [];
+    $GLOBALS['visibloc_test_menu']     = [];
+    $GLOBALS['visibloc_test_submenu']  = [];
+}
+
+visibloc_test_reset_menus();
 
 function visibloc_test_mark_style( $handle, $src = '', $deps = [], $ver = false, $enqueued = false ) {
     if ( ! isset( $GLOBALS['visibloc_test_styles'] ) || ! is_array( $GLOBALS['visibloc_test_styles'] ) ) {
@@ -564,7 +585,70 @@ function visibloc_test_get_timezone_offset( $timestamp ) {
 }
 
 function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
-    // No-op for tests.
+    if ( ! isset( $GLOBALS['visibloc_test_actions'] ) || ! is_array( $GLOBALS['visibloc_test_actions'] ) ) {
+        $GLOBALS['visibloc_test_actions'] = [];
+    }
+
+    $GLOBALS['visibloc_test_actions'][] = [
+        'hook'     => $hook,
+        'callback' => $callback,
+        'priority' => is_numeric( $priority ) ? (int) $priority : 10,
+    ];
+}
+
+if ( ! function_exists( 'add_menu_page' ) ) {
+    function add_menu_page( $page_title, $menu_title, $capability, $menu_slug, $callback = '', $icon_url = '', $position = null ) {
+        if ( ! isset( $GLOBALS['visibloc_test_menu'] ) || ! is_array( $GLOBALS['visibloc_test_menu'] ) ) {
+            $GLOBALS['visibloc_test_menu'] = [];
+        }
+
+        $GLOBALS['visibloc_test_menu'][ $menu_slug ] = [
+            'page_title' => $page_title,
+            'menu_title' => $menu_title,
+            'capability' => $capability,
+            'menu_slug'  => $menu_slug,
+            'callback'   => $callback,
+        ];
+
+        return $menu_slug;
+    }
+}
+
+if ( ! function_exists( 'add_submenu_page' ) ) {
+    function add_submenu_page( $parent_slug, $page_title, $menu_title, $capability, $menu_slug, $callback = '', $position = null ) {
+        if ( ! isset( $GLOBALS['submenu'] ) || ! is_array( $GLOBALS['submenu'] ) ) {
+            $GLOBALS['submenu'] = [];
+        }
+
+        if ( ! isset( $GLOBALS['submenu'][ $parent_slug ] ) || ! is_array( $GLOBALS['submenu'][ $parent_slug ] ) ) {
+            $GLOBALS['submenu'][ $parent_slug ] = [];
+        }
+
+        $GLOBALS['submenu'][ $parent_slug ][] = [
+            $menu_title,
+            $capability,
+            $menu_slug,
+            $page_title,
+        ];
+
+        if ( ! isset( $GLOBALS['visibloc_test_submenu'] ) || ! is_array( $GLOBALS['visibloc_test_submenu'] ) ) {
+            $GLOBALS['visibloc_test_submenu'] = [];
+        }
+
+        if ( ! isset( $GLOBALS['visibloc_test_submenu'][ $parent_slug ] ) ) {
+            $GLOBALS['visibloc_test_submenu'][ $parent_slug ] = [];
+        }
+
+        $GLOBALS['visibloc_test_submenu'][ $parent_slug ][] = [
+            'parent'     => $parent_slug,
+            'capability' => $capability,
+            'slug'       => $menu_slug,
+            'callback'   => $callback,
+            'href'       => admin_url( 'admin.php?page=' . $menu_slug ),
+        ];
+
+        return $parent_slug . '_page_' . $menu_slug;
+    }
 }
 
 $GLOBALS['visibloc_test_filters'] = [];
@@ -1282,6 +1366,170 @@ function esc_attr__( $text ) {
 
 function esc_attr( $text ) {
     return $text;
+}
+
+if ( ! function_exists( 'esc_html' ) ) {
+    function esc_html( $text ) {
+        return $text;
+    }
+}
+
+if ( ! function_exists( 'esc_html__' ) ) {
+    function esc_html__( $text ) {
+        return $text;
+    }
+}
+
+if ( ! function_exists( 'esc_html_e' ) ) {
+    function esc_html_e( $text ) {
+        echo $text;
+    }
+}
+
+if ( ! function_exists( 'esc_textarea' ) ) {
+    function esc_textarea( $text ) {
+        return htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8' );
+    }
+}
+
+if ( ! function_exists( 'esc_attr_e' ) ) {
+    function esc_attr_e( $text ) {
+        echo $text;
+    }
+}
+
+if ( ! function_exists( 'esc_url' ) ) {
+    function esc_url( $url ) {
+        return $url;
+    }
+}
+
+if ( ! function_exists( '_n' ) ) {
+    function _n( $single, $plural, $number ) {
+        return 1 === (int) $number ? $single : $plural;
+    }
+}
+
+if ( ! function_exists( 'sanitize_html_class' ) ) {
+    function sanitize_html_class( $class ) {
+        return preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $class );
+    }
+}
+
+if ( ! function_exists( 'sanitize_text_field' ) ) {
+    function sanitize_text_field( $str ) {
+        return is_string( $str ) ? trim( strip_tags( $str ) ) : '';
+    }
+}
+
+if ( ! function_exists( 'sanitize_textarea_field' ) ) {
+    function sanitize_textarea_field( $str ) {
+        return sanitize_text_field( $str );
+    }
+}
+
+if ( ! function_exists( 'selected' ) ) {
+    function selected( $selected, $current = true, $echo = true ) {
+        $result = ( (string) $selected === (string) $current ) ? ' selected="selected"' : '';
+
+        if ( $echo ) {
+            echo $result;
+        }
+
+        return $result;
+    }
+}
+
+if ( ! function_exists( 'checked' ) ) {
+    function checked( $checked, $current = true, $echo = true ) {
+        $result = ( (string) $checked === (string) $current ) ? ' checked="checked"' : '';
+
+        if ( $echo ) {
+            echo $result;
+        }
+
+        return $result;
+    }
+}
+
+if ( ! function_exists( 'wp_nonce_field' ) ) {
+    function wp_nonce_field( $action = -1, $name = '_wpnonce', $referer = true, $echo = true ) {
+        $field = '<input type="hidden" name="' . esc_attr( $name ) . '" value="nonce-' . esc_attr( (string) $action ) . '" />';
+
+        if ( $echo ) {
+            echo $field;
+        }
+
+        return $field;
+    }
+}
+
+if ( ! function_exists( 'submit_button' ) ) {
+    function submit_button( $text = null, $type = 'primary', $name = 'submit', $wrap = true, $other_attributes = null ) {
+        $class = 'primary' === $type ? 'button-primary' : 'button-' . $type;
+        $html  = '<input type="submit" name="' . esc_attr( $name ) . '" class="button ' . esc_attr( $class ) . '" value="' . esc_attr( $text ? $text : 'Save' ) . '" />';
+
+        if ( $wrap ) {
+            $html = '<p class="submit">' . $html . '</p>';
+        }
+
+        echo $html;
+    }
+}
+
+if ( ! function_exists( 'disabled' ) ) {
+    function disabled( $disabled, $current = true, $echo = true ) {
+        $result = ( (string) $disabled === (string) $current ) ? ' disabled="disabled"' : '';
+
+        if ( $echo ) {
+            echo $result;
+        }
+
+        return $result;
+    }
+}
+
+if ( ! function_exists( 'date_i18n' ) ) {
+    function date_i18n( $format, $timestamp = false, $gmt = false ) {
+        $timestamp = false === $timestamp ? time() : (int) $timestamp;
+
+        return date( $format, $timestamp );
+    }
+}
+
+if ( ! function_exists( 'human_time_diff' ) ) {
+    function human_time_diff( $from, $to = 0 ) {
+        $to   = $to ? (int) $to : time();
+        $diff = abs( $to - (int) $from );
+
+        if ( $diff < MINUTE_IN_SECONDS ) {
+            return $diff . ' seconds';
+        }
+
+        return (string) round( $diff / MINUTE_IN_SECONDS ) . ' minutes';
+    }
+}
+
+if ( ! function_exists( 'number_format_i18n' ) ) {
+    function number_format_i18n( $number, $decimals = 0 ) {
+        return number_format( (float) $number, (int) $decimals );
+    }
+}
+
+if ( ! function_exists( 'visibloc_jlg_get_sanitized_query_arg' ) ) {
+    function visibloc_jlg_get_sanitized_query_arg( $key ) {
+        if ( ! isset( $_GET[ $key ] ) ) {
+            return '';
+        }
+
+        $value = $_GET[ $key ];
+
+        if ( ! is_string( $value ) ) {
+            return '';
+        }
+
+        return sanitize_key( wp_unslash( $value ) );
+    }
 }
 
 if ( ! class_exists( 'WP_Error' ) ) {

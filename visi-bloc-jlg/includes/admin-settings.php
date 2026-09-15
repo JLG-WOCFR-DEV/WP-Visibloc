@@ -1175,8 +1175,8 @@ function visibloc_jlg_get_recipe_template_markup( $slug ) {
         case 'b2b-lead-nurturing':
             return sprintf(
                 '<!-- wp:columns {"align":"wide","style":{"spacing":{"blockGap":{"top":"32px","left":"32px"}}}} -->
-<div class="wp-block-columns alignwide"><!-- wp:column {"width":"60%","style":{"spacing":{"blockGap":"20px"},"border":{"radius":"16px"},"color":{"background":"#f1f5f9"},"padding":{"top":"32px","right":"32px","bottom":"32px","left":"32px"}}} -->
-<div class="wp-block-column" style="flex-basis:60%;background-color:#f1f5f9;border-radius:16px;padding-top:32px;padding-right:32px;padding-bottom:32px;padding-left:32px"><!-- wp:heading {"fontSize":"x-large"} -->
+<div class="wp-block-columns alignwide"><!-- wp:column {"width":"60%%","style":{"spacing":{"blockGap":"20px"},"border":{"radius":"16px"},"color":{"background":"#f1f5f9"},"padding":{"top":"32px","right":"32px","bottom":"32px","left":"32px"}}} -->
+<div class="wp-block-column" style="flex-basis:60%%;background-color:#f1f5f9;border-radius:16px;padding-top:32px;padding-right:32px;padding-bottom:32px;padding-left:32px"><!-- wp:heading {"fontSize":"x-large"} -->
 <h2 class="has-x-large-font-size">%1$s</h2>
 <!-- /wp:heading -->
 
@@ -1199,8 +1199,8 @@ function visibloc_jlg_get_recipe_template_markup( $slug ) {
 <!-- /wp:buttons --></div>
 <!-- /wp:column -->
 
-<!-- wp:column {"width":"40%","style":{"spacing":{"blockGap":"20px"}}} -->
-<div class="wp-block-column" style="flex-basis:40%"><!-- wp:group {"style":{"spacing":{"blockGap":"12px"},"border":{"radius":"16px"},"color":{"background":"#0f172a","text":"#f8fafc"},"padding":{"top":"24px","right":"24px","bottom":"24px","left":"24px"}}} -->
+<!-- wp:column {"width":"40%%","style":{"spacing":{"blockGap":"20px"}}} -->
+<div class="wp-block-column" style="flex-basis:40%%"><!-- wp:group {"style":{"spacing":{"blockGap":"12px"},"border":{"radius":"16px"},"color":{"background":"#0f172a","text":"#f8fafc"},"padding":{"top":"24px","right":"24px","bottom":"24px","left":"24px"}}} -->
 <div class="wp-block-group has-text-color has-background" style="color:#f8fafc;background-color:#0f172a;border-radius:16px;padding-top:24px;padding-right:24px;padding-bottom:24px;padding-left:24px"><!-- wp:heading {"level":3} -->
 <h3>%8$s</h3>
 <!-- /wp:heading -->
@@ -2004,6 +2004,10 @@ function visibloc_jlg_add_admin_menu() {
         'dashicons-visibility',
         25
     );
+
+    if ( function_exists( 'visibloc_jlg_register_crm_settings_page' ) ) {
+        visibloc_jlg_register_crm_settings_page();
+    }
 }
 
 function visibloc_jlg_render_help_page_content() {
