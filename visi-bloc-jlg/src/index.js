@@ -66,6 +66,72 @@ const HAS_TOGGLE_GROUP_SUPPORT =
     Boolean( ToggleGroupControl ) && Boolean( ToggleGroupOption );
 const HAS_FORM_TOKEN_FIELD_SUPPORT = typeof FormTokenField === 'function';
 
+function getEditorCanvasIframe() {
+    if (typeof document === 'undefined' || typeof document.querySelector !== 'function') {
+        return null;
+    }
+
+    return (
+        document.querySelector('iframe[name="editor-canvas"]') ||
+        document.querySelector('iframe.editor-canvas__iframe')
+    );
+}
+
+function getEditorDocuments() {
+    const documents = [];
+
+    if (typeof document !== 'undefined') {
+        documents.push(document);
+    }
+
+    try {
+        const iframe = getEditorCanvasIframe();
+        const canvasDocument = iframe && iframe.contentDocument;
+
+        if (canvasDocument && canvasDocument !== document) {
+            documents.push(canvasDocument);
+        }
+    } catch (error) {
+        // The canvas iframe may not be ready yet.
+    }
+
+    return documents;
+}
+
+function toggleEditorBodyClass(className, enabled) {
+    getEditorDocuments().forEach((doc) => {
+        if (doc && doc.body && doc.body.classList) {
+            doc.body.classList.toggle(className, Boolean(enabled));
+        }
+    });
+}
+
+function removeEditorBodyClass(className) {
+    getEditorDocuments().forEach((doc) => {
+        if (doc && doc.body && doc.body.classList) {
+            doc.body.classList.remove(className);
+        }
+    });
+}
+
+function subscribeEditorCanvasDocuments(onChange) {
+    if (typeof document === 'undefined') {
+        return () => {};
+    }
+
+    const iframe = getEditorCanvasIframe();
+
+    if (!iframe) {
+        return () => {};
+    }
+
+    iframe.addEventListener('load', onChange);
+
+    return () => {
+        iframe.removeEventListener('load', onChange);
+    };
+}
+
 const DeviceOrientationPortraitIcon = () => (
     <svg
         width="24"
@@ -3705,17 +3771,22 @@ const withVisibilityControls = createHigherOrderComponent((BlockEdit) => {
                 }
             }
 
-            if (typeof document === 'undefined' || !document.body) {
-                return undefined;
-            }
+            const applyHighVisibilityClass = () => {
+                toggleEditorBodyClass(
+                    'visibloc-high-visibility',
+                    Boolean(isHighVisibilityEnabled),
+                );
+            };
 
-            document.body.classList.toggle(
-                'visibloc-high-visibility',
-                Boolean(isHighVisibilityEnabled),
-            );
+            applyHighVisibilityClass();
+            const unsubscribeCanvas = subscribeEditorCanvasDocuments(applyHighVisibilityClass);
 
             return () => {
-                document.body.classList.remove('visibloc-high-visibility');
+                if (typeof unsubscribeCanvas === 'function') {
+                    unsubscribeCanvas();
+                }
+
+                removeEditorBodyClass('visibloc-high-visibility');
             };
         }, [isHighVisibilityEnabled]);
         const fallbackBlockLabel = useMemo(() => {
@@ -6343,14 +6414,8 @@ function toggleCompactBadgeMode(shouldEnable) {
         return;
     }
 
-    if (typeof document === 'undefined' || !document.body) {
-        compactBadgeModeEnabled = shouldEnable;
-
-        return;
-    }
-
     compactBadgeModeEnabled = shouldEnable;
-    document.body.classList.toggle('visibloc-compact-badges', shouldEnable);
+    toggleEditorBodyClass('visibloc-compact-badges', shouldEnable);
 }
 
 function disconnectListViewDensityObserver() {

@@ -27,8 +27,16 @@ function visibloc_jlg_format_crm_datetime( $timestamp ) {
 
 /**
  * Register the CRM integrations submenu inside the existing help menu.
+ *
+ * Must run after the parent `visi-bloc-jlg-help` menu exists so WordPress
+ * records a stable hook name and builds `admin.php?page=` hrefs. Registering
+ * first produces a relative `/wp-admin/visi-bloc-jlg-crm` URL and a 403.
  */
 function visibloc_jlg_register_crm_settings_page() {
+    if ( visibloc_jlg_is_crm_submenu_registered() ) {
+        return;
+    }
+
     add_submenu_page(
         'visi-bloc-jlg-help',
         __( 'Intégrations CRM', 'visi-bloc-jlg' ),
@@ -38,7 +46,28 @@ function visibloc_jlg_register_crm_settings_page() {
         'visibloc_jlg_render_crm_settings_page'
     );
 }
-add_action( 'admin_menu', 'visibloc_jlg_register_crm_settings_page' );
+add_action( 'admin_menu', 'visibloc_jlg_register_crm_settings_page', 11 );
+
+/**
+ * Whether the CRM submenu slug is already attached to the help parent.
+ *
+ * @return bool
+ */
+function visibloc_jlg_is_crm_submenu_registered() {
+    global $submenu;
+
+    if ( ! isset( $submenu['visi-bloc-jlg-help'] ) || ! is_array( $submenu['visi-bloc-jlg-help'] ) ) {
+        return false;
+    }
+
+    foreach ( $submenu['visi-bloc-jlg-help'] as $item ) {
+        if ( isset( $item[2] ) && 'visi-bloc-jlg-crm' === $item[2] ) {
+            return true;
+        }
+    }
+
+    return false;
+}
 
 /**
  * Handle the CRM settings form submission.

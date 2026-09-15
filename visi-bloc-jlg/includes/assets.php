@@ -599,12 +599,19 @@ function visibloc_jlg_enqueue_admin_styles( $hook_suffix ) {
 
     visibloc_jlg_register_visual_preset_styles();
 
-    $style_version    = visibloc_jlg_get_plugin_version();
+    $style_version = visibloc_jlg_get_plugin_version();
+
+    wp_enqueue_style(
+        'visibloc-jlg-admin-styles',
+        visibloc_jlg_get_asset_url( 'admin-styles.css' ),
+        [],
+        $style_version
+    );
 
     wp_enqueue_style(
         'visibloc-jlg-admin-responsive',
         visibloc_jlg_get_asset_url( 'assets/admin-responsive.css' ),
-        [],
+        [ 'visibloc-jlg-admin-styles' ],
         $style_version
     );
 }
@@ -670,6 +677,103 @@ function visibloc_jlg_enqueue_admin_recipes_script( $hook_suffix ) {
     }
 }
 
+/**
+ * Load editor canvas CSS inside the iframed block editor (WordPress 6.3+ / 7.1).
+ *
+ * `enqueue_block_editor_assets` prints into the parent editor frame, so block
+ * badges and outlines would be missing. `enqueue_block_assets` is copied into
+ * the iframe and must stay admin-only.
+ */
+add_action( 'enqueue_block_assets', 'visibloc_jlg_enqueue_editor_canvas_assets' );
+function visibloc_jlg_enqueue_editor_canvas_assets() {
+    if ( ! function_exists( 'is_admin' ) || ! is_admin() ) {
+        return;
+    }
+
+    $asset_file_path = visibloc_jlg_get_asset_path( 'build/index.asset.php' );
+
+    if ( ! file_exists( $asset_file_path ) ) {
+        return;
+    }
+
+    $asset_file = include $asset_file_path;
+    $version    = isset( $asset_file['version'] ) ? $asset_file['version'] : visibloc_jlg_get_plugin_version();
+
+    wp_enqueue_style(
+        'visibloc-jlg-editor-canvas',
+        visibloc_jlg_get_asset_url( 'build/index.css' ),
+        [],
+        $version
+    );
+}
+
+/**
+ * Push editor canvas CSS into Gutenberg iframe settings (WordPress 7.1).
+ *
+ * `enqueue_block_assets` is the documented hook, but the always-iframed
+ * editor only paints styles present in `settings.styles` or cloned into the
+ * canvas document. Inline the stylesheet so `.visibloc-*` rules exist inside
+ * the iframe even when the parent `<link>` is not copied.
+ *
+ * @param array $settings Block editor settings.
+ * @return array
+ */
+function visibloc_jlg_inject_editor_canvas_styles( $settings ) {
+    if ( ! is_array( $settings ) ) {
+        $settings = [];
+    }
+
+    $css_path = visibloc_jlg_get_asset_path( 'build/index.css' );
+
+    if ( ! is_readable( $css_path ) ) {
+        return $settings;
+    }
+
+    $css = file_get_contents( $css_path );
+
+    if ( ! is_string( $css ) || '' === $css ) {
+        return $settings;
+    }
+
+    if ( ! isset( $settings['styles'] ) || ! is_array( $settings['styles'] ) ) {
+        $settings['styles'] = [];
+    }
+
+    foreach ( $settings['styles'] as $style ) {
+        if ( is_array( $style ) && isset( $style['css'] ) && is_string( $style['css'] )
+            && false !== strpos( $style['css'], 'visibloc-high-visibility' ) ) {
+            return $settings;
+        }
+    }
+
+    $settings['styles'][] = [
+        'css'            => $css,
+        '__unstableType' => 'plugin',
+        'source'         => 'visi-bloc-jlg',
+    ];
+
+    $handle = 'visibloc-jlg-editor-canvas';
+    $href   = visibloc_jlg_get_asset_url( 'build/index.css' );
+    $link   = sprintf(
+        '<link rel="stylesheet" id="%1$s-css" href="%2$s" media="all" />' . "\n",
+        function_exists( 'esc_attr' ) ? esc_attr( $handle ) : $handle,
+        function_exists( 'esc_url' ) ? esc_url( $href ) : $href
+    );
+
+    if ( isset( $settings['__unstableResolvedAssets'] ) && is_array( $settings['__unstableResolvedAssets'] ) ) {
+        if ( ! isset( $settings['__unstableResolvedAssets']['styles'] ) || ! is_string( $settings['__unstableResolvedAssets']['styles'] ) ) {
+            $settings['__unstableResolvedAssets']['styles'] = '';
+        }
+
+        if ( false === strpos( $settings['__unstableResolvedAssets']['styles'], $handle . '-css' ) ) {
+            $settings['__unstableResolvedAssets']['styles'] .= $link;
+        }
+    }
+
+    return $settings;
+}
+add_filter( 'block_editor_settings_all', 'visibloc_jlg_inject_editor_canvas_styles' );
+
 add_action( 'enqueue_block_editor_assets', 'visibloc_jlg_enqueue_editor_assets' );
 function visibloc_jlg_enqueue_editor_assets() {
     $asset_file_path = visibloc_jlg_get_asset_path( 'build/index.asset.php' );
@@ -704,6 +808,32 @@ function visibloc_jlg_enqueue_editor_assets() {
     if ( ! in_array( 'visibloc-jlg-passive-touch-listeners', $dependencies, true ) ) {
         $dependencies[] = 'visibloc-jlg-passive-touch-listeners';
     }
+
+    $iframe_sync_relative_path = 'assets/editor-iframe-sync.js';
+    $iframe_sync_version       = visibloc_jlg_get_asset_version(
+        $iframe_sync_relative_path,
+        $default_script_version
+    );
+
+    wp_register_script(
+        'visibloc-jlg-editor-iframe-sync',
+        visibloc_jlg_get_asset_url( $iframe_sync_relative_path ),
+        [],
+        $iframe_sync_version,
+        true
+    );
+
+    if ( ! in_array( 'visibloc-jlg-editor-iframe-sync', $dependencies, true ) ) {
+        $dependencies[] = 'visibloc-jlg-editor-iframe-sync';
+    }
+
+    wp_enqueue_script(
+        'visibloc-jlg-editor-iframe-sync',
+        visibloc_jlg_get_asset_url( $iframe_sync_relative_path ),
+        [],
+        $iframe_sync_version,
+        true
+    );
 
     wp_enqueue_script(
         'visibloc-jlg-editor-script',

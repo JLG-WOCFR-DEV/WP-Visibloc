@@ -2,6 +2,8 @@
 
 Visi-Bloc – JLG is a WordPress plugin that adds advanced visibility controls to Gutenberg blocks. It lets administrators show or hide blocks for particular audiences, schedule their display, or preview the site as different user roles.
 
+Requires WordPress 5.8+, PHP 7.4+. Tested up to WordPress 7.1.
+
 ## Fonctionnalités
 
 ### Contrôles de visibilité dans l’éditeur

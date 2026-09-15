@@ -876,9 +876,77 @@ function visibloc_jlg_get_onboarding_mode() {
 }
 
 function visibloc_jlg_update_onboarding_mode( $mode ) {
-    $normalized = 'expert' === strtolower( (string) $mode ) ? 'expert' : 'simple';
+    $normalized = visibloc_jlg_sanitize_onboarding_mode( $mode );
 
     update_option( 'visibloc_onboarding_mode', $normalized );
+}
+
+/**
+ * Sanitize the onboarding mode option.
+ *
+ * @param mixed $mode Raw mode.
+ * @return string
+ */
+function visibloc_jlg_sanitize_onboarding_mode( $mode ) {
+    return 'expert' === strtolower( (string) $mode ) ? 'expert' : 'simple';
+}
+
+/**
+ * Sanitize preview roles, always keeping administrators.
+ *
+ * @param mixed $roles Raw roles.
+ * @return string[]
+ */
+function visibloc_jlg_sanitize_preview_roles( $roles ) {
+    if ( ! is_array( $roles ) ) {
+        $roles = [];
+    }
+
+    $sanitized = [];
+
+    foreach ( $roles as $role ) {
+        $role = sanitize_key( (string) $role );
+
+        if ( '' !== $role ) {
+            $sanitized[] = $role;
+        }
+    }
+
+    $sanitized = array_values( array_unique( $sanitized ) );
+
+    if ( ! in_array( 'administrator', $sanitized, true ) ) {
+        $sanitized[] = 'administrator';
+    }
+
+    return $sanitized;
+}
+
+/**
+ * Sanitize the debug mode option.
+ *
+ * @param mixed $value Raw value.
+ * @return string
+ */
+function visibloc_jlg_sanitize_debug_mode( $value ) {
+    if ( is_bool( $value ) ) {
+        return $value ? 'on' : 'off';
+    }
+
+    $value = is_string( $value ) ? strtolower( $value ) : '';
+
+    return in_array( $value, [ 'on', '1', 'true' ], true ) ? 'on' : 'off';
+}
+
+/**
+ * Sanitize a positive integer breakpoint.
+ *
+ * @param mixed $value Raw value.
+ * @return int
+ */
+function visibloc_jlg_sanitize_positive_int( $value ) {
+    $value = absint( $value );
+
+    return $value > 0 ? $value : 1;
 }
 
 function visibloc_jlg_sanitize_onboarding_text( $value ) {
@@ -1107,8 +1175,8 @@ function visibloc_jlg_get_recipe_template_markup( $slug ) {
         case 'b2b-lead-nurturing':
             return sprintf(
                 '<!-- wp:columns {"align":"wide","style":{"spacing":{"blockGap":{"top":"32px","left":"32px"}}}} -->
-<div class="wp-block-columns alignwide"><!-- wp:column {"width":"60%","style":{"spacing":{"blockGap":"20px"},"border":{"radius":"16px"},"color":{"background":"#f1f5f9"},"padding":{"top":"32px","right":"32px","bottom":"32px","left":"32px"}}} -->
-<div class="wp-block-column" style="flex-basis:60%;background-color:#f1f5f9;border-radius:16px;padding-top:32px;padding-right:32px;padding-bottom:32px;padding-left:32px"><!-- wp:heading {"fontSize":"x-large"} -->
+<div class="wp-block-columns alignwide"><!-- wp:column {"width":"60%%","style":{"spacing":{"blockGap":"20px"},"border":{"radius":"16px"},"color":{"background":"#f1f5f9"},"padding":{"top":"32px","right":"32px","bottom":"32px","left":"32px"}}} -->
+<div class="wp-block-column" style="flex-basis:60%%;background-color:#f1f5f9;border-radius:16px;padding-top:32px;padding-right:32px;padding-bottom:32px;padding-left:32px"><!-- wp:heading {"fontSize":"x-large"} -->
 <h2 class="has-x-large-font-size">%1$s</h2>
 <!-- /wp:heading -->
 
@@ -1131,8 +1199,8 @@ function visibloc_jlg_get_recipe_template_markup( $slug ) {
 <!-- /wp:buttons --></div>
 <!-- /wp:column -->
 
-<!-- wp:column {"width":"40%","style":{"spacing":{"blockGap":"20px"}}} -->
-<div class="wp-block-column" style="flex-basis:40%"><!-- wp:group {"style":{"spacing":{"blockGap":"12px"},"border":{"radius":"16px"},"color":{"background":"#0f172a","text":"#f8fafc"},"padding":{"top":"24px","right":"24px","bottom":"24px","left":"24px"}}} -->
+<!-- wp:column {"width":"40%%","style":{"spacing":{"blockGap":"20px"}}} -->
+<div class="wp-block-column" style="flex-basis:40%%"><!-- wp:group {"style":{"spacing":{"blockGap":"12px"},"border":{"radius":"16px"},"color":{"background":"#0f172a","text":"#f8fafc"},"padding":{"top":"24px","right":"24px","bottom":"24px","left":"24px"}}} -->
 <div class="wp-block-group has-text-color has-background" style="color:#f8fafc;background-color:#0f172a;border-radius:16px;padding-top:24px;padding-right:24px;padding-bottom:24px;padding-left:24px"><!-- wp:heading {"level":3} -->
 <h3>%8$s</h3>
 <!-- /wp:heading -->
@@ -1936,6 +2004,10 @@ function visibloc_jlg_add_admin_menu() {
         'dashicons-visibility',
         25
     );
+
+    if ( function_exists( 'visibloc_jlg_register_crm_settings_page' ) ) {
+        visibloc_jlg_register_crm_settings_page();
+    }
 }
 
 function visibloc_jlg_render_help_page_content() {
@@ -2170,11 +2242,11 @@ function visibloc_jlg_render_help_page_content() {
     <div class="wrap visibloc-jlg">
         <h1><?php esc_html_e( 'Visi-Bloc - JLG - Aide et Réglages', 'visi-bloc-jlg' ); ?></h1>
         <?php if ( 'updated' === $status ) : ?>
-            <div id="message" class="updated notice is-dismissible"><p><?php esc_html_e( 'Réglages mis à jour.', 'visi-bloc-jlg' ); ?></p></div>
+            <div id="message" class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Réglages mis à jour.', 'visi-bloc-jlg' ); ?></p></div>
         <?php elseif ( 'invalid_breakpoints' === $status ) : ?>
             <div id="message" class="notice notice-error is-dismissible"><p><?php echo esc_html( $breakpoints_requirement_message ); ?> <?php esc_html_e( 'Les réglages n’ont pas été enregistrés.', 'visi-bloc-jlg' ); ?></p></div>
         <?php elseif ( 'settings_imported' === $status ) : ?>
-            <div id="message" class="updated notice is-dismissible"><p><?php esc_html_e( 'Les réglages ont été importés avec succès.', 'visi-bloc-jlg' ); ?></p></div>
+            <div id="message" class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Les réglages ont été importés avec succès.', 'visi-bloc-jlg' ); ?></p></div>
         <?php elseif ( 'settings_import_failed' === $status ) : ?>
             <?php
             $error_code     = visibloc_jlg_get_sanitized_query_arg( 'error_code' );
